@@ -84,13 +84,13 @@
        write(*,'(2X,A,2X,A)')    'Structure file name     :',trim(conf)
        write(*,'(2X,A,2X,A)')    'Populations file name   :',trim(outp)
        write(*,*)
-       write(*,'(2X,A,2X,F4.2)') 'Threshold distance      :',thr
-       write(*,'(2X,A,2X,I4)')   'Maximum aggregate size  :',maxagg
-       write(*,'(2X,A,2X,I4)')   'Printing interval       :',nprint
+       write(*,'(2X,A,4X,F4.2)') 'Threshold distance      :',thr
+       write(*,'(2X,A,4X,I4)')   'Maximum aggregate size  :',maxagg
+       write(*,'(2X,A,2X,I6)')   'Printing interval       :',nprint
        if ( debug ) then
-         write(*,'(2X,A)')       'Debug mode              :    ON'
+         write(*,'(2X,A)')       'Debug mode              :      ON'
        else
-         write(*,'(2X,A)')       'Debug mode              :   OFF'
+         write(*,'(2X,A)')       'Debug mode              :     OFF'
        end if
        write(*,*)
 !
@@ -117,47 +117,49 @@
          pop(:) = 0.0d0
 !
          do while ( xtcf%STAT == 0 )
+           if ( mod(xtcf%STEP,nprint) .eq. 0 ) then
 !~          do while ( (xtcf%STAT == 0) .and.                             &
 !~                                         (mod(xtcf%STEP,nprint) .eq. 0) )
 !~            if ( mod(xtcf%STEP,nprint) .eq. 0 ) cycle
 ! Update configurations counter
-           nsteps = nsteps + 1
+             nsteps = nsteps + 1
 !
 ! Building the adjacency matrix for the current snapshot
 !
-           call build_adj(nnode,adj,thr,xtcf%pos,xtcf%NATOMS,sys%nat,  &
-                       (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/),  &
+             call build_adj(nnode,adj,thr,xtcf%pos,xtcf%NATOMS,sys%nat,&
+                         (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/),&
                                                                   debug)
 !
-           if ( debug ) then
-             write(*,*)
-             write(*,*) 'Molecule-based Adjacency matrix'
-             write(*,*) '-------------------------------'
-             write(*,*)
-             do j = 1, nnode
-               write(*,*) (adj(i,j),i=1,nnode)
-             end do
-             write(*,*)
-           end if
+             if ( debug ) then
+               write(*,*)
+               write(*,*) 'Molecule-based Adjacency matrix'
+               write(*,*) '-------------------------------'
+               write(*,*)
+               do j = 1, nnode
+                 write(*,*) (adj(i,j),i=1,nnode)
+               end do
+               write(*,*)
+             end if
 !
 ! Block-diagonalizing the adjacency matrix
 !
-           call blockdiag(nnode,adj,imol,maxagg,nmol,nagg,debug)
+             call blockdiag(nnode,adj,imol,maxagg,nmol,nagg,debug)
 !
 ! Printing population of every aggregate
 !
-           write(uniout,'(I10,20(X,F6.2))') xtcf%STEP,real(nmol(:))/   &
+             write(uniout,'(I10,20(X,F6.2))') xtcf%STEP,real(nmol(:))/   &
                                                                 nagg*100
 !
-           pop(:) = pop(:) + real(nmol(:))/nagg*100
+             pop(:) = pop(:) + real(nmol(:))/nagg*100
 !
 ! Printing summary of the results
 ! 
-           if ( debug ) then
-             write(*,'(X,A,20I3)') 'Total number of entities',nagg
-             write(*,'(X,A,20I3)') 'Aggregates of each type ',nmol
-             write(*,'(X,A,20I3)') 'New basis of molecules  ',imol
-             write(*,*)
+             if ( debug ) then
+               write(*,'(X,A,20I3)') 'Total number of entities',nagg
+               write(*,'(X,A,20I3)') 'Aggregates of each type ',nmol
+               write(*,'(X,A,20I3)') 'New basis of molecules  ',imol
+               write(*,*)
+             end if
            end if
 !
 ! Reading information of the next snapshot
@@ -299,7 +301,7 @@
          write(*,'(4X,2(A))')  code(1:len_trim(code)), ' -h'
          write(*,'(2X,68("="))')
          write(*,*)
-         call exit(0)
+         call print_end()
        end if
 ! Reading command line options
        i = 1
@@ -322,7 +324,8 @@
              call get_command_argument(i,conf,status=io)
              call check_arg(conf,io,arg,cmd)
              i = i + 1
-           case ('-o','-outp','-pop','--pop','--outp','--populations')
+           case ('-o','-p','-outp','-pop','--pop','--outp',            &
+                 '--population','--populations','--output')
              call get_command_argument(i,outp,status=io)
              call check_arg(outp,io,arg,cmd)
              i = i + 1
@@ -347,7 +350,7 @@
              i = i + 1
            case ('-h','-help','--help')
              call print_help()
-             call exit(0)
+             call print_end()
            case default
              write(*,*)
              write(*,'(2X,68("="))')
@@ -363,7 +366,7 @@
              write(*,'(4X,2(A))')  code(1:len_trim(code)), ' -h'
              write(*,'(2X,68("="))')
              write(*,*)
-             call exit(0)
+             call print_end()
          end select
        end do
 !
@@ -376,22 +379,21 @@
 !
        implicit none
 !
+       write(*,'(1X,A)') 'Command-line options'
+       write(*,'(1X,20("-"))')
        write(*,*)
-       write(*,'(2X,68("="))')
-       write(*,'(3X,A)') 'Command-line options:'
-       write(*,*)
-       write(*,'(5X,A)') '-h,--help             Print usage inform'//  &
+       write(*,'(2X,A)') '-h,--help             Print usage inform'//  &
                                                          'tion and exit'
-       write(*,'(5X,A)') '-f,--file             Trajectory file name'
-       write(*,'(5X,A)') '-c,--configuration    Configuration file name'
-       write(*,'(5X,A)') '-n,--nprint           Populations printi'//  &
+       write(*,'(2X,A)') '-f,--file             Trajectory file name'
+       write(*,'(2X,A)') '-c,--configuration    Configuration file name'
+       write(*,'(2X,A)') '-p,--populations      Populations file name'
+       write(*,'(2X,A)') '-n,--nprint           Populations printi'//  &
                                                      'ng steps interval'
-       write(*,'(5X,A)') '-t,--tprint           Populations printi'//  &
-                                                      'ng time interval'
-       write(*,'(5X,A)') '-m,--maxagg           Maximum aggregate size'
-       write(*,'(5X,A)') '-thr,--threshold      Distance threshold'
-       write(*,'(5X,A)') '-v,--debug            Debug mode'
-       write(*,'(2X,68("="))')
+!~        write(*,'(2X,A)') '-t,--tprint           Populations printi'//  &
+!~                                                       'ng time interval'
+       write(*,'(2X,A)') '-m,--maxagg           Maximum aggregate size'
+       write(*,'(2X,A)') '-thr,--threshold      Distance threshold'
+       write(*,'(2X,A)') '-d,--debug            Debug mode'
        write(*,*)
 !
        return
@@ -402,6 +404,7 @@
        subroutine read_gro(conf)
 !
        use datatypes
+       use utils
 !
        implicit none
 !
@@ -427,7 +430,7 @@
          write(*,'(3X,3(A))')   'Input file ',trim(conf),    &
                                 ' not found in the current directory'
          write(*,'(2X,68("="))')
-         call exit(0)
+         call print_end()
        end if
 !
          read(uniinp,'(A)') sys%title
@@ -579,10 +582,10 @@
 !
 ! Local variables
 !
-       logical,allocatable,dimension(:)                      ::  notvis  !  Nodes visited
-       integer,allocatable,dimension(:)                      ::  queue   !  Queue of connected nodes
-       integer,allocatable,dimension(:)                      ::  iagg    !  Aggregates identifier
-       integer,allocatable,dimension(:)                      ::  itag    !  Aggregates size
+       logical,allocatable,dimension(:)              ::  notvis  !  Nodes visited
+       integer,allocatable,dimension(:)              ::  queue   !  Queue of connected nodes
+       integer,allocatable,dimension(:)              ::  iagg    !  Aggregates identifier
+       integer,allocatable,dimension(:)              ::  itag    !  Aggregates size
        integer                                       ::  iqueue  !  Queue index
        integer                                       ::  jqueue  !  Queue index
        integer                                       ::  inode   !  Node index
@@ -593,9 +596,10 @@
        integer                                       ::  ntag    !  Size of the aggregate
        integer                                       ::  intag   !  Size of the aggregate index
        integer                                       ::  i,j,k   !  Indexes
-
-       allocate(notvis(nnode),queue(nnode),iagg(nnode),itag(nnode))
 !
+! Performing Breadth First Search over the target molecules
+!
+       allocate(notvis(nnode),queue(nnode),iagg(nnode),itag(nnode))
 ! Mark all the vertices as not visited
        notvis  = .TRUE.
 ! Initializing the molecules information
@@ -638,19 +642,19 @@
                                                                    inode
              write(*,*)          '====================================='
              write(*,*)
-!~              write(*,'(X,A,20L3)') 'Visited               :',notvis
-!~              write(*,'(X,A,20I3)') 'Queue                 :',queue
+             write(*,'(X,A,20L3)') 'Visited               :',notvis
+             write(*,'(X,A,20I3)') 'Queue                 :',queue
              write(*,*) 'New aggregate found'
              write(*,'(X,A,I3)')   'Number of aggregates  :',nagg
-!~              write(*,'(X,A,20I3)') 'Identifier            :',iagg
+             write(*,'(X,A,20I3)') 'Identifier            :',iagg
              write(*,*)
 !~              write(*,'(X,A,20I3)') 'imol      : ',imol
 !~              write(*,'(X,A,20I3)') 'iagg      : ',iagg
 !~              write(*,'(X,A,20I3)') 'itag      : ',itag
-             write(*,'(X,A,10I3)') 'nmol      : ',nmol
-             write(*,'(X,A,10I3)') 'inmol     : ',inmol
-             write(*,'(X,A,10I3)') 'ntag      : ',ntag
-             write(*,'(X,A,10I3)') 'intag     : ',intag
+!~              write(*,'(X,A,10I3)') 'nmol      : ',nmol
+!~              write(*,'(X,A,10I3)') 'inmol     : ',inmol
+!~              write(*,'(X,A,10I3)') 'ntag      : ',ntag
+!~              write(*,'(X,A,10I3)') 'intag     : ',intag
            end if
 !
 ! Inner loop over the queue elements
@@ -695,21 +699,21 @@
                      write(*,'(4X,A,I4)')   'Adding to the queue e'//  &
                                                           'lement',jnode
                      write(*,*)
-!~                      write(*,'(4X,A,20I3)') 'Queue                '//  &
-!~                                                               ' :',queue
+                     write(*,'(4X,A,20I3)') 'Queue                '//  &
+                                                              ' :',queue
                      write(*,'(4X,A,I3)')   'Number of aggregates '//  & 
                                                                ' :',nagg
-!~                      write(*,'(4X,A,20I3)') 'Identifier           '//  &
-!~                                                                ' :',iagg
+                     write(*,'(4X,A,20I3)') 'Identifier           '//  &
+                                                               ' :',iagg
                      write(*,*)
 !~                      write(*,'(X,A,20I3)') 'imol      : ',imol
 !~                      write(*,'(X,A,20I3)') 'iagg      : ',iagg
 !~                      write(*,'(X,A,20I3)') 'itag      : ',itag
-                     write(*,'(X,A,10I3)') 'nmol      : ',nmol
-                     write(*,'(X,A,10I3)') 'inmol     : ',inmol
-                     write(*,'(X,A,10I3)') 'ntag      : ',ntag
-                     write(*,'(X,A,10I3)') 'intag     : ',intag
-                     write(*,*)
+!~                      write(*,'(X,A,10I3)') 'nmol      : ',nmol
+!~                      write(*,'(X,A,10I3)') 'inmol     : ',inmol
+!~                      write(*,'(X,A,10I3)') 'ntag      : ',ntag
+!~                      write(*,'(X,A,10I3)') 'intag     : ',intag
+!~                      write(*,*)
                    end if
                  end if
                end do
@@ -750,19 +754,19 @@
 !
        call ivvqsort(nnode,itag,iagg,imol,1,nnode)
 !
-!~        if ( debug ) then
-!~          write(*,*) 'Sorting based on the aggregate size completed'
-!~          write(*,*) '---------------------------------------------'
-!~          write(*,*)
-!~          write(*,'(X,A,20I3)') 'imol-size : ',imol
-!~          write(*,'(X,A,20I3)') 'iagg-size : ',iagg
-!~          write(*,'(X,A,20I3)') 'itag-size : ',itag
-!~          write(*,'(X,A,10I3)') 'nmol      : ',nmol
-!~          write(*,'(X,A,10I3)') 'inmol     : ',inmol
-!~          write(*,'(X,A,10I3)') 'ntag      : ',ntag
-!~          write(*,'(X,A,10I3)') 'intag     : ',intag
-!~          write(*,*)
-!~        end if
+       if ( debug ) then
+         write(*,*) 'Sorting based on the aggregate size completed'
+         write(*,*) '---------------------------------------------'
+         write(*,*)
+         write(*,'(X,A,20I3)') 'imol-size : ',imol
+         write(*,'(X,A,20I3)') 'iagg-size : ',iagg
+         write(*,'(X,A,20I3)') 'itag-size : ',itag
+         write(*,'(X,A,10I3)') 'nmol      : ',nmol
+         write(*,'(X,A,10I3)') 'inmol     : ',inmol
+         write(*,'(X,A,10I3)') 'ntag      : ',ntag
+         write(*,'(X,A,10I3)') 'intag     : ',intag
+         write(*,*)
+       end if
 !
 ! Sorting molecules based on their aggregate identifier
 !
@@ -773,16 +777,16 @@
          inmol = inmol + i*nmol(i)
        end do 
 !
-!~        if ( debug ) then
-!~          write(*,*) 'Sorting based on the aggregate numer completed'
-!~          write(*,*) '----------------------------------------------'
-!~          write(*,*)
-!~          write(*,'(X,A,20I3)') 'imol-num  : ',imol
-!~          write(*,'(X,A,20I3)') 'iagg-num  : ',iagg
-!~          write(*,'(X,A,20I3)') 'itag-num  : ',itag
-!~          write(*,'(X,A,10I3)') 'nmol      : ',nmol
-!~          write(*,*)
-!~        end if
+       if ( debug ) then
+         write(*,*) 'Sorting based on the aggregate numer completed'
+         write(*,*) '----------------------------------------------'
+         write(*,*)
+         write(*,'(X,A,20I3)') 'imol-num  : ',imol
+         write(*,'(X,A,20I3)') 'iagg-num  : ',iagg
+         write(*,'(X,A,20I3)') 'itag-num  : ',itag
+         write(*,'(X,A,10I3)') 'nmol      : ',nmol
+         write(*,*)
+       end if
        
        deallocate(notvis,queue,iagg,itag)
 !
