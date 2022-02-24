@@ -3,7 +3,9 @@
        program aggregate
 
 ! Use the xdr interface
-       use xdr, only: xtcfile, trrfile
+       use xdr, only: xtcfile,trrfile
+!
+       use sorting
        use datatypes
        use utils
 !
@@ -18,8 +20,11 @@
        logical,dimension(:,:),allocatable     ::  adj     !  Adjacency matrix
        real(kind=8),dimension(:),allocatable  ::  pop     !  Populations
        real(kind=8)                           ::  thr     !  Threshold distance
-       integer,dimension(:),allocatable       ::  imol    !  Molecule identifier
+       real(kind=8)                           ::  maxdis  !  Screening distance
        integer,dimension(:),allocatable       ::  nmol    !  Number of aggregates of each size
+       integer,dimension(:),allocatable       ::  imol    !  Molecule identifier
+       integer,dimension(:),allocatable       ::  iagg    !  Aggregates identifier
+       integer,dimension(:),allocatable       ::  itag    !  Aggregates size       
        integer                                ::  nagg    !  Number of chemical species
        integer                                ::  nnode   !  Total number of molecules
        integer                                ::  nprint  !  Populations printing interval
@@ -27,8 +32,21 @@
        integer                                ::  maxagg  !  Maximum aggregate size
        integer                                ::  io      !  Status
        integer                                ::  i,j,k   !  Indexes
-       real(kind=8)                           ::  tcpu    !  Total time
+! Declaration of the time control variables
+       real(kind=8)                           ::  tcpu    !  Total CPU time
+       real(kind=8)                           ::  tread   !  Total reading time
+       real(kind=8)                           ::  tadj    !  Total adjacency matrix building time
+       real(kind=8)                           ::  tbfs    !  Total BFS time
+       real(kind=8)                           ::  tsort   !  Total sorting time
        integer                                ::  t1,t2   !  CPU times
+       integer                                ::  t1read  !  Initial reading time
+       integer                                ::  t2read  !  Final reading time
+       integer                                ::  t1adj   !  Initial building time
+       integer                                ::  t2adj   !  Final building time
+       integer                                ::  t1bfs   !  Initial BFS time
+       integer                                ::  t2bfs   !  Final BFS time
+       integer                                ::  t1sort  !  Initial sorting time
+       integer                                ::  t2sort  !  Final sorting time
        logical                                ::  debug   !  Debug mode
 ! Declaration of a variable of type xtcfile
        type(xtcfile)                          ::  xtcf    !  xtc file informacion
@@ -54,13 +72,21 @@
 !~        write(*,'(1X,84("-"))')
 !~        write(*,*)    
 !
-       call system_clock(count_max=count_max, count_rate=count_rate)
-       call system_clock(t1)     
+       tcpu  = 0.0d0
+       tread = 0.0d0
+       tadj  = 0.0d0
+       tbfs  = 0.0d0
+       tsort = 0.0d0
+!
+       call system_clock(count_max=count_max,count_rate=count_rate)
+       call system_clock(t1)  
+       call system_clock(t1read)        
+!
        call print_start()
 !
 ! Reading command line options
 !
-       call command_line(inp,conf,outp,nprint,maxagg,thr,debug)
+       call command_line(inp,conf,outp,nprint,maxagg,thr,maxdis,debug)
 !
 !  General settings and fatal errors check
 !
@@ -69,7 +95,6 @@
 !
        io = index(conf,'.')
        if ( io .eq. 0 ) conf = trim(conf)//'.gro'
-!
 !
 ! Processing Gromacs input files
 !
@@ -111,24 +136,28 @@
 !
          nnode  = xtcf%NATOMS/sys%nat
 !
-         allocate(adj(nnode,nnode),imol(nnode),nmol(maxagg),pop(maxagg))
+         allocate(adj(nnode,nnode),imol(nnode),iagg(nnode),            &
+                  itag(nnode),nmol(maxagg),pop(maxagg))
 !
          nsteps = 0
          pop(:) = 0.0d0
 !
+         call system_clock(t2read)
+!
+         tread = tread + dble(t2read-t1read)/dble(count_rate)         
+!
          do while ( xtcf%STAT == 0 )
            if ( mod(xtcf%STEP,nprint) .eq. 0 ) then
-!~          do while ( (xtcf%STAT == 0) .and.                             &
-!~                                         (mod(xtcf%STEP,nprint) .eq. 0) )
-!~            if ( mod(xtcf%STEP,nprint) .eq. 0 ) cycle
 ! Update configurations counter
              nsteps = nsteps + 1
 !
 ! Building the adjacency matrix for the current snapshot
 !
-             call build_adj(nnode,adj,thr,xtcf%pos,xtcf%NATOMS,sys%nat,&
-                         (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/),&
-                                                                  debug)
+             call system_clock(t1adj)     
+!
+             call build_adj(debug,nnode,adj,thr,maxdis,xtcf%pos,       &
+                            xtcf%NATOMS,sys%nat,                       &
+                          (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/))
 !
              if ( debug ) then
                write(*,*)
@@ -141,9 +170,59 @@
                write(*,*)
              end if
 !
+             call system_clock(t2adj) 
+!
+             tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
+!
 ! Block-diagonalizing the adjacency matrix
 !
-             call blockdiag(nnode,adj,imol,maxagg,nmol,nagg,debug)
+             call system_clock(t1bfs)     
+!
+             call blockdiag(nnode,adj,imol,iagg,itag,maxagg,nmol,nagg, &
+                            debug)
+! 
+             call system_clock(t2bfs)     
+!
+             tbfs = tbfs + dble(t2bfs-t1bfs)/dble(count_rate)
+! 
+! Sorting molecules and aggregate identifiers based on the size of the aggregates
+!
+             call system_clock(t1sort)     
+!
+             call ivvqsort(nnode,itag,iagg,imol,1,nnode)
+!
+             if ( debug ) then
+               write(*,*) 'Sorting based on the aggregate size completed'
+               write(*,*) '---------------------------------------------'
+               write(*,*)
+               write(*,'(X,A,20I3)') 'imol-size : ',imol
+               write(*,'(X,A,20I3)') 'iagg-size : ',iagg
+               write(*,'(X,A,20I3)') 'itag-size : ',itag
+               write(*,*)
+             end if
+!
+! Sorting molecules based on their aggregate identifier
+!
+             j = 0
+             do i = 1, maxagg
+               if ( j .ge. nnode ) exit
+               call ivqsort(nnode,iagg,imol,j+1,j+i*nmol(i))
+               j = j + i*nmol(i)
+             end do 
+! 
+             if ( debug ) then
+               write(*,*) 'Sorting based on the aggregate numer completed'
+               write(*,*) '----------------------------------------------'
+               write(*,*)
+               write(*,'(X,A,20I3)') 'imol-num  : ',imol
+               write(*,'(X,A,20I3)') 'iagg-num  : ',iagg
+               write(*,'(X,A,20I3)') 'itag-num  : ',itag
+               write(*,*)
+             end if
+!
+             call system_clock(t2sort)     
+!
+             tsort = tsort + dble(t2sort-t1sort)/dble(count_rate)
 !
 ! Printing population of every aggregate
 !
@@ -164,7 +243,14 @@
 !
 ! Reading information of the next snapshot
 !
+           call system_clock(t1read)
+!
            call xtcf%read
+!
+           call system_clock(t2read)
+!
+           tread = tread + dble(t2read-t1read)/dble(count_rate)         
+!
          end do
 ! Close the file
          call xtcf%close
@@ -226,7 +312,7 @@
 ! Deallocate memory
 !
 
-       deallocate(adj,imol,nmol)
+       deallocate(adj,imol,iagg,itag,nmol,pop)
 !
        close(uniout)
 !
@@ -235,8 +321,28 @@
        call system_clock(t2)	      
        tcpu = dble(t2-t1)/dble(count_rate)
 !
-       write(*,'(1X,A,2(I6,A))') 'Total CPU time',int(tcpu/60),        &
-                                 ' minutes',mod(int(tcpu),60),' seconds'  
+       write(*,'(1X,A,3(I4,A))') 'Total CPU time     ',                &
+                                  int(tcpu/(60*60)),' hours',          &
+                                  mod(int(tcpu/60),60),' minutes',     &
+                                  mod(int(tcpu),60),' seconds'  
+       write(*,'(1X,53("-"))')
+!
+       write(*,'(1X,A,3(I4,A))') 'Total reading time ',                &
+                                  int(tread/(60*60)),' hours',         &
+                                  mod(int(tread/60),60),' minutes',    &
+                                  mod(int(tread),60),' seconds'  
+       write(*,'(1X,A,3(I4,A))') 'Total building time',                &
+                                  int(tadj/(60*60)),' hours',          &
+                                  mod(int(tadj/60),60),' minutes',     &
+                                  mod(int(tadj),60),' seconds'  
+       write(*,'(1X,A,3(I4,A))') 'Total BFS time     ',                &
+                                  int(tbfs/(60*60)),' hours',          &
+                                  mod(int(tbfs/60),60),' minutes',     &
+                                  mod(int(tbfs),60),' seconds'  
+       write(*,'(1X,A,3(I4,A))') 'Total sorting time ',                &
+                                  int(tsort/(60*60)),' hours',         &
+                                  mod(int(tsort/60),60),' minutes',    &
+                                  mod(int(tsort),60),' seconds'  
        write(*,*)
 ! Printing finishing date     
        call print_end()
@@ -245,7 +351,8 @@
 !
 !======================================================================!
 !
-       subroutine command_line(inp,conf,outp,nprint,maxagg,thr,debug)
+       subroutine command_line(inp,conf,outp,nprint,maxagg,thr,maxdis, &
+                               debug)
 !
        use utils
 !
@@ -260,9 +367,9 @@
        character(len=lenout),intent(out)         ::  outp    !  Input file name
        character(len=leninp),intent(out)         ::  conf    !  Structure file name
        real(kind=8),intent(out)                  ::  thr     !  Threshold distance
-!~        real(kind=8),intent(out)                  ::  tprint  !  Populations printing time interval
-       integer,intent(out)                       ::  nprint  !  Populations printing steps interval
+       real(kind=8),intent(out)                  ::  maxdis  !  Screening distance
        integer,intent(out)                       ::  maxagg  !  Maximum aggregate size
+       integer,intent(out)                       ::  nprint  !  Populations printing steps interval
        logical,intent(out)                       ::  debug   !  Debug mode
 !
 ! Local variables
@@ -282,6 +389,7 @@
        outp   = 'md.dat'
        nprint = 1
        maxagg = 10
+       maxdis = 1.5d0
        thr    = 0.25d0
        debug  = .FALSE.
 !
@@ -310,7 +418,7 @@
          if ( len_trim(arg) == 0 ) exit
          i = i+1
          select case ( arg )
-           case ('-f','-file','-files','--file','--files')
+           case ('-f','-file','-files','--file','--files') ! FLAG: change to -t,--trajectory
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
              io = index(inp,'.')
@@ -333,19 +441,19 @@
              call get_command_argument(i,next,status=io)
              read(next,*) thr
              i = i + 1
-           case ('-m','-maxagg','--maxagg','--maximum-aggregate')
+           case ('-a','-maxagg','--maxagg','--maximum-size')
              call get_command_argument(i,next,status=io)
              read(next,*) maxagg
+             i = i + 1
+           case ('-d','-maxdis','--maxdis','--maximum-distance')
+             call get_command_argument(i,next,status=io)
+             read(next,*) maxdis
              i = i + 1
            case ('-n','-nprint','--nprint','--print-steps')
              call get_command_argument(i,next,status=io)
              read(next,*) nprint
              i = i + 1
-!~            case ('-t','-tprint','--tprint','--print-time')
-!~              call get_command_argument(i,next,status=io)
-!~              read(next,*) tprint
-!~              i = i + 1
-           case ('-d','-v','--debug','--verbose')
+           case ('-v','--debug','--verbose')
              debug = .TRUE.
              i = i + 1
            case ('-h','-help','--help')
@@ -389,11 +497,10 @@
        write(*,'(2X,A)') '-p,--populations      Populations file name'
        write(*,'(2X,A)') '-n,--nprint           Populations printi'//  &
                                                      'ng steps interval'
-!~        write(*,'(2X,A)') '-t,--tprint           Populations printi'//  &
-!~                                                       'ng time interval'
-       write(*,'(2X,A)') '-m,--maxagg           Maximum aggregate size'
+       write(*,'(2X,A)') '-a,--maxagg           Maximum aggregate size'
+       write(*,'(2X,A)') '-d,--maxdis           Screening distance'
        write(*,'(2X,A)') '-thr,--threshold      Distance threshold'
-       write(*,'(2X,A)') '-d,--debug            Debug mode'
+       write(*,'(2X,A)') '-v,--verbose          Debug mode'
        write(*,*)
 !
        return
@@ -500,8 +607,8 @@
 !
 !======================================================================!
 !
-       subroutine build_adj(nnode,adj,thr,coord,natconf,natmol,box,    &
-                                                                  debug)
+       subroutine build_adj(debug,nnode,adj,thr,maxdis,coord,natconf,  &
+                            natmol,box)
 !
        use geometry
 !
@@ -511,7 +618,8 @@
 !
        real(kind=4),dimension(3),intent(in)          ::  box      !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3,natconf),intent(in)  ::  coord    !  Simulation box !FLAG: kind=8 to kind=4
-       real(kind=8),intent(in)                       ::  thr      !  Threshold
+       real(kind=8),intent(in)                       ::  thr      !  Threshold distance
+       real(kind=8),intent(in)                       ::  maxdis   !  Screening distance
        logical,dimension(nnode,nnode),intent(out)    ::  adj      !  Adjacency matrix
        integer,intent(in)                            ::  nnode    !  Number of residues
        integer,intent(in)                            ::  natconf  !  Total number of atoms
@@ -520,40 +628,56 @@
 !
 ! Local variables
 !
+       logical,dimension(nnode)                      ::  check    !
        real(kind=4),dimension(3)                     ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
        real(kind=8)                                  ::  dist     !  Minimum image distance
        integer                                       ::  iat,jat  !  Atom indexes
        integer                                       ::  irenum   !  Residue index
        integer                                       ::  jrenum   !  Residue index
-       integer                                       ::  i,j,k    !  Indexes
+       integer                                       ::  i,j      !  Indexes
+       integer                                       ::  ii,jj    !  Indexes
 !
 ! Building adjacency matrix
 !
        adj(:,:) = .FALSE.
+       dist     = thr + 0.1
        i = 1
        do irenum = 1, nnode-1
+         check(:) = .TRUE.
          do iat = 1, natmol
-!~            if ( debug ) then
-!~              write(*,*)
-!~              write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',iat,  &
-!~                                                                    'i',i
-!~              write(*,'(3X,29("-"))')
-!~            end if
-           j = irenum*natmol + 1
+           if ( debug ) then
+             write(*,*)
+             write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',iat,  &
+                                                                   'i',i
+             write(*,'(3X,29("-"))')
+           end if
+           jj = irenum*natmol + 1
            do jrenum = irenum + 1, nnode
-             do jat =1, natmol
-!~                if ( debug ) then
-!~                  write(*,'(1X,3(A,X,I4,X))') 'Comparing with residue', &
-!~                                                  jrenum,'atom',jat,'j',j
-!~                end if
-               r  = minimgvec(coord(:,i),coord(:,j),box)
-               dist = sqrt(dot_product(r,r))
-               if ( dist .lt. thr ) then
-                 adj(jrenum,irenum) = .TRUE.
-                 adj(irenum,jrenum) = .TRUE.
-               end if
-               j = j + 1
-             end do
+             if ( (.not. adj(jrenum,irenum)) .and. check(jrenum) ) then
+               j    = jj
+               jat  = 1
+               dist = thr + 0.1
+               do while ( (jat.le.natmol) .and. (dist.le.maxdis) .and. &
+                          (dist.ge.thr) ) 
+                 r    = minimgvec(coord(:,i),coord(:,j),box)
+                 dist = sqrt(dot_product(r,r))
+!
+                 if ( debug ) then
+                   write(*,'(1X,4(A,X,I4,X),A,F6.3)') 'Comparing w'//  &
+                         'ith residue',jrenum,'atom',jat,'j',j,'jj',   &
+                                                          jj,'dist',dist
+                 end if
+!
+                 if ( dist .lt. thr ) then
+                   adj(jrenum,irenum) = .TRUE.
+                   adj(irenum,jrenum) = .TRUE.
+                 end if
+                 j   = j + 1
+                 jat = jat + 1
+               end do
+               if ( dist .gt. maxdis ) check(jrenum) = .FALSE.
+             end if
+             jj = jj + natmol
            end do
            i = i + 1
          end do
@@ -564,9 +688,8 @@
 !
 !======================================================================!
 !
-       subroutine blockdiag(nnode,adj,imol,maxagg,nmol,nagg,debug)
-!
-       use sorting
+       subroutine blockdiag(nnode,adj,imol,iagg,itag,maxagg,nmol,nagg, &
+                            debug)
 !
        implicit none
 !
@@ -574,6 +697,8 @@
 !
        logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix
        integer,dimension(nnode),intent(out)          ::  imol    !  Molecule identifier
+       integer,dimension(nnode),intent(out)          ::  iagg    !  Aggregate identifier
+       integer,dimension(nnode),intent(out)          ::  itag    !  Aggregates size
        integer,dimension(maxagg),intent(out)         ::  nmol    !  Number of aggregates of each size
        integer,intent(out)                           ::  nagg    !  Number of chemical species
        integer,intent(in)                            ::  nnode   !  Number of residues
@@ -584,8 +709,6 @@
 !
        logical,allocatable,dimension(:)              ::  notvis  !  Nodes visited
        integer,allocatable,dimension(:)              ::  queue   !  Queue of connected nodes
-       integer,allocatable,dimension(:)              ::  iagg    !  Aggregates identifier
-       integer,allocatable,dimension(:)              ::  itag    !  Aggregates size
        integer                                       ::  iqueue  !  Queue index
        integer                                       ::  jqueue  !  Queue index
        integer                                       ::  inode   !  Node index
@@ -599,7 +722,7 @@
 !
 ! Performing Breadth First Search over the target molecules
 !
-       allocate(notvis(nnode),queue(nnode),iagg(nnode),itag(nnode))
+       allocate(notvis(nnode),queue(nnode))
 ! Mark all the vertices as not visited
        notvis  = .TRUE.
 ! Initializing the molecules information
@@ -648,13 +771,6 @@
              write(*,'(X,A,I3)')   'Number of aggregates  :',nagg
              write(*,'(X,A,20I3)') 'Identifier            :',iagg
              write(*,*)
-!~              write(*,'(X,A,20I3)') 'imol      : ',imol
-!~              write(*,'(X,A,20I3)') 'iagg      : ',iagg
-!~              write(*,'(X,A,20I3)') 'itag      : ',itag
-!~              write(*,'(X,A,10I3)') 'nmol      : ',nmol
-!~              write(*,'(X,A,10I3)') 'inmol     : ',inmol
-!~              write(*,'(X,A,10I3)') 'ntag      : ',ntag
-!~              write(*,'(X,A,10I3)') 'intag     : ',intag
            end if
 !
 ! Inner loop over the queue elements
@@ -663,7 +779,6 @@
 ! Saving actual element in the queue
              knode = queue(iqueue)
 ! Checking if node k was already visited
-!~              if ( notvis(knode) ) then  ! FLAG: remove from queue nodes already visited
 !
                if ( debug ) then
                  write(*,*)
@@ -706,18 +821,9 @@
                      write(*,'(4X,A,20I3)') 'Identifier           '//  &
                                                                ' :',iagg
                      write(*,*)
-!~                      write(*,'(X,A,20I3)') 'imol      : ',imol
-!~                      write(*,'(X,A,20I3)') 'iagg      : ',iagg
-!~                      write(*,'(X,A,20I3)') 'itag      : ',itag
-!~                      write(*,'(X,A,10I3)') 'nmol      : ',nmol
-!~                      write(*,'(X,A,10I3)') 'inmol     : ',inmol
-!~                      write(*,'(X,A,10I3)') 'ntag      : ',ntag
-!~                      write(*,'(X,A,10I3)') 'intag     : ',intag
-!~                      write(*,*)
                    end if
                  end if
                end do
-!~              end if
 ! Updating the queue counter
              iqueue = iqueue + 1
            end do
@@ -743,52 +849,10 @@
          write(*,'(X,A,20I3)') 'imol-raw  : ',imol
          write(*,'(X,A,20I3)') 'iagg-raw  : ',iagg
          write(*,'(X,A,20I3)') 'itag-raw  : ',itag
-         write(*,'(X,A,10I3)') 'nmol      : ',nmol
-         write(*,'(X,A,10I3)') 'inmol     : ',inmol
-         write(*,'(X,A,10I3)') 'ntag      : ',ntag
-         write(*,'(X,A,10I3)') 'intag     : ',intag
-         write(*,*)
-       end if
-! 
-! Sorting molecules and aggregates identifiers based on the size of the aggregates
-!
-       call ivvqsort(nnode,itag,iagg,imol,1,nnode)
-!
-       if ( debug ) then
-         write(*,*) 'Sorting based on the aggregate size completed'
-         write(*,*) '---------------------------------------------'
-         write(*,*)
-         write(*,'(X,A,20I3)') 'imol-size : ',imol
-         write(*,'(X,A,20I3)') 'iagg-size : ',iagg
-         write(*,'(X,A,20I3)') 'itag-size : ',itag
-         write(*,'(X,A,10I3)') 'nmol      : ',nmol
-         write(*,'(X,A,10I3)') 'inmol     : ',inmol
-         write(*,'(X,A,10I3)') 'ntag      : ',ntag
-         write(*,'(X,A,10I3)') 'intag     : ',intag
          write(*,*)
        end if
 !
-! Sorting molecules based on their aggregate identifier
-!
-       inmol = 0
-       do i = 1, maxagg
-         if ( inmol .ge. nnode ) exit
-         call ivqsort(nnode,iagg,imol,inmol+1,inmol+i*nmol(i))
-         inmol = inmol + i*nmol(i)
-       end do 
-!
-       if ( debug ) then
-         write(*,*) 'Sorting based on the aggregate numer completed'
-         write(*,*) '----------------------------------------------'
-         write(*,*)
-         write(*,'(X,A,20I3)') 'imol-num  : ',imol
-         write(*,'(X,A,20I3)') 'iagg-num  : ',iagg
-         write(*,'(X,A,20I3)') 'itag-num  : ',itag
-         write(*,'(X,A,10I3)') 'nmol      : ',nmol
-         write(*,*)
-       end if
-       
-       deallocate(notvis,queue,iagg,itag)
+       deallocate(notvis,queue)
 !
        return
        end subroutine blockdiag

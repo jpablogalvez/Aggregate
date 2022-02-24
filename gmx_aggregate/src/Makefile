@@ -4,6 +4,7 @@ BDIR =../bin
 ODIR =./obj
 MDIR =./mod
 SDIR =.
+#libpath=/home/users/quicuan/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
 libpath=/home/jpablo/lib/xdrfile/lib/libxdrfile.so
 #libpath=/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
 
