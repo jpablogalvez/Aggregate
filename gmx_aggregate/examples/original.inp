@@ -1,0 +1,22 @@
+! Example of general input file
+**GRPSFILE
+  .TITLE
+    GRPSFILE Title
+  *GRP
+    Name = OH Atoms=1
+     12
+  *GRP
+    Name = HO Atoms=1
+     13
+  *SGRP
+    Name=H-pi atoms=5
+     2 4 6 8 10
+  *SGRP
+    name = C-pi Atoms = 6
+     1 3 5 7 9 11
+**END GRPSFILE
+
+**THRESHOLD !  Distances in nm
+  .THR
+    0.25d0
+**END THRESHOLD
