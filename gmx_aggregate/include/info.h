@@ -1,5 +1,5 @@
 ! Program information
-       character(len=10)  ::  version = 'v1.0.0'
+       character(len=10)  ::  version = 'v1.01'
 ! Declaration of Input/Output Units
        integer,parameter  ::  uniinp  = 15   !
        integer,parameter  ::  uniout  = 25   !

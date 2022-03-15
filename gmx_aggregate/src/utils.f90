@@ -45,8 +45,8 @@
 !
        implicit none
 !
-       write(*,'(1X,4(A))') 'Finishing program at ', fdate(),          &
-                            ' on ', print_host()
+       write(*,'(1X,A)') 'Finishing program at '//fdate()//' on '//    &
+                                                            print_host()
        write(*,*)
 !     
        call exit(0)
@@ -68,17 +68,15 @@
        if ( (io .ne. 0) .or. (opt(1:1) .eq. '-') ) then
          write(*,*)
          write(*,'(2X,68("="))')
-         write(*,'(3X,A)')    'ERROR:  No argument introduced'//      &
-                              ' for command-line'//   &
-                              ' option'
+         write(*,'(3X,A)')    'ERROR:  No argument introduced'//       &
+                              ' for command-line option'
          write(*,*)
          write(*,'(4X,A)')    trim(cmd)
          write(*,*)
-         write(*,'(3X,2(A))') 'Argument missing for command'//        &
-                              '-line option  :  ', arg
+         write(*,'(3X,A)') 'Argument missing for option  :  '//trim(arg)
          write(*,'(2X,68("="))')
          write(*,*)
-         call exit(0)
+         call print_end()
        end if
 !
        return
@@ -93,13 +91,16 @@
        include 'info.h'
 !
 ! Input/output variables
+!
        integer,intent(inout)              ::  i       !  Argument index
        integer,intent(in)                 ::  lenstr  !  Input length
        character(len=lenstr),intent(out)  ::  inp     !  Input file name
        integer,intent(out)                ::  nfile   !  Number of input files
        character(len=lenarg),intent(in)   ::  arg     !  Argument read
        character(len=lencmd),intent(in)   ::  cmd     !  Command executed
+!
 ! Local variables
+!
        character(len=lenarg)              ::  next    !  Next argument to be read
        integer                            ::  io      !  Status
 !
@@ -153,10 +154,13 @@
        include 'info.h'
 !
 ! Input/output variables
+!
        integer,intent(inout)             ::  i       !  Argument index
        integer,intent(in)                ::  n       !  Vector dimension
        integer,dimension(n),intent(out)  ::  nbox    !  Integer vector
+!
 ! Local variables
+!
        character(len=lenarg)             ::  next    !  Next argument to be read
        integer                           ::  io      !  Status
        integer                           ::  k       !  Index
@@ -169,6 +173,362 @@
 !
        return
        end subroutine read_intvec
+!
+!======================================================================!
+!
+       subroutine chkcomment(line,key)
+!
+       implicit none
+!
+       include 'info.h'
+!
+       character(len=leninp),intent(in)     ::  line
+       character(len=leninp),intent(inout)  ::  key
+!
+       integer                              ::  posi
+! Removing white spaces at the beggining
+       key = adjustl(line) 
+! Removing comments at the end
+       posi = index(key,'!')           
+       if ( posi .gt. 0 ) key = key(:posi-1)
+!
+       return
+       end subroutine chkcomment
+!
+!======================================================================!
+!
+       subroutine chkkeyarg(key,line,arg)
+!
+       implicit none
+!
+       include 'info.h'
+!
+       character(len=leninp),intent(in)     ::  key
+       character(len=leninp),intent(inout)  ::  line
+       character(len=leninp),intent(out)    ::  arg
+!
+       integer                              ::  posi
+!
+       posi = scan(line,' ') 
+       if ( posi .ne. 0 ) then 
+         arg  = line(:posi-1)
+!
+         line = line(posi+1:)  
+         line = adjustl(line)
+       else
+         write(*,*)
+         write(*,'(2X,68("="))')
+         write(*,'(3X,A)') 'ERROR:  Not argument introduced for in'//  &
+                                                           'put keyword'
+         write(*,*) 
+         write(*,'(3X,A)') 'Argument missing for keyword  :  '//       &
+                                                               trim(key)
+         write(*,'(2X,68("="))')
+         write(*,*) 
+         call print_end()
+       end if
+!
+       return
+       end subroutine chkkeyarg
+!
+!======================================================================!
+!
+       subroutine chklineopt(line,key,arg)
+!
+       implicit none
+!
+       include 'info.h'
+!
+       character(len=leninp),intent(in)     ::  line
+       character(len=leninp),intent(inout)  ::  key
+       character(len=lenarg),intent(out)    ::  arg
+!
+       integer                              ::  posi
+! Removing white spaces at the beggining
+       key = adjustl(line)
+! Removing comments at the end
+       posi = index(key,'!') 
+       if ( posi .gt. 0 ) key = key(:posi-1)
+! Saving the keyword and the values separately
+       posi = scan(key,'=') 
+       if ( posi .ne. 0 ) then 
+         arg = key(posi+1:)  
+         key = key(:posi-1)
+       end if
+! Changing uppercase letters by lowercase letters 
+       key = lowercase(key)
+!
+       return
+       end subroutine chklineopt
+!
+!======================================================================!
+!
+       subroutine unksect(key,blck)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  key
+       character(len=*),intent(in)  ::  blck
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Unknown section in block '//trim(blck)        
+       write(*,*) 
+       write(*,'(3X,A)') 'Section '//trim(key)//' not known'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine unksect
+!
+!======================================================================!
+!
+       subroutine unkkey(key,sect)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  key
+       character(len=*),intent(in)  ::  sect
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Unknown keyword in section '//       &
+                                                              trim(sect)
+       write(*,*) 
+       write(*,'(3X,A)') 'Keyword '//trim(key)//' not known'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine unkkey
+!
+!======================================================================!
+!
+       subroutine errkey(aux,sect)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  sect
+       character(len=*),intent(in)  ::  aux
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Keyword badly introduced'
+       write(*,*) 
+       write(*,'(3X,A)') 'Please, check '//aux//' '//trim(sect)//      &
+                                                    ' in the input file'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine errkey
+!
+!======================================================================!
+!
+       subroutine endblck(blck)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  blck
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Input file finished before block'//  &
+                                                        ' was completed'
+       write(*,*) 
+       write(*,'(3X,A)') 'Block '//trim(blck)//' is not complete'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine endblck
+!
+!======================================================================!
+!
+       subroutine endsect(sect)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  sect
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Input file finished before secti'//  &
+                                                      'on was completed'
+       write(*,*) 
+       write(*,'(3X,A)') 'Section '//trim(sect)//' is not complete'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine endsect
+!
+!======================================================================!
+!
+       subroutine endopt(opt)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  opt
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Input file finished before optio'//  &
+                                                       'n was completed'
+       write(*,*) 
+       write(*,'(3X,A)') 'Option '//trim(opt)//' is not complete'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine endopt
+!
+!======================================================================!
+!
+       subroutine endkey(key)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  key
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Input file finished before keywo'//  &
+                                                      'rd was completed'
+       write(*,*) 
+       write(*,'(3X,A)') 'Option '//trim(key)//' is not complete'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine endkey
+!
+!======================================================================!
+!
+       function uppercase(aux) result(str)
+!
+       implicit none
+!
+       character(*),intent(inout) ::  aux
+       character(len_trim(aux))   ::  str
+!
+       integer                    ::  i
+!
+! Changing lowercase letters by uppercase letters 
+!
+       str = aux 
+!
+       do i = 1, len_trim(aux)
+         select case(str(i:i))
+           case('a':'z')
+             str(i:i) = achar(iachar(str(i:i))-32)
+         end select
+       end do 
+!    
+       return
+       end function uppercase
+!
+!======================================================================!
+!
+       function lowercase(aux) result(str)
+!
+       implicit none
+!
+       character(*),intent(inout) ::  aux
+       character(len_trim(aux))   ::  str
+!
+       integer                    ::  i
+!
+! Changing uppercase letters by lowercase letters 
+!
+       str = aux
+!
+       do i = 1, len_trim(aux)
+         select case(str(i:i))
+           case('A':'Z')
+             str(i:i) = achar(iachar(str(i:i))+32)
+         end select
+       end do 
+!     
+       return
+       end function lowercase
+!
+!======================================================================!
+!
+! FINDCV - Find Character Vector
+!
+! This subroutine returns the location of the element in the array CVEC
+!  of size N with the value given in the CVAL argument
+!
+       function findcv(n,cvec,cval) result(posi)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                        ::  n
+       character(len=*),dimension(n),intent(in)  ::  cvec
+       character(len=*),intent(in)               ::  cval
+       integer                                   ::  posi
+!
+! Local variables
+!
+       integer                                   ::  i
+! 
+! Finding string CVAL in the array CVEC
+!
+       do i = 1, n
+         if ( trim(adjustl(cvec(i))) .eq. trim(adjustl(cval)) ) then
+           posi = i
+           return
+         end if
+       end do 
+!
+       posi = 0
+!     
+       return
+       end function findcv
+!
+!======================================================================!
+!
+       subroutine print_info(i,n,A,B,C,str1,str2,str3)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)               ::  i       !
+       integer,intent(in)               ::  n       !
+       integer,intent(in),dimension(n)  ::  A,B,C   !
+       character(len=*),intent(in)      ::  str1    !   
+       character(len=*),intent(in)      ::  str2    !   
+       character(len=*),intent(in)      ::  str3    !   
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(11X,10(X,I6))')    (i+j,j = ilower, iupper)
+         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_info
 !
 !======================================================================!
 !

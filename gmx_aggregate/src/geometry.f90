@@ -246,7 +246,7 @@
 !
 ! Declaration of the in/out variables
 !
-       real(kind=8),dimension(3,nat),intent(in)  ::  coord  !  Coordinates
+       real(kind=4),dimension(3,nat),intent(in)  ::  coord  !  Coordinates
        real(kind=8),dimension(nat),intent(in)    ::  mass   !  Masses
        integer,intent(in)                        ::  nat    !  Number of atoms
        real(kind=8), dimension(3)                ::  cofm   !  Center of Mass vector
