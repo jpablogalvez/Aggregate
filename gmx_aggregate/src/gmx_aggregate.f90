@@ -15,11 +15,11 @@
        include 'timings.h'
        include 'info.h'
 !
-       character(len=leninp)                      ::  inp      !  Trajectory file name
+       character(len=leninp)                      ::  traj     !  Trajectory file name
        character(len=leninp)                      ::  conf     !  Configuration file name
-       character(len=leninp)                      ::  fgrp     !  Groups file name
-       character(len=leninp)                      ::  tgrp     !  Groups file tile
+       character(len=leninp)                      ::  inp      !  General input file name
        character(len=lenout)                      ::  outp     !  Populations file name
+       character(len=leninp)                      ::  tgrp     !  Groups file title
        logical,dimension(:,:),allocatable         ::  adj      !  Adjacency matrix
        logical                                    ::  dopim    !  PIM calculation flag
        real(kind=8),dimension(:,:,:),allocatable  ::  pim      !  Pairwise interaction matrix
@@ -82,13 +82,13 @@
 !
 ! Reading command line options
 !
-       call command_line(inp,conf,fgrp,outp,nprint,maxstep,maxagg,     & 
+       call command_line(traj,conf,inp,outp,nprint,maxstep,maxagg,    & 
                          maxdis,dopim,debug)
 !
 !  General settings and fatal errors check
 !
-       io = index(inp,'.')
-       if ( io .eq. 0 )  inp = trim(inp)//'.xtc'
+       io = index(traj,'.')
+       if ( io .eq. 0 )  traj = trim(traj)//'.xtc'
 !
        io = index(conf,'.')
        if ( io .eq. 0 ) conf = trim(conf)//'.gro'
@@ -108,15 +108,16 @@
        write(*,'(1X,17("-"))')
        write(*,*)
        write(*,'(2X,A,2X,A)')    'General input file name    :',       &
-                                                              trim(fgrp)
-       write(*,'(2X,A,2X,A)')    'Trajectory file name       :',       &
                                                                trim(inp)
+       write(*,'(2X,A,2X,A)')    'Trajectory file name       :',       &
+                                                              trim(traj)
        write(*,'(2X,A,2X,A)')    'Structure file name        :',       & 
                                                               trim(conf)
        write(*,'(2X,A,2X,A)')    'Populations file name      :',       &
                                                               trim(outp)
        write(*,*)
-       write(*,'(2X,A,9X,F4.2)') 'Screening distance         :',maxdis  
+       write(*,'(2X,A,9X,F4.2)') 'Screening distance         :',       &
+                                                            sqrt(maxdis)  
        write(*,'(2X,A,9X,I4)')   'Maximum aggregate size     :',maxagg
        write(*,'(2X,A,2X,I11)')  'Printing interval          :',nprint
        write(*,'(2X,A,2X,I11)')  'Maximum step for analysis  :',maxstep
@@ -136,9 +137,9 @@
 ! Opening populations output file
        open(unit=uniout,file=trim(outp),action='write')
 !
-       if ( inp(len_trim(inp)-3:) .eq. '.xtc' ) then 
+       if ( traj(len_trim(traj)-3:) .eq. '.xtc' ) then 
 ! Initialize it with the names of xtc files you want to read in and write out
-         call xtcf%init(trim(inp))
+         call xtcf%init(trim(traj))
 ! Read in each configuration. Everything is stored in the xtcfile type
          call xtcf%read
 !
@@ -152,7 +153,7 @@
 !
 ! Processing general input file
 !
-         call read_inp(fgrp,sys%nat,tgrp,grptag,grps,subg,igrps,       &
+         call read_inp(inp,sys%nat,tgrp,grptag,grps,subg,igrps,        &
                        ngrps,nsubg,thr)
 !
          allocate(pim(ngrps,ngrps,maxagg-1))
@@ -181,17 +182,6 @@
                             sys%mass,(/xtcf%box(1,1),xtcf%box(2,2),    &
                             xtcf%box(3,3)/),debug)
 !
-!~              if ( debug ) then
-!~                write(*,*)
-!~                write(*,*) 'Molecule-based Adjacency matrix'
-!~                write(*,*) '-------------------------------'
-!~                write(*,*)
-!~                do j = 1, nnode
-!~                  write(*,*) (adj(i,j),i=1,nnode)
-!~                end do
-!~                write(*,*)
-!~              end if
-!
              call system_clock(t2adj) 
 !
              tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
@@ -202,18 +192,6 @@
 !
              call blockdiag(nnode,adj,imol,iagg,itag,maxagg,nmol,nagg, &
                             debug)
-! 
-!~              if ( debug ) then
-!~                write(*,*)
-!~                write(*,*) 'BFS completed'
-!~                write(*,*) '-------------'
-!~                write(*,*)
-!~                call print_info(nmol(1),nnode-nmol(1),                  &
-!~                                imol(nmol(1)+1:),iagg(nmol(1)+1:),      &
-!~                                itag(nmol(1)+1:),'imol-raw','iagg-raw', &
-!~                                'itag-raw')
-!~                write(*,*)
-!~              end if
 !
              call system_clock(t2bfs)     
 !
@@ -224,18 +202,6 @@
              call system_clock(t1sort)     
 !
              call ivvqsort(nnode,itag,iagg,imol,1,nnode)
-!
-!~              if ( debug ) then
-!~                write(*,*) 'Sorting based on the aggregate size com'//  &
-!~                                                                 'pleted'
-!~                write(*,'(45("="))') 
-!~                write(*,*)
-!~                call print_info(nmol(1),nnode-nmol(1),                  &
-!~                                imol(nmol(1)+1:),iagg(nmol(1)+1:),      &
-!~                                itag(nmol(1)+1:),'imol-size',           &
-!~                                'iagg-size','itag-size')
-!~                write(*,*)
-!~              end if
 !
 ! Sorting molecules based on their aggregate identifier
 !
@@ -260,18 +226,6 @@
                end if
                i = i + k
              end do
-! 
-!~              if ( debug ) then
-!~                write(*,*) 'Sorting based on the aggregate numer co'//  &
-!~                                                                'mpleted'
-!~                write(*,'(46("="))')
-!~                write(*,*)
-!~                call print_info(nmol(1),nnode-nmol(1),                  &
-!~                                imol(nmol(1)+1:),iagg(nmol(1)+1:),      &
-!~                                itag(nmol(1)+1:),'imol-num','iagg-num', &
-!~                                'itag-num')
-!~                write(*,*)
-!~              end if
 !
              call system_clock(t2sort)     
 !
@@ -333,9 +287,13 @@
 ! Close the file
          call xtcf%close
 !
-       else if ( inp(len_trim(inp)-3:) .eq. '.trr' ) then 
+       else if ( traj(len_trim(traj)-3:) .eq. '.trr' ) then 
+!
+         write(*,*) 'Not yet! Try with the .xtc file...'
+         write(*,*)
+         call print_end()
 ! Initialize it with the names of trr files you want to read in
-         call trr%init(trim(inp))
+         call trr%init(trim(traj))
 ! Read in each configuration. Everything is stored in the trrfile type 
          call trr%read
 !
@@ -347,26 +305,7 @@
 !
 ! Building the adjacency matrix for the current snapshot
 !
-!~            call build_adj(nnode,adj,thr,maxdis,trr%pos,trr%NATOMS,     &
-!~                           sys%nat,(/trr%box(1,1),trr%box(2,2),         &
-!~                           trr%box(3,3)/),debug)
-!
-!~            if ( debug ) then 
-!~              write(*,*)
-!~              write(*,*) 'Molecule-based Adjacency matrix'
-!~              write(*,*) '-------------------------------'
-!~              write(*,*)
-!~              do j = 1, trr%NATOMS/sys%nat
-!~                write(*,'(3X,13I2)') (adj(i,j),i=1,trr%NATOMS/sys%nat)
-!~              end do
-!~              write(*,*)
-!~            end if
-!
-! Block-diagonalizing the adjacency matriz
-!
-           write(*,*) 'Not yet! Try with the .xtc file...'
-           write(*,*)
-           call print_end()
+
 ! Reading information of the next snapshot
            call trr%read
          end do
@@ -475,7 +414,7 @@
 !
 !======================================================================!
 !
-       subroutine command_line(inp,conf,fgrp,outp,nprint,maxstep,      &
+       subroutine command_line(traj,conf,inp,outp,nprint,maxstep,      &
                                maxagg,maxdis,dopim,debug)
 !
        use utils
@@ -487,9 +426,9 @@
 !
 ! Input/output variables
 !
-       character(len=leninp),intent(out)         ::  inp      !  Trajectory file name
+       character(len=leninp),intent(out)         ::  traj     !  Trajectory file name
        character(len=lenout),intent(out)         ::  outp     !  Populations file name
-       character(len=leninp),intent(out)         ::  fgrp     !  Groups file name
+       character(len=leninp),intent(out)         ::  inp      !  Groups file name
        character(len=leninp),intent(out)         ::  conf     !  Structure file name
        logical                                   ::  dopim    !  PIM calculation flag
        real(kind=8),intent(out)                  ::  maxdis   !  Screening distance
@@ -510,8 +449,8 @@
 !
 ! Setting defaults
 !
-       fgrp    = 'aggregate.inp'
-       inp     = 'md.xtc'
+       inp     = 'aggregate.inp'
+       traj    = 'md.xtc'
        conf    = 'conf.gro'
        outp    = 'md.dat'
        nprint  = 1
@@ -547,17 +486,17 @@
          i = i+1
          select case ( arg )
            case ('-f','-file','--file','-i','-inp','--inp','--input') 
-             call get_command_argument(i,fgrp,status=io)
-             call check_arg(fgrp,io,arg,cmd)
-             i = i + 1
-           case ('-t','-traj','--traj','--trajectory') 
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
-             io = index(inp,'.')
+             i = i + 1
+           case ('-t','-traj','--traj','--trajectory') 
+             call get_command_argument(i,traj,status=io)
+             call check_arg(traj,io,arg,cmd)
+             io = index(traj,'.')
              if ( io .eq. 0 ) then
-               outp = trim(inp)//'.dat'
+               outp = trim(traj)//'.dat'
              else 
-               outp = inp(:len_trim(inp)-4)//'.dat'
+               outp = traj(:len_trim(traj)-4)//'.dat'
              end if             
              i = i + 1
            case ('-c','-conf','--conf','--configuration')
@@ -636,7 +575,9 @@
        write(*,'(2X,A)') '-m,--maxstep          Maximum step to be'//  &
                                                              ' analysed'
        write(*,'(2X,A)') '-a,--maxagg           Maximum aggregate size'
-       write(*,'(2X,A)') '-d,--maxdis           Screening distance'
+       write(*,'(2X,A)') '-d,--maxdis           Cutoff distance'
+       write(*,'(2X,A)') '--[no]pim             Compute pairwise i'//  &
+                                                     'nteraction matrix'
        write(*,'(2X,A)') '-v,--verbose          Debug mode'
        write(*,*)
 !
@@ -756,7 +697,7 @@
 !
 !======================================================================!
 !
-       subroutine read_inp(fgrp,nat,tgrp,grptag,grps,subg,igrps,       &
+       subroutine read_inp(inp,nat,tgrp,grptag,grps,subg,igrps,        &
                            ngrps,nsubg,thr)
 !
        use utils
@@ -767,7 +708,7 @@
 !
 ! Input/output variables
 !
-       character(len=leninp),intent(in)             ::  fgrp    !  Groups file name
+       character(len=leninp),intent(in)             ::  inp     !  General input file name
        character(len=leninp),intent(out)            ::  tgrp    !  Groups file title
        integer,intent(in)                           ::  nat     !  Number of atoms in the molecule
        character(len=8),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
@@ -789,16 +730,27 @@
 !
        thr(:,:) = 0.0d0
 !
+       ngrps    = nat
+       nsubg    = nat
+!
+       do i = 1, nat
+         write(grptag(i),'(I8)') i
+         grptag(i) = 'Atom-'//trim(adjustl(grptag(i)))
+         grps(i)   = i
+         subg(i)   = i
+         igrps(i)  = i
+       end do
+!
 ! Reading general input file
 !
-       open(unit=uniinp,file=trim(fgrp),action='read',                 &
+       open(unit=uniinp,file=trim(inp),action='read',                  &
             status='old',iostat=io)
        if ( io .ne. 0 ) then
          write(*,'(2X,68("="))')
-         write(*,'(3X,A)')      'ERROR:  Missing input file'
+         write(*,'(3X,A)')    'ERROR:  Missing input file'
          write(*,*)
-         write(*,'(3X,A)')   'Input file '//trim(fgrp)//               &
-                                   ' not found in the current directory'
+         write(*,'(3X,A)')    'Input file '//trim(inp)//' not foun'//  &
+                                            'd in the current directory'
          write(*,'(2X,68("="))')
          call print_end()
        end if
@@ -1203,7 +1155,6 @@
 ! Local variables
 !
        character(len=54)                                 ::  fmt1     !  Format string
-!~        logical,dimension(nnode)                          ::  check    !
        real(kind=4),dimension(3,natmol)                  ::  atcoord  !  Subgroup coordinates !FLAG: kind=8 to kind=4
        real(kind=8),dimension(natmol)                    ::  atmass   !  Subgroup masses
        real(kind=8),dimension(3)                         ::  cofm     !  Center of mass coordinates !FLAG: kind=8 to kind=4
@@ -1214,27 +1165,14 @@
 !
 ! Saving coordinates based on the n-body simplified representation
 !
-!~ write(*,'(X,A,20(X,I4))') 'grps   :',grps
-!~ write(*,'(X,A,20(X,I4))') 'subg   :',subg
-!~ write(*,'(X,A,20(X,I4))') 'isubg  :',igrps
-!
        do irenum = 1, nnode
-!~ write(*,*)
-!~ write(*,'(X,A,X,I4)') 'Starting residue',irenum
-!~ write(*,'(X,21("-"))')
          ingrps = (irenum-1)*natmol
          iisubg = 0
          ii     = 0
          do iigrps = 1, ngrps
-!~ write(*,*)
-!~ write(*,'(2X,2(X,A,X,I4))') 'Printing atoms belonging to group',iigrps,'of residue',irenum
-!~ write(*,'(3X,A,X,I4)') 'Number of subgroups',grps(iigrps)
            svaux(:) = coord(:,ingrps+igrps(ii+1))
            do insubg = 1, grps(iigrps)
              iisubg = iisubg + 1
-!~ write(*,*)
-!~ write(*,'(4X,2(X,A,X,I4))') 'Number of atoms in subgroup',iisubg,'is',subg(iisubg)
-!~ write(*,*)
              if ( subg(iisubg) .ne. 1 ) then
                i = ii
                do iat = 1, subg(iisubg)
@@ -1261,12 +1199,9 @@
 !
              ii = ii + subg(iisubg)
 !
-!~ write(*,'(6X,3(X,A,X,I4),X,A,X,I8)') 'group',iigrps,'subgroup',iisubg, &
-!~                                          'ii',ii,'atom',ingrps+igrps(ii)
            end do
          end do
        end do
-!~ write(*,*)
 !
 ! Building adjacency matrix
 !
@@ -1274,14 +1209,6 @@
 !
        do irenum = 1, nnode-1
          ingrps = (irenum-1)*natmol
-!
-!~          if ( debug ) then
-!~            write(*,*)
-!~            write(*,'(3X,3(A,X,I5,X))') 'RESIDUE',irenum,'atom',        &
-!~                                                      (irenum-1)*natmol+1
-!~            write(*,'(3X,22("-"))')
-!~          end if
-!
          do jrenum = irenum+1, nnode
            jngrps = (jrenum-1)*natmol
 !
@@ -1296,143 +1223,38 @@
                jisubg = 0
                jj     = 0
                do jigrps = 1, ngrps
-                 mindis = thr(iigrps,jigrps)   ! FLAG: if mindis eq 0 cycle
-                 do jnsubg = 1, grps(jigrps)
-                   jisubg = jisubg + 1
+                 mindis = thr(iigrps,jigrps)   
+!
+                 if ( mindis .gt. 1.0e-6 ) then 
+                   do jnsubg = 1, grps(jigrps)
+                     jisubg = jisubg + 1
+                     jj     = jj + subg(jisubg)
+                     j      = jngrps + igrps(jj)
+!
+                     r    = minimgvec(coord(:,i),coord(:,j),box)
+                     dist = dot_product(r,r)
+!
+                     if ( dist .le. mindis ) then
+                       adj(jrenum,irenum) = .TRUE.
+                       adj(irenum,jrenum) = .TRUE.
+                       GO TO 1000
+                     end if
+!
+                     if ( dist .gt. maxdis ) then
+                       GO TO 1000
+                     end if
+                   end do
+                 else
+                   jisubg = jisubg + grps(jigrps)
                    jj     = jj + subg(jisubg)
-                   j      = jngrps+igrps(jj)
+                 end if
 !
-                   r    = minimgvec(coord(:,i),coord(:,j),box)
-                   dist = dot_product(r,r)
-!
-!~                    if ( debug ) then
-!~                      fmt1 = '(2(X,A,X,I4,3(X,A,X,I2),X,A,X,I5),X,A'//  &
-!~                                                                 ',F6.3)'
-!~                      write(*,fmt1) 'COMPARING irenum',irenum,          &
-!~                                              'iigrps',iigrps,          &
-!~                                              'iisubg',iisubg,          &
-!~                                              'iat',ii,'i',i,           &
-!~                                         'WITH jrenum',jrenum,          &
-!~                                              'jigrps',jigrps,          &
-!~                                              'jisubg',jisubg,          &
-!~                                              'jat',jj,'j',j,           &
-!~                                         'DIST',dist
-!~                    end if
-!
-                   if ( dist .le. mindis ) then
-                     adj(jrenum,irenum) = .TRUE.
-                     adj(irenum,jrenum) = .TRUE.
-                     GO TO 1000
-                   end if
-!
-                   if ( dist .gt. maxdis ) then
-                     GO TO 1000
-                   end if
-!
-                 end do
-               end do
+              end do
              end do
            end do
 1000       continue           
          end do
        end do
-!
-       if ( debug ) write(*,*)
-!
-! OLD ALGORITHM v2
-! ----------------
-!
-!~        adj(:,:) = .FALSE. 
-!~ !
-!~        do irenum = 1, nnode-1
-!~ !!~            if ( debug ) then
-!~ !!~              write(*,*)
-!~ !!~              write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',      &
-!~ !!~                                                      (irenum-1)*natmol+1
-!~ !!~              write(*,'(3X,22("-"))')
-!~ !!~            end if
-!~          do jrenum = irenum+1, nnode
-!~            iat  = 0
-!~            i    = (irenum-1)*natmol
-!~            dist = thr + 1.0e-10
-!~            do while ( (iat.lt.natmol) .and. (dist.ge.thr) )
-!~              iat = iat + 1
-!~              i   = i + 1
-!~              jat = 0
-!~              j   = (jrenum-1)*natmol 
-!~              do while ( (jat.lt.natmol) .and. (dist.le.maxdis) .and.   &
-!~                                                          (dist.ge.thr) ) 
-!~                jat = jat + 1  
-!~                j   = j + 1
-!~ !
-!~                r    = minimgvec(coord(:,i),coord(:,j),box)
-!~                dist = sqrt(dot_product(r,r))
-!~ !
-!~ !!~                if ( debug ) then
-!~ !!~                  write(*,'(6(X,A,X,I5),X,A,F6.3)') 'Comparing irenum', &
-!~ !!~                                                    irenum,'iat',iat,   &
-!~ !!~                                                    'i',i,'with jrenum',&
-!~ !!~                                                    jrenum,'jat',jat,   &
-!~ !!~                                                    'j',j,'dist',dist
-!~ !!~                end if
-!~ !
-!~                if ( dist .le. thr ) then
-!~                  adj(jrenum,irenum) = .TRUE.
-!~                  adj(irenum,jrenum) = .TRUE.
-!~                end if
-!~              end do
-!~            end do
-!~          end do
-!~        end do
-!
-!~        if ( debug ) write(*,*)
-!
-! OLD ALGORITHM v1
-! ----------------
-!
-!~        adj(:,:) = .FALSE.
-!~        dist     = thr + 0.1
-!~        i = 1
-!~        do irenum = 1, nnode-1
-!~          check(:) = .TRUE.
-!~          do iat = 1, natmol
-!~            if ( debug ) then
-!~              write(*,*)
-!~              write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',iat,  &
-!~                                                                    'i',i
-!~              write(*,'(3X,29("-"))')
-!~            end if
-!~            jj = irenum*natmol + 1
-!~            do jrenum = irenum + 1, nnode
-!~              if ( (.not. adj(jrenum,irenum)) .and. check(jrenum) ) then
-!~                j    = jj
-!~                jat  = 1
-!~                dist = thr + 1.0e-10
-!~                do while ( (jat.le.natmol) .and. (dist.le.maxdis) .and. &
-!~                           (dist.ge.thr) ) 
-!~                  r    = minimgvec(coord(:,i),coord(:,j),box)
-!~                  dist = sqrt(dot_product(r,r))
-!~ !
-!~                  if ( debug ) then
-!~                    write(*,'(1X,4(A,X,I4,X),A,F6.3)') 'Comparing w'//  &
-!~                          'ith residue',jrenum,'atom',jat,'j',j,'jj',   &
-!~                                                           jj,'dist',dist
-!~                  end if
-!~ !
-!~                  if ( dist .le. thr ) then
-!~                    adj(jrenum,irenum) = .TRUE.
-!~                    adj(irenum,jrenum) = .TRUE.
-!~                  end if
-!~                  j   = j + 1
-!~                  jat = jat + 1
-!~                end do
-!~                if ( dist .gt. maxdis ) check(jrenum) = .FALSE.
-!~              end if
-!~              jj = jj + natmol
-!~            end do
-!~            i = i + 1
-!~          end do
-!~        end do
 !
        return
        end subroutine build_adj
@@ -1510,39 +1332,14 @@
            iqueue = 1
 ! Setting the next element in the queue
            nqueue = 2
-!~            if ( debug ) then
-!~              write(*,*)
-!~              write(*,'(X,A,I4)') 'Starting outer loop cycle in node',  &
-!~                                                                    inode
-!~              write(*,*)          '====================================='
-!~              write(*,*)
-!~              write(*,'(X,A,20L3)') 'Visited               :',notvis
-!~              write(*,'(X,A,20I3)') 'Queue                 :',queue
-!~              write(*,*) 'New aggregate found'
-!~              write(*,'(X,A,I3)')   'Number of aggregates  :',nagg
-!~              write(*,'(X,A,20I3)') 'Identifier            :',iagg
-!~              write(*,*)
-!~            end if
 !
 ! Inner loop over the queue elements
 !
            do while ( iqueue .lt. nqueue )
 ! Saving actual element in the queue
              knode = queue(iqueue)
-! Checking if node k was already visited
-!~                if ( debug ) then
-!~                  write(*,*)
-!~                  write(*,'(X,A,I4)') 'Taking from the queue node',knode
-!~                  write(*,*)          '-------------------------------'
-!~                  write(*,*)
-!~                  write(*,'(3X,A,I4)') 'Starting inner loop'
-!~                  write(*,'(3X,A)')    '-------------------'
-!~                  write(*,*)
-!~                end if
 ! Check the connection between actual queue element and the rest of nodes
                do jnode = inode + 1, nnode
-!~                  if ( debug ) write(*,'(4X,A,I4,A)') 'Checking if '//  &
-!~                                              'node',jnode,' was visited'
 ! Checking if node j is connected to node k or has been already visited
                  if ( adj(jnode,knode) .and. notvis(jnode) ) then
 ! Updating the system information
@@ -1558,20 +1355,6 @@
                    queue(nqueue) = jnode
 ! Updating next element in the queue
                    nqueue        = nqueue + 1
-!~                    if ( debug ) then
-!~                      write(*,*)
-!~                      write(*,'(4X,A)')      'New connection found'
-!~                      write(*,'(4X,A,I4)')   'Adding to the queue e'//  &
-!~                                                           'lement',jnode
-!~                      write(*,*)
-!~                      write(*,'(4X,A,20I3)') 'Queue                '//  &
-!~                                                               ' :',queue
-!~                      write(*,'(4X,A,I3)')   'Number of aggregates '//  & 
-!~                                                                ' :',nagg
-!~                      write(*,'(4X,A,20I3)') 'Identifier           '//  &
-!~                                                                ' :',iagg
-!~                      write(*,*)
-!~                    end if
                  end if
                end do
 ! Updating the queue counter
@@ -1607,6 +1390,7 @@
        implicit none
 !
        include 'info.h'
+!~        include 'idxadj.h'
 !
 ! Input/output variables
 !
@@ -1656,23 +1440,12 @@
 !
        close(uniinp)
 ! Printing coordinates of the complexes by size
-       k = 0                  !  FLAG: remove the line
        n     = nmol(1)
        nsize = 0
 !
        do i = 2, maxagg
-!~ write(*,*)
-!~ write(*,'(X,A,I4)') 'Molecules belongging to type',i
-!~ write(*,'(X,A)')    '--------------------------------'
-!
-         k = k + nmol(i-1)    !  FLAG: remove the line
          do j = 1, nmol(i)
-           l = k + j          !  FLAG: remove the line
            n = n + itag(n)
-!  
-!~ write(*,'(3X,2(A,I6))') 'Aggregate number',l, ' starts in molecule',n
-!~ write(*,'(3x,2(A,I6))') 'Coordinates of molecule',imol(n),' start in atom',(imol(n)-1)*sys%nat+1
-!
            if ( nsize .ne. itag(n) ) then
              write(straux,*) itag(n)
              straux = adjustl(straux)
@@ -1684,7 +1457,6 @@
                                                '_'//trim(straux)//'.xyz'
              open(unit=uniinp,file=straux,action='write')
 !
-!~ write(*,*) 'Opening file',straux
              nsize = itag(n)
            end if
 !
@@ -1718,10 +1490,8 @@
            do p = 1, itag(n)
              m = m + 1
              r = (imol(m)-1)*sys%nat
-!~ write(*,'(3X,2(A,I6))') 'Molecule index',imol(m),' for molecule',m
              do q = 1, sys%nat
                r = r + 1
-!~ write(*,'(3X,A,I6)') 'Atom index    ',r
                write(uniinp,*) sys%atname(q),(xtcf%pos(:,r) - cofm(:))*10
              end do
            end do
@@ -1746,8 +1516,7 @@
 !
 !======================================================================!
 !
-! Seen on: Gaines & Di Tommaso. Pharmaceutics, 2018, 10. 
-!          10.3390/pharmaceutics10010012
+! Seen on: Gaines & Di Tommaso. Pharmaceutics, 2018, 10. 10.3390/pharmaceutics10010012
 !
        subroutine build_pim(ngrps,grps,nsubg,subg,natmol,igrps,thr,    &
                             nnode,imol,itag,maxagg,nmol,natconf,       &
@@ -1786,36 +1555,23 @@
        real(kind=4),dimension(3)                                   ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
        real(kind=8)                                                ::  mindis   !  Distance threshold between groups
        real(kind=8)                                                ::  dist     !  Minimum image distance
-       integer                                                     ::  itype    !  Aggregates type
 !
 ! Building pairwise interaction matrix 
 !
+                     fmt1 = '(8X,X,A,X,I2,2(X,A,X,I4),3(X,A,X,I2),'//  &
+                                                             'X,A,X,I6)'
        iitag = nmol(1)
 !
        do itype = 1, maxagg-1
          if ( nmol(itype+1) .eq. 0 ) cycle
-!
-!~          write(*,'(3X,A,X,I4)') 'Building PIM for aggregates belon'//  &
-!~                                                  'gging to type',itype+1
-!~          write(*,'(3X,51("-"))') 
-!~          write(*,*)
-!
          do inmol = 1, nmol(itype+1)
            iitag = iitag + itag(iitag)
-!  
-!~ write(*,'(5X,A,X,I6)')    'NEW AGGREGATE starts in molecule',iitag
-!~ write(*,*)
-!
            iimol = iitag - 1
            do irenum = 1, itag(iitag)-1
              iimol  = iimol + 1
              ingrps = (imol(iimol)-1)*natmol
 !
-!~ write(*,'(6X,5(X,A,X,I4),X,A,X,I6)') 'TYPE',itype+1,'AGGREGATE',inmol, &
-!~      'irenum',irenum,'iimol',iimol,'imol',imol(iimol),'ingrps',ingrps+1
-!~ write(*,*)
-!
-             jimol = iimol 
+             jimol  = iimol 
              do jrenum = irenum+1, itag(iitag)
                jimol  = jimol + 1
                jngrps = (imol(jimol)-1)*natmol
@@ -1825,204 +1581,40 @@
                do iigrps = 1, ngrps
                  do insubg = 1, grps(iigrps)
                    iisubg = iisubg + 1 
-                   i      = ii
-                   do iat = 1, subg(iisubg)
-                     i = i + 1
+                   ii     = ii + subg(iisubg)
+                   i      = ingrps + igrps(ii)
 !
-                     fmt1 = '(8X,X,A,X,I2,2(X,A,X,I4),3(X,A,X,I2),'//  &
-                                                             'X,A,X,I6)'
-!~                      write(*,fmt1) 'COMPARING '//                      &
-!~                                    'irenum',irenum,                    &
-!~                                     'iimol',iimol,                     &
-!~                                      'imol',imol(iimol),               &
-!~                                     'igrps',iigrps,                    &
-!~                                     'isubg',iisubg,                    &
-!~                                       'iat',i,                         &
-!~                                         'i',ingrps+igrps(i)
-!~                      write(*,*)
-!
-                     jisubg = 0
-                     jj     = 0
-                     do jigrps = 1, ngrps
-                       mindis = thr(iigrps,jigrps)   ! FLAG: if mindis eq 0 cycle
+                   jisubg = 0
+                   jj     = 0
+                   do jigrps = 1, ngrps
+                     mindis = thr(iigrps,jigrps)
+                     if ( mindis .gt. 1.0e-6 ) then 
                        do jnsubg = 1, grps(jigrps)
                          jisubg = jisubg + 1
-                         j      = jj
-                         do jat = 1, subg(jisubg)
-                           j = j + 1
+                         jj     = jj + subg(jisubg)
+                         j      = jngrps + igrps(jj)
 !
-!~                            write(*,fmt1) '     WITH '//                &
-!~                                          'jrenum',jrenum,              &
-!~                                           'jimol',jimol,               &
-!~                                            'jmol',imol(jimol),         &
-!~                                           'jgrps',jigrps,              &
-!~                                           'jsubg',jisubg,              &
-!~                                             'jat',j,                   &
-!~                                               'j',jngrps+igrps(j)
+                         r    = minimgvec(coord(:,i),coord(:,j),box)
+                         dist = dot_product(r,r)
 !
-                           r    = minimgvec(coord(:,ingrps+igrps(i)),  &
-                                            coord(:,jngrps+igrps(j)),  &
-                                            box)
-                           dist = dot_product(r,r)
-!
-                           if ( dist .le. mindis ) then
-                             pim(iigrps,jigrps,itype) =                &  ! FLAG: alternatively, to save pim in triangular form
-                                            pim(iigrps,jigrps,itype) + 1  !       1) find max(jigrps,iigrps) and min(jigrps,iigrps)
-                             pim(jigrps,iigrps,itype) =                &  !       2) then assign pim(max,min) 
-                                            pim(jigrps,iigrps,itype) + 1       
-                           end if
-                         end do
-                         jj = jj + subg(jisubg)
-!~ !                     j  = jngrps+igrps(jj)   ! FLAG: value of j if we remove the loop
+                         if ( dist .le. mindis ) then
+                           pim(iigrps,jigrps,itype) =                  &  ! FLAG: alternatively, to save pim in triangular form
+                                        pim(iigrps,jigrps,itype) + 1.0d0  !       1) find max(jigrps,iigrps) and min(jigrps,iigrps)
+                           pim(jigrps,iigrps,itype) =                  &  !       2) then assign pim(max,min) 
+                                        pim(jigrps,iigrps,itype) + 1.0d0       
+                         end if
                        end do
-                     end do
-!~ write(*,*)
+                     else
+                       jisubg = jisubg + grps(jigrps)
+                       jj     = jj + subg(jisubg)
+                     end if
                    end do            
-                   ii = ii + subg(iisubg)
-!~ !               i  = ingrps+igrps(ii)   ! FLAG: value of i if we remove the loop
                  end do
                end do
-!~ write(*,*)
              end do
            end do
          end do
        end do
-!
-
-
-!~        do irenum = 1, nnode-1
-!~          ingrps = (irenum-1)*natmol
-!~ !
-!         if ( debug ) then
-!           write(*,*)
-!           write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',        &
-!                                                     (irenum-1)*natmol+1
-!           write(*,'(3X,22("-"))')
-!         end if
-!~ !
-!~          do jrenum = irenum+1, nnode
-!~            jngrps = (jrenum-1)*natmol
-!~ !
-!~            iisubg = 0
-!~            ii     = 0
-!~            do iigrps = 1, ngrps
-!~              do insubg = 1, grps(iigrps)
-!~                iisubg = iisubg + 1
-!~                ii     = ii + subg(iisubg)
-!~                i      = ingrps+igrps(ii)
-!~ !
-!~                jisubg = 0
-!~                jj     = 0
-!~                do jigrps = 1, ngrps
-!~                  mindis = thr(iigrps,jigrps)
-!~                  do jnsubg = 1, grps(jigrps)
-!~                    jisubg = jisubg + 1
-!~                    jj     = jj + subg(jisubg)
-!~                    j      = jngrps+igrps(jj)
-!~ !
-!~                    r    = minimgvec(coord(:,i),coord(:,j),box)
-!~                    dist = sqrt(dot_product(r,r))
-!~ !
-!                   if ( debug ) then
-!                     fmt1 = '(2(X,A,X,I4,3(X,A,X,I2),X,A,X,I4),X,A'//  &
-!                                                                ',F6.3)'
-!                     write(*,fmt1) 'COMPARING irenum',irenum,          &
-!                                             'iigrps',iigrps,          &
-!                                             'iisubg',iisubg,          &
-!                                             'iat',ii,'i',i,           &
-!                                        'WITH jrenum',jrenum,          &
-!                                             'jigrps',jigrps,          &
-!                                             'jisubg',jisubg,          &
-!                                             'jat',jj,'j',j,           &
-!                                        'DIST',dist
-!                   end if
-!~ !
-!~                    if ( dist .le. mindis ) then
-!~ write(*,*) 'Connection found'
-!~                    end if
-!~ !
-!~                  end do
-!~                end do
-!~              end do
-!~            end do
-!~ 1000       continue           
-!~          end do
-!~        end do
-!~ !
-!~        if ( debug ) write(*,*)
-     
-!
-!       iitag = 0
-!       do i = 1, itype-1
-!         iitag = iitag + nmol(i)
-!write(*,*) iitag
-!       end do
-!
-!       do inmol = 1, nmol(itype)
-!         iitag = iitag + itag(iitag)
-!  
-!write(*,*)
-!write(*,'(5X,A,X,I6)') 'New aggregate starts in molecule',imol(iitag)
-!
-!         iimol = iitag - 1
-!         do irenum = 1, itag(iitag)
-!           iimol = iimol + 1
-!
-!~          if ( debug ) then
-!~            write(*,*)
-!~            write(*,'(3X,3(A,X,I4,X))') 'RESIDUE',irenum,'atom',        &
-!~                                                      (irenum-1)*natmol+1
-!~            write(*,'(3X,22("-"))')
-!~          end if
-!
-!
-!write(*,*)
-!write(*,'(6X,4(X,A,X,I6))') 'RESIDUE',irenum,'molecule',iimol,'index',imol(iimol),'atom',(imol(iimol)-1)*natmol+1
-!write(*,*)
-!~            ingrps = (imol(iimol)-1)*natmol
-!~            iisubg = 0
-!~            ii     = 0
-!~            do iigrps = 1, ngrps
-!~ write(*,*)
-!~ write(*,'(8X,2(X,A,X,I4))') 'Printing atoms belonging to group',iigrps,'of residue',irenum
-!~ write(*,'(9X,A,X,I4)') 'Number of subgroups',grps(iigrps)
-!~              do insubg = 1, grps(iigrps)
-!~                iisubg = iisubg + 1
-!~ !
-!~ write(*,*)
-!~ write(*,'(11X,2(X,A,X,I4))') 'Number of atoms in subgroup',iisubg,'is',subg(iisubg)
-!~ write(*,*)
-!~ ! 
-!~                i = ii
-!~                do iat = 1, subg(iisubg)
-!~                  i = i + 1
-!~ write(*,'(13X,A,I6)') 'Atom index    ',ingrps+igrps(i)
-!~ !
-!write(*,'(6X,3(X,A,X,I4),X,A,X,I8)') 'group',iigrps,'subgroup',iisubg, &
-!                                         'ii',ii,'atom',ingrps+igrps(i)
-!~ !
-!                   if ( debug ) then
-!                     fmt1 = '(2(X,A,X,I4,3(X,A,X,I2),X,A,X,I4),X,A'//  &
-!                                                                ',F6.3)'
-!                     write(*,fmt1) 'COMPARING irenum',irenum,          &
-!                                             'iigrps',iigrps,          &
-!                                             'iisubg',iisubg,          &
-!                                             'iat',ii,'i',i,           &
-!                                        'WITH jrenum',jrenum,          &
-!                                             'jigrps',jigrps,          &
-!                                             'jisubg',jisubg,          &
-!                                             'jat',jj,'j',j,           &
-!                                        'DIST',dist
-!                   end if
-!~                end do            
-!~ !
-!~                ii = ii + subg(iisubg)
-!               i      = ingrps+igrps(ii)   ! FLAG: value of i if we remove the loop
-!~ !
-!~              end do
-!~            end do
-!         end do
-!       end do
 !
        return
        end subroutine build_pim

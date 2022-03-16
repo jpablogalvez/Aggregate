@@ -520,7 +520,7 @@
 !
        do ilower = 1, n, num
          iupper = min(ilower + num - 1,n)
-         write(*,'(11X,10(X,I6))')    (i+j,j = ilower, iupper)
+         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
          write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
          write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
          write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)

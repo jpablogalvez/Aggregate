@@ -1,3 +1,4 @@
+       integer  ::  itype    !  Aggregates type
        integer  ::  inmol    !
        integer  ::  jnmol    !
        integer  ::  iimol    !

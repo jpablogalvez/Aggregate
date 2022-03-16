@@ -9,6 +9,9 @@
   *GRP
     Name = HO Atoms=1
      13
+!  *SGRP
+!    Name = OH Atoms=1
+!     12 13 
   *SGRP
     Name=H-pi atoms=5
      2 4 6 8 10
@@ -25,6 +28,6 @@
     OH    H-pi  0.25d0
     OH    C-pi  0.30d0
     C-pi  C-pi  0.40d0 
-    C-pi  H-pi  0.25d0 
-    C-pi  HO    0.25d0 
+    C-pi  H-pi  0.30d0 
+    C-pi  HO    0.30d0 
 **END THRESHOLD
