@@ -5,6 +5,7 @@ ODIR =./obj
 MDIR =./mod
 SDIR =.
 #libpath=/home/users/quicuan/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
+#libpath=/home/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
 libpath=/home/jpablo/lib/xdrfile/lib/libxdrfile.so
 #libpath=/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
 
@@ -15,7 +16,7 @@ FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate
 MAIN    = gmx_aggregate
 SRCF90  = gmx_aggregate.f90
-SCRMOD  = datatypes.f90 utils.f90 geometry.f90 sorting.f90 xdr.F90 
+SCRMOD  = datatypes.f90 utils.f90 geometry.f90 graphtools.f90 sorting.f90 xdr.F90 
 
 # Find all source files, create a list of corresponding object files
 OBJ     = $(patsubst %.f90,$(ODIR)/%.o,$(SRCF90))

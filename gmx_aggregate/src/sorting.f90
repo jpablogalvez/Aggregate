@@ -10,7 +10,7 @@
 ! LMRCQSORT - Logical Matrix Rows and Columns Quicksort
 !
 ! This subroutine performs the permutations of the rows and columns in  
-!  the interval [low,high] of a logical matrix adj(n,n) of dimension n
+!  the interval [LOW,HIGH] of a logical matrix ADJ(n,n) of dimension n
 !  based on the order given in the array A(n)
 !
 ! Seen on: https://cs.stackexchange.com/questions/104816/implementation-of-quicksort-to-handle-duplicates

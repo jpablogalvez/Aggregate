@@ -24,7 +24,7 @@
 !
        include 'info.h'
 !
-       character(len=lencmd)  ::  cmd         !  Command executed
+       character(len=lencmd)  ::  cmd  !  Command executed
 !
        write(*,'(1X,A)') 'Starting program at '//fdate()//             &
                          ' on '//print_host() 
