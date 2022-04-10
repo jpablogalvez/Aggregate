@@ -14,14 +14,19 @@ FC = gfortran -I$(IDIR) -J$(MDIR)  # -Wno-argument-mismatch
 FLFLAGS = -g
 FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate
-MAIN    = gmx_aggregate
 SRCF90  = gmx_aggregate.f90
-SCRMOD  = datatypes.f90 utils.f90 geometry.f90 graphtools.f90 sorting.f90 xdr.F90 
+SRCMOD  = datatypes.f90      \
+          utils.f90          \
+          input_section.f90  \
+          geometry.f90       \
+          graphtools.f90     \
+          sorting.f90        \
+          xdr.F90 
 
 # Find all source files, create a list of corresponding object files
 OBJ     = $(patsubst %.f90,$(ODIR)/%.o,$(SRCF90))
 OBJ    := $(OBJ) $(patsubst %.F90,$(ODIR)/%.o,$(SRC))
-MODOBJ  = $(patsubst %.f90,$(ODIR)/%.o,$(SCRMOD)) 
+MODOBJ  = $(patsubst %.f90,$(ODIR)/%.o,$(SRCMOD)) 
 MODOBJ := $(patsubst %.F90,$(ODIR)/%.o,$(MODOBJ))
 MODMOD  = $(patsubst $(ODIR)/%.o,$(MDIR)/%.mod,$(MODOBJ))
 

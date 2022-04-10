@@ -36,6 +36,7 @@
        integer                               ::  iaux
 !
 ! Sorting elements with indexes in the interval [low,high]
+! --------------------------------------------------------
 !
        if ( low .lt. high ) then
 ! Choice a random pivot (not best performance, but avoids worst-case)
@@ -120,6 +121,7 @@
        integer                             ::  iaux
 !
 ! Sorting elements with indexes in the interval [low,high]
+! --------------------------------------------------------
 !
        if ( low .lt. high ) then
 ! Choice a random pivot (not best performance, but avoids worst-case)
@@ -198,6 +200,7 @@
        integer                             ::  iaux
 !
 ! Sorting elements with indexes in the interval [low,high]
+! --------------------------------------------------------
 !
        if ( low .lt. high ) then
 ! Choice a random pivot (not best performance, but avoids worst-case)

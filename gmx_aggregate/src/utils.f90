@@ -284,7 +284,7 @@
 !
 !======================================================================!
 !
-       subroutine unkkey(key,sect)
+       subroutine unkopt(key,sect)
 !
        implicit none
 !
@@ -293,8 +293,30 @@
 !
        write(*,*)
        write(*,'(2X,68("="))')
-       write(*,'(3X,A)') 'ERROR:  Unknown keyword in section '//       &
+       write(*,'(3X,A)') 'ERROR:  Unknown option in section '//        &
                                                               trim(sect)
+       write(*,*) 
+       write(*,'(3X,A)') 'Option '//trim(key)//' not known'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine unkopt
+!
+!======================================================================!
+!
+       subroutine unkkey(key,opt)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  key
+       character(len=*),intent(in)  ::  opt
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Unknown keyword in option '//        &
+                                                               trim(opt)
        write(*,*) 
        write(*,'(3X,A)') 'Keyword '//trim(key)//' not known'
        write(*,'(2X,68("="))')
@@ -328,6 +350,30 @@
 !
 !======================================================================!
 !
+       subroutine errkeychar(aux,sect)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  sect
+       character(len=*),intent(in)  ::  aux
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Keyword badly introduced'
+       write(*,*) 
+       write(*,'(3X,A)') 'Group name specified not defined in **MO'//  &
+                                                            'LREP block'
+       write(*,'(3X,A)') 'Please, check '//aux//' '//trim(sect)//      &
+                                                    ' in the input file'
+       write(*,'(2X,68("="))')
+       write(*,*) 
+       call print_end()
+!
+       return
+       end subroutine errkeychar
+!
+!======================================================================!
+!
        subroutine endblck(blck)
 !
        implicit none
@@ -337,7 +383,7 @@
        write(*,*)
        write(*,'(2X,68("="))')
        write(*,'(3X,A)') 'ERROR:  Input file finished before block'//  &
-                                                        ' was completed'
+                                                         ' was complete'
        write(*,*) 
        write(*,'(3X,A)') 'Block '//trim(blck)//' is not complete'
        write(*,'(2X,68("="))')
@@ -358,7 +404,7 @@
        write(*,*)
        write(*,'(2X,68("="))')
        write(*,'(3X,A)') 'ERROR:  Input file finished before secti'//  &
-                                                      'on was completed'
+                                                       'on was complete'
        write(*,*) 
        write(*,'(3X,A)') 'Section '//trim(sect)//' is not complete'
        write(*,'(2X,68("="))')
@@ -379,7 +425,7 @@
        write(*,*)
        write(*,'(2X,68("="))')
        write(*,'(3X,A)') 'ERROR:  Input file finished before optio'//  &
-                                                       'n was completed'
+                                                        'n was complete'
        write(*,*) 
        write(*,'(3X,A)') 'Option '//trim(opt)//' is not complete'
        write(*,'(2X,68("="))')
@@ -400,15 +446,48 @@
        write(*,*)
        write(*,'(2X,68("="))')
        write(*,'(3X,A)') 'ERROR:  Input file finished before keywo'//  &
-                                                      'rd was completed'
+                                                       'rd was complete'
        write(*,*) 
-       write(*,'(3X,A)') 'Option '//trim(key)//' is not complete'
+       write(*,'(3X,A)') 'Keyword '//trim(key)//' is not complete'
        write(*,'(2X,68("="))')
        write(*,*) 
        call print_end()
 !
        return
        end subroutine endkey
+!
+!======================================================================!
+!
+       subroutine endinp(sel,flag)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  sel
+       character(len=*),intent(in)  ::  flag
+!
+       select case ( sel )
+         case ('key')
+           call endkey(flag)
+         case ('opt')
+           call endopt(flag)
+         case ('sect')
+           call endsect(flag)
+         case ('blck')
+           call endblck(flag)
+         case default
+           write(*,*)
+           write(*,'(2X,68("="))')
+           write(*,'(3X,A)') 'ERROR:  Subroutine ENDINP called inc'//  &
+                                                              'orrectly'
+           write(*,*) 
+           write(*,'(3X,A)') 'Input file is not complete'
+           write(*,'(2X,68("="))')
+           write(*,*) 
+           call print_end()           
+       end select
+!
+       return
+       end subroutine endinp
 !
 !======================================================================!
 !
@@ -462,10 +541,49 @@
 !
 !======================================================================!
 !
-! FINDCV - Find Character Vector
+       subroutine findline(key,sel,flag)
 !
-! This subroutine returns the location of the element in the array CVEC
-!  of size N with the value given in the CVAL argument
+       implicit none
+!
+       include 'info.h'
+!
+! Input/output variables
+!
+       character(len=*),intent(out)  ::  key   !
+       character(len=*),intent(in)   ::  sel   !
+       character(len=*),intent(in)   ::  flag  !
+
+!
+! Local variables
+!
+       character(len=leninp)         ::  line  !
+       integer                       ::  io    !  Input/Output status
+!
+! Reading MOLREP block sections 
+!
+       do
+         read(uniinp,'(A)',iostat=io) line 
+! If the end of the input file is reached exit
+         if ( io /= 0 ) call endinp(sel,flag)
+!~        write(*,'(A)') trim(line) ! FLAG: dump of input data file
+! If reads a white line then reads the next line
+         if ( len_trim(line) == 0 ) cycle
+! Processing the line read 
+         call chkcomment(line,key)
+! If the line just contains a comment reads the next line
+         if ( len_trim(key) == 0 ) cycle
+         return
+       end do
+!
+       return
+       end subroutine findline
+!
+!======================================================================!
+!
+! FINDCV - Find Character Vector 
+!
+! This subroutine returns the location of the last element in the array
+!  CVEC of size N with the value given in the CVAL argument
 !
        function findcv(n,cvec,cval) result(posi)
 !
@@ -484,14 +602,12 @@
 ! 
 ! Finding string CVAL in the array CVEC
 !
+       posi = 0
        do i = 1, n
          if ( trim(adjustl(cvec(i))) .eq. trim(adjustl(cval)) ) then
            posi = i
-           return
          end if
        end do 
-!
-       posi = 0
 !     
        return
        end function findcv
