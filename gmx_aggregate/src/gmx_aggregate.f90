@@ -16,6 +16,7 @@
        include 'timings.h'
        include 'info.h'
 !
+       type(groinp)                               ::  sys      !  Monomer information
        character(len=leninp)                      ::  traj     !  Trajectory file name
        character(len=leninp)                      ::  conf     !  Configuration file name
        character(len=leninp)                      ::  inp      !  General input file name
@@ -26,8 +27,9 @@
        real(kind=8),dimension(:,:,:),allocatable  ::  pim      !  Pairwise interaction matrix
        real(kind=8),dimension(:,:),allocatable    ::  thr      !  Distance threshold
        real(kind=8),dimension(:),allocatable      ::  pop      !  Populations
+       real(kind=8),dimension(9,9,3)              ::  table    !  Number of aggregates of each type
        real(kind=8)                               ::  maxdis   !  Screening distance
-       real(kind=8)                               ::  sumpim   !  Sum of the elements of a matrix
+       real(kind=8)                               ::  dpaux    !  Auxiliary double precision number
        integer,dimension(:),allocatable           ::  nmol     !  Number of aggregates of each size
        integer,dimension(:),allocatable           ::  imol     !  Molecules identifier
        integer,dimension(:),allocatable           ::  iagg     !  Aggregates identifier
@@ -49,14 +51,8 @@
        integer                                    ::  maxagg   !  Maximum aggregate size
        integer                                    ::  io       !  Status
        integer                                    ::  i,j,k    !  Indexes
+       logical                                    ::  seed     !  Random seed flag
        logical                                    ::  debug    !  Debug mode
-! Declaration of time control variables
-       real(kind=8)                               ::  tcpu     !  Total CPU time
-       real(kind=8)                               ::  tread    !  Total reading time
-       real(kind=8)                               ::  tadj     !  Total adjacency matrix building time
-       real(kind=8)                               ::  tbfs     !  Total BFS time
-       real(kind=8)                               ::  tsort    !  Total sorting time
-       real(kind=8)                               ::  tpim     !  Total PIM analysis time
 ! Declaration of a variable of type xtcfile
        type(xtcfile)                              ::  xtcf     !  xtc file informacion
 ! Declaration of a variable of type trrfile
@@ -84,6 +80,8 @@
 !
        call print_start()
 !
+! Initializing timings
+!
        tcpu  = 0.0d0
        tread = 0.0d0
        tadj  = 0.0d0
@@ -91,10 +89,14 @@
        tsort = 0.0d0
        tpim  = 0.0d0
 !
+! Initializing random number generator
+!
+       call rndmseed(seed)
+!
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         maxagg,maxdis,dopim,debug)
+                         maxagg,maxdis,dopim,seed,debug)
 !
 !  General settings and fatal errors check
 !
@@ -138,7 +140,7 @@
 !
 ! Processing Gromacs input file
 !
-       call read_gro(conf)
+       call read_gro(conf,sys)
 ! Opening populations output file
        open(unit=uniout,file=trim(outp),action='write')
 !
@@ -180,6 +182,8 @@
          nsteps = 0
          pop(:) = 0.0d0
 !
+         table(:,:,:) = 0.0d0
+!
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
          do while ( (xtcf%STAT.eq.0) .and. (xtcf%STEP.le.maxstep)      &
@@ -192,16 +196,16 @@
 !
              call system_clock(t1adj)     
 !
-             call build_adj(ngrps,grps,nsubg,subg,nnode,igrps,adj,thr, &
-                            maxdis,xtcf%NATOMS,xtcf%pos,sys%nat,       &
-                            sys%mass,(/xtcf%box(1,1),xtcf%box(2,2),    &
-                            xtcf%box(3,3)/),debug)
+             call buildadjmol(ngrps,grps,nsubg,subg,nnode,igrps,adj,   &
+                              thr,maxdis,xtcf%NATOMS,xtcf%pos,sys%nat, &
+                              sys%mass,(/xtcf%box(1,1),xtcf%box(2,2),  &
+                              xtcf%box(3,3)/),debug)
 !
              call system_clock(t2adj) 
 !
              tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
 !
-! Block-diagonalizing the adjacency matrix
+! Block-diagonalizing the adjacency matrix 
 !
              call blockdiag(nnode,adj,imol,iagg,itag,maxagg,nmol,      &
                             nagg,tbfs,tsort,count_rate,debug)
@@ -228,7 +232,8 @@
                                imol(nmol(1)+1:),iagg(nmol(1)+1:),      &
                                itag(nmol(1)+1:),'imol','iagg','itag')
 !
-               call print_coord(xtcf,outp,maxagg,nmol,nnode,imol,itag)
+               call print_coord(xtcf,sys,outp,maxagg,                  &
+                                nmol,nnode,imol,itag)
              end if
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
@@ -249,10 +254,11 @@
 !
 ! Analyzing aggregates by their connectivity
 !
-             call analyze_agg(ngrps,grps,nsubg,subg,sys%nat,igrps,     &
-                              thr,nnode,adj,imol,itag,maxagg,nmol,     & 
-                              xtcf%NATOMS,xtcf%pos,(/xtcf%box(1,1),    &
-                              xtcf%box(2,2),xtcf%box(3,3)/),debug)
+             call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,  &
+                              sys%nat,igrps,thr,nnode,adj,imol,itag,   & 
+                              maxagg,nmol,xtcf%NATOMS,xtcf%pos,        &
+                              (/xtcf%box(1,1),xtcf%box(2,2),           &
+                                xtcf%box(3,3)/),debug)
 !
            end if
 !
@@ -282,20 +288,34 @@
          pim(:,:,:) = pim(:,:,:)/nsteps
 !
          do i = 1, maxagg-1
-           if ( nmol(i+1) .eq. 0 ) cycle
-           sumpim = 0.0d0
+           dpaux = 0.0d0
            do j = 1, ngrps
              do k = j, ngrps
-               sumpim = sumpim + pim(k,j,i)
+               dpaux = dpaux + pim(k,j,i)
              end do
            end do
-           pim(:,:,i) = pim(:,:,i)/sumpim*100
+           pim(:,:,i) = pim(:,:,i)/dpaux*100
          end do
        end if
 !
-! Printing summary of the results
+! Averaging populations
 !
        pop(:) = pop(:)/nsteps
+!
+       table(:,:,:) = table(:,:,:)/nsteps
+!
+       do i = 1, 3
+         dpaux = 0.0d0
+         do j = 1, 9
+           do k = 1, 9
+             dpaux = dpaux + table(k,j,i)
+           end do
+         end do
+         table(:,:,i) = table(:,:,i)/dpaux*100
+       end do
+!
+! Printing summary of the results
+!
        write(*,'(1X,A)') 'Output information'
        write(*,'(1X,18("-"))')
        write(*,*)
@@ -305,21 +325,30 @@
                                                                   pop(:)
        write(*,*)
 !
+       do i = 1, 3
+         write(*,'(3X,A,X,I3)') 'Populations of the aggregates belonging to type',i+1
+         write(*,'(3X,51("-"))') 
+         write(*,'(8X,A5)')          'IDXOH'
+         write(*,'(1X,A5,20(X,I6))') 'IDXPh',(k,k=1,9)
+         do j = 1, 9
+           write(*,'(I6,20(X,F6.2))') j,(table(k,j,i),k=1,9)
+         end do
+         write(*,*)
+       end do
+!
        if ( dopim ) then
          do i = 1, maxagg-1
-           if ( nmol(i+1) .eq. 0 ) cycle
            write(*,'(3X,A,X,I3)') 'Printing PIM for aggregates bel'//  &
                                                     'onging to type',i+1
            write(*,'(3X,50("-"))') 
            write(*,'(8X,20(X,A8))') (adjustr(grptag(j)),j=1,ngrps)
            do j = 1, ngrps
-             write(*,'(A8,20(X,F8.2))') adjustr(grptag(j)),                  &
+             write(*,'(A8,20(X,F8.2))') adjustr(grptag(j)),            &
                                                       (pim(k,j,i),k=1,j)
            end do
            write(*,*)
          end do
        end if
-!
 !
 ! Deallocate memory
 !
@@ -366,7 +395,9 @@
        end if
 !
        write(*,*)
-! Printing finishing date     
+!
+! Printing finishing date 
+!    
        call print_end()
 !
        end program aggregate
@@ -374,7 +405,7 @@
 !======================================================================!
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
-                               maxstep,maxagg,maxdis,dopim,debug)
+                               maxstep,maxagg,maxdis,dopim,seed,debug)
 !
        use utils
 !
@@ -395,6 +426,7 @@
        integer,intent(out)                       ::  nprint   !  Populations printing steps interval
        integer,intent(out)                       ::  minstep  !  First step for analysis
        integer,intent(out)                       ::  maxstep  !  Last step for analysis
+       logical,intent(out)                       ::  seed     !  Random seed flag
        logical,intent(out)                       ::  debug    !  Debug mode
 !
 ! Local variables
@@ -419,6 +451,7 @@
        maxagg  = 10
        maxdis  = 1.5d0
        dopim   = .TRUE.
+       seed    = .FALSE.
        debug   = .FALSE.
 !
 ! Reading command line options
@@ -494,6 +527,8 @@
              dopim = .TRUE.
            case ('-nopim','--nopim','--no-pim')
              dopim = .FALSE.
+           case ('-s','-seed','--seed')
+             seed  = .TRUE.
            case ('-v','--debug','--verbose')
              debug = .TRUE.
            case ('-h','-help','--help')
@@ -553,7 +588,7 @@
 !
 !======================================================================!
 !
-       subroutine print_coord(xtcf,outp,maxagg,nmol,nnode,imol,itag)
+       subroutine print_coord(xtcf,sys,outp,maxagg,nmol,nnode,imol,itag)
 !
        use xdr,       only: xtcfile
        use geometry,  only: minimgvec
@@ -567,6 +602,7 @@
 ! Input/output variables
 !
        type(xtcfile),intent(inout)           ::  xtcf    !  xtc file informacion   
+       type(groinp),intent(in)               ::  sys     !  System information
        character(len=lenout),intent(in)      ::  outp    !  Output file name
        integer,dimension(maxagg),intent(in)  ::  nmol    !  Number of aggregates of each size
        integer,dimension(nnode),intent(in)   ::  imol    !  Molecule identifier
@@ -717,11 +753,9 @@
        integer,dimension(nnode),intent(out)       ::  iagg    !  Aggregates identifier
        integer,dimension(nnode),intent(out)       ::  itag    !  Aggregates size
        integer,dimension(maxagg),intent(out)      ::  nmol    !  Number of aggregates of each size
-       integer,intent(in)                         ::  nnode   !  Number of residues
+       integer,intent(in)                         ::  nnode   !  Number of molecules
        integer,intent(in)                         ::  maxagg  !  Maximum aggregate size
-       integer,intent(out)                        ::  nagg    !  Number of chemical species
-       integer,intent(inout)                      ::  tbfs    !  Total BFS time
-       integer,intent(inout)                      ::  tsort   !  Total sorting time
+       integer,intent(out)                        ::  nagg    !  Number of aggregates
        logical,intent(in)                         ::  debug   !  Debug mode
 !
 ! Local variables
@@ -732,8 +766,8 @@
 !
        call system_clock(t1bfs)     
 !
-       call findcompundir(nnode,adj,imol,iagg,itag,maxagg,nmol,  &
-                                nagg,debug)
+       call findcompundir(nnode,adj,imol,iagg,itag,maxagg,nmol,nagg,   &
+                          debug)
 !
        call system_clock(t2bfs)     
 !
@@ -885,26 +919,164 @@
 !
 !======================================================================!
 !
-       subroutine analyze_agg(ngrps,grps,nsubg,subg,natmol,igrps,thr,  &
-                              nnode,adj,imol,itag,maxagg,nmol,natconf, &
-                              coord,box,debug)
+!~        subroutine analyze_agg(ngrps,grps,nsubg,subg,natmol,igrps,thr,  &
+!~                               nnode,adj,imol,itag,maxagg,nmol,natconf, &
+!~                               coord,box,debug)
+!~ !
+!~        use graphtools, only: calcdegundir,                             &
+!~                              chktree,                                  &
+!~                              chkltree,                                 &             
+!~                              chkscycle,                                &
+!~                              findshortc,                               &
+!~                              findlongt
+!~        use geometry,   only: minimgvec
+!~ !
+!~        implicit none
+!~ !
+!~        include 'idxadj.h'
+!~        include 'idxpim.h'
+!~        include 'idxbfs.h'
+!~ !
+!~ ! Input/output variables
+!~ !
+!~        logical,dimension(nnode,nnode),intent(in)         ::  adj      !  Adjacency matrix in the molecule representation
+!~        real(kind=8),dimension(natmol,natmol),intent(in)  ::  thr      !  Distance threshold
+!~        real(kind=4),dimension(3,natconf),intent(in)      ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
+!~        real(kind=4),dimension(3),intent(in)              ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+!~        integer,dimension(maxagg),intent(in)              ::  nmol     !  Number of aggregates of each size
+!~        integer,dimension(nnode),intent(in)               ::  imol     !  Molecules identifier
+!~        integer,dimension(nnode),intent(in)               ::  itag     !  Aggregates size
+!~        integer,dimension(natmol),intent(in)              ::  grps     !  Number of subgroups in each group
+!~        integer,dimension(natmol),intent(in)              ::  subg     !  Number of atoms in each subgroup
+!~        integer,dimension(natmol),intent(in)              ::  igrps    !  
+!~        integer,intent(in)                                ::  ngrps    !  Number of groups
+!~        integer,intent(in)                                ::  nsubg    !  Number of subgroups
+!~        integer,intent(in)                                ::  nnode    !  Number of residues
+!~        integer,intent(in)                                ::  maxagg   !  Maximum aggregate size
+!~        integer,intent(in)                                ::  natconf  !  Total number of atoms
+!~        integer,intent(in)                                ::  natmol   !  Atoms per residue
+!~        logical,intent(in)                                ::  debug    !  Debug mode
+!~ !
+!~ ! Local variables
+!~ !
+!~        logical,dimension(:,:),allocatable                ::  auxadj   !  Auxiliary adjacency matrix
+!~        integer,dimension(:),allocatable                  ::  degree   !  Degree of each vertex
+!~        character(len=54)                                 ::  fmt1     !  Format string
+!~        real(kind=4),dimension(3)                         ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
+!~        real(kind=8)                                      ::  dist     !  Minimum image distance
+!~        real(kind=8)                                      ::  mindis   !  Distance threshold between groups
+!~        integer,allocatable,dimension(:)                  ::  icmol    !  Molecules-in-cycle identifier
+!~        integer,allocatable,dimension(:)                  ::  icycle   !  Cycles identifier
+!~        integer,allocatable,dimension(:)                  ::  ictag    !  Cycles size
+!~        integer,allocatable,dimension(:)                  ::  ncmol    !  Number of cycles of each size
+!~        integer                                           ::  ncycle   !  Number of simple cycles       logical                                           ::  chk      !  Checking variable
+!~        logical                                           ::  chklt    !  Linear tree checking variable
+!~        logical                                           ::  chkbt    !  Binary tree checking variable
+!~ !
+!~ ! Analyzing aggregates of size greater than 2
+!~ ! -------------------------------------------
+!~ !
+!~        iitag = nmol(1) + nmol(2)*2 - 1
+!~ !
+!~        do itype = 2, maxagg-1
+!~          if ( nmol(itype+1) .eq. 0 ) cycle
+!~          do inmol = 1, nmol(itype+1)
+!~            iitag = iitag + itag(iitag)
+!~            iimol = iitag - 1
+!~ !
+!~ ! Saving the adjacency matrix of the current aggregate in the molecule-
+!~ !  based representation
+!~ !
+!~            allocate(auxadj(itag(iitag),itag(iitag)),degree(itag(iitag)))
+!~            allocate(icmol(itag(iitag)),icycle(itag(iitag)),            &
+!~                     ictag(itag(iitag)),ncmol(itag(iitag)) )
+!~ !
+!~            auxadj(:,:) = .FALSE.
+!~ !
+!~            write(*,'(2X,A)')          '-------------------------'
+!~            write(*,'(2X,A,20(X,I5))') 'Saving block of molecules',(imol(i),i=iimol+1,iimol+itag(iitag))
+!~            write(*,'(2X,A)')          '-------------------------'
+!~            write(*,*)
+!~ !
+!~            do irenum = 1, itag(iitag)-1
+!~              iimol = iimol + 1
+!~ !
+!~              jimol = iimol 
+!~              do jrenum = irenum+1, itag(iitag)
+!~                jimol = jimol + 1
+!~ !
+!~                auxadj(irenum,jrenum) = adj(imol(iimol),imol(jimol))
+!~                auxadj(jrenum,irenum) = auxadj(irenum,jrenum)
+!~              end do
+!~            end do
+!~ !
+!~            do i = 1, itag(iitag)
+!~              write(*,'(5X,20L2)') (auxadj(i,j),j=1,itag(iitag))
+!~            end do
+!~            write(*,*)
+!~ !
+!~ ! Analyzing adjacency matrix of the current aggregate
+!~ !
+!~ ! Calculating the degree of each vertex
+!~            degree  = calcdegundir(itag(iitag),auxadj)
+!~ !
+!~            write(*,'(6X,A,20(X,I2))') 'Degrees',degree
+!~            write(*,*)
+!~ ! Checking if the aggregate is a tree
+!~            if ( chktree(itag(iitag),degree) ) then 
+!~              write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a tree'
+!~ ! Checking if the aggregate forms a linear tree
+!~              if ( chkltree(itag(iitag),degree) ) then 
+!~                write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a linear tree'
+!~                write(*,'(4X,A,X,I4)') 'The length of the longest chain is',itag(iitag)
+!~              else 
+!~ ! If the tree is not linear then find the longest molecular chain
+!~                write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a n-ary tree'
+!~ !
+!~                write(*,'(4X,A,X,I4)') 'The length of the longest chain is',findlongt(itag(iitag),auxadj)
+!~              end if
+!~ ! If the graph is not a tree then it is a cyclic graph
+!~            else
+!~              write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a cycle'
+!~ ! Checking if the aggregate forms a single cycle through all nodes of the component
+!~              if ( chkscycle(itag(iitag),degree) ) then 
+!~                write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a simple cycle'
+!~                write(*,'(4X,A,X,I4)') 'The length of the shortest simple cycle is',itag(iitag)
+!~              else 
+!~ ! If the aggregate does not form a single cycle then find the shortest simple cycle
+!~                write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a n-cycle'
+!~ !                 
+!~                write(*,'(4X,A,X,I4)') 'The length of the shortest simple cycle is',findshortc(itag(iitag),auxadj,degree)
+!~              end if
+!~ ! 
+!~            end if
+!~            write(*,*)
+!~ !
+!~            deallocate(auxadj,degree)
+!~            deallocate(icmol,icycle,ictag,ncmol)
+!~ !
+!~          end do
+!~        end do
+!~ !
+!~        return
+!~        end subroutine analyze_agg
 !
-       use graphtools, only: calcdegundir,                             &
-                             chktree,                                  &
-                             chkltree,                                 &             
-                             chkscycle,                                &
-                             findshortc,                               &
-                             findlongt
-       use geometry,   only: minimgvec
+!======================================================================!
+!
+       subroutine analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,  &
+                              natmol,igrps,thr,nnode,adj,imol,itag,    &
+                              maxagg,nmol,natconf,coord,box,debug)
+!
+       use graphtools, only: buildadjbody
 !
        implicit none
 !
-       include 'idxadj.h'
        include 'idxpim.h'
-       include 'idxbfs.h'
+       include 'idxadj.h'
 !
 ! Input/output variables
 !
+       real(kind=8),dimension(9,9,3),intent(inout)       ::  table    !  Number of aggregates of each type
        logical,dimension(nnode,nnode),intent(in)         ::  adj      !  Adjacency matrix in the molecule representation
        real(kind=8),dimension(natmol,natmol),intent(in)  ::  thr      !  Distance threshold
        real(kind=4),dimension(3,natconf),intent(in)      ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
@@ -912,9 +1084,11 @@
        integer,dimension(maxagg),intent(in)              ::  nmol     !  Number of aggregates of each size
        integer,dimension(nnode),intent(in)               ::  imol     !  Molecules identifier
        integer,dimension(nnode),intent(in)               ::  itag     !  Aggregates size
+       integer,dimension(natmol),intent(in)              ::  body     !  Number of groups in each body
        integer,dimension(natmol),intent(in)              ::  grps     !  Number of subgroups in each group
        integer,dimension(natmol),intent(in)              ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(natmol),intent(in)              ::  igrps    !  
+       integer,dimension(natmol),intent(in)              ::  igrps    !  Atoms identifier
+       integer,intent(in)                                ::  nbody    !  Number of bodies
        integer,intent(in)                                ::  ngrps    !  Number of groups
        integer,intent(in)                                ::  nsubg    !  Number of subgroups
        integer,intent(in)                                ::  nnode    !  Number of residues
@@ -925,106 +1099,275 @@
 !
 ! Local variables
 !
-       logical,dimension(:,:),allocatable                ::  auxadj   !  Auxiliary adjacency matrix
+       logical,dimension(:,:),allocatable                ::  adjmol   !  Adjacency matrix in the molecule-based rep.  ! FLAG: rename as adjaux
+       logical,dimension(:,:),allocatable                ::  adjaux   !  Auxiliary adjacency matrix                   ! FLAG: rename as adjbody
        integer,dimension(:),allocatable                  ::  degree   !  Degree of each vertex
-       character(len=54)                                 ::  fmt1     !  Format string
-       real(kind=4),dimension(3)                         ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
-       real(kind=8)                                      ::  dist     !  Minimum image distance
-       real(kind=8)                                      ::  mindis   !  Distance threshold between groups
-       integer,allocatable,dimension(:)                  ::  icmol    !  Molecules-in-cycle identifier
-       integer,allocatable,dimension(:)                  ::  icycle   !  Cycles identifier
-       integer,allocatable,dimension(:)                  ::  ictag    !  Cycles size
-       integer,allocatable,dimension(:)                  ::  ncmol    !  Number of cycles of each size
-       integer                                           ::  ncycle   !  Number of simple cycles       logical                                           ::  chk      !  Checking variable
-       logical                                           ::  chklt    !  Linear tree checking variable
-       logical                                           ::  chkbt    !  Binary tree checking variable
+       integer                                           ::  idxbody  !  Index for the body-body interactions
+       integer                                           ::  idxoh    !  Index for the OH-OH interactions
+       integer                                           ::  idxph    !  Index for the Ph-Ph interactions
 !
-! Analyzing aggregates of size greater than 2
-! -------------------------------------------
+! Analyzing aggregates of size lower or equal than 4
+! --------------------------------------------------
 !
-       iitag = nmol(1) + nmol(2)*2 - 1
+       iitag = nmol(1)
 !
-       do itype = 2, maxagg-1
-         if ( nmol(itype+1) .eq. 0 ) cycle
-         do inmol = 1, nmol(itype+1)
+       do itype = 2, 4
+         if ( nmol(itype) .eq. 0 ) cycle
+         do inmol = 1, nmol(itype)
            iitag = iitag + itag(iitag)
            iimol = iitag - 1
 !
-! Saving the adjacency matrix of the current aggregate in the molecule-
-!  based representation
+           allocate(adjmol(itag(iitag),itag(iitag)),degree(itag(iitag)))
+           allocate(adjaux(itag(iitag)*nbody,itag(iitag)*nbody))
 !
-           allocate(auxadj(itag(iitag),itag(iitag)),degree(itag(iitag)))
-           allocate(icmol(itag(iitag)),icycle(itag(iitag)),            &
-                    ictag(itag(iitag)),ncmol(itag(iitag)) )
+           adjmol(:,:) = .FALSE.
 !
-           auxadj(:,:) = .FALSE.
+! Saving the adjacency matrix in the molecule-based representation
 !
-           write(*,'(2X,A)')          '-------------------------'
-           write(*,'(2X,A,20(X,I5))') 'Saving block of molecules',(imol(i),i=iimol+1,iimol+itag(iitag))
-           write(*,'(2X,A)')          '-------------------------'
-           write(*,*)
-!
+           i = iimol
            do irenum = 1, itag(iitag)-1
-             iimol = iimol + 1
+             i = i + 1
 !
-             jimol = iimol 
+             jimol = i 
              do jrenum = irenum+1, itag(iitag)
                jimol = jimol + 1
 !
-               auxadj(irenum,jrenum) = adj(imol(iimol),imol(jimol))
-               auxadj(jrenum,irenum) = auxadj(irenum,jrenum)
+               adjmol(irenum,jrenum) = adj(imol(i),imol(jimol))
+               adjmol(jrenum,irenum) = adjmol(irenum,jrenum)
              end do
            end do
 !
-           do i = 1, itag(iitag)
-             write(*,'(5X,20L2)') (auxadj(i,j),j=1,itag(iitag))
-           end do
-           write(*,*)
+!~            write(*,'(2X,A)')          '-------------------------'
+!~            write(*,'(2X,A,20(X,I5))') 'Saving block of molecules',(imol(i),i=iimol+1,iimol+itag(iitag))
+!~            write(*,'(2X,A)')          '-------------------------'
+!~            write(*,*)
+!~            write(*,'(2X,2(A,X,I4,X))') 'Analyzing aggregate',inmol,'of type',itype
+!~            write(*,*)
+!~ !
+!~            write(*,'(5X,A)') 'Adjacency matrix in the molecule-based representation'
+!~            write(*,'(5X,A)') '-----------------------------------------------------'
+!~            do i = 1, itag(iitag)
+!~              write(*,'(5X,20L2)') (adjmol(i,j),j=1,itag(iitag))
+!~            end do
+!~            write(*,*)
 !
-! Analyzing adjacency matrix of the current aggregate
+! Building the adjacency matrix in the N-body simplified representation
 !
-! Calculating the degree of each vertex
-           degree  = calcdegundir(itag(iitag),auxadj)
+           call buildadjbody(natmol,nbody,body,ngrps,grps,nsubg,       &
+                             subg,igrps,adjaux,thr,itag(iitag),        &
+                             imol(iimol+1:iimol+itag(iitag)),          &
+                             adjmol,natconf,coord,box,debug)
 !
-           write(*,'(6X,A,20(X,I2))') 'Degrees',degree
-           write(*,*)
-! Checking if the aggregate is a tree
-           if ( chktree(itag(iitag),degree) ) then 
-             write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a tree'
-! Checking if the aggregate forms a linear tree
-             if ( chkltree(itag(iitag),degree) ) then 
-               write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a linear tree'
-               write(*,'(4X,A,X,I4)') 'The length of the longest chain is',itag(iitag)
-             else 
-! If the tree is not linear then find the longest molecular chain
-               write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a n-ary tree'
+!~            write(*,'(5X,A)') 'Adjacency matrix in the N-body simplified representation'
+!~            write(*,'(5X,A)') '--------------------------------------------------------'
+!~            do i = 1, itag(iitag)*nbody
+!~              write(*,'(5X,20L2)') (adjaux(i,j),j=1,itag(iitag)*nbody)
+!~            end do
+!~            write(*,*)
 !
-               write(*,'(4X,A,X,I4)') 'The length of the longest chain is',findlongt(itag(iitag),auxadj)
+! Analyzing the adjacency matrix for each body-body interaction
+!
+           do iibody = 1, nbody
+!
+             adjmol(:,:) = .FALSE.
+!
+             inbody = 0
+             do irenum = 1, itag(iitag)-1
+               jnbody = inbody + nbody
+               do jrenum = irenum+1, itag(iitag)
+                 adjmol(jrenum,irenum) = adjaux(jnbody+iibody,inbody+iibody)
+                 adjmol(irenum,jrenum) = adjmol(jrenum,irenum)
+!~                  write(*,*) irenum,jrenum,inbody+iibody,jnbody+iibody,adjaux(inbody+iibody,jnbody+iibody)
+!
+                 jnbody = jnbody + nbody
+               end do
+               inbody = inbody + nbody
+             end do
+!
+!~              write(*,'(7X,A,X,I2)') 'Adjacency matrix for bodies of type',iibody
+!~              write(*,'(7X,A)')      '---------------------------------------'
+!~              do i = 1, itag(iitag)
+!~                write(*,'(7X,20L2)') (adjmol(i,j),j=1,itag(iitag))
+!~              end do
+!~              write(*,*)
+!
+! Removing rows and columns that contain only zeros (disconnected bodies)
+!
+             i  = 1
+             j  = itag(iitag)
+!
+             do irenum = 1, itag(iitag)
+               degree(i) = 0
+! Computing the degree of vertex i
+               do jrenum = 1, j
+                 if ( adjmol(jrenum,i) ) degree(i) = degree(i) + 1
+               end do
+! Pushing disconnected bodies to the end of the arrays
+               if ( degree(i) .eq. 0 ) then
+! Permuting columns of the adjacency matrix
+                 adjmol(:,i) = adjmol(:,j)
+                 adjmol(:,j) = .FALSE.
+! Permuting rows of the adjacency matrix
+                 adjmol(i,:) = adjmol(j,:)
+                 adjmol(j,:) = .FALSE.
+! Permuting degrees of the current node i and the last node j
+                 degree(j) = 0
+!
+                 j = j - 1
+               else
+                 i = i + 1
+               end if
+             end do
+!
+!~              write(*,'(7X,A,20(X,I2))') 'Size   ',j
+!~              write(*,'(7X,A,20(X,I2))') 'Degrees',degree
+!~              write(*,*)
+!~              write(*,'(9X,A,X,I2)') 'New adjacency matrix for bodies of type',iibody
+!~              write(*,'(9X,A)')      '-------------------------------------------'
+!~              do irenum = 1, itag(iitag)
+!~                write(*,'(9X,20L2)') (adjmol(irenum,jrenum),            &
+!~                                                    jrenum=1,itag(iitag))
+!~              end do
+!~              write(*,*)
+!
+! Classifying aggregate according to its interactions
+!
+             if ( iibody .eq. 1 ) then
+               idxoh = idxbody(j,adjmol(:j,:j),degree(:j))
+             else
+               idxph = idxbody(j,adjmol(:j,:j),degree(:j))
              end if
-! If the graph is not a tree then it is a cyclic graph
-           else
-             write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a cycle'
-! Checking if the aggregate forms a single cycle through all nodes of the component
-             if ( chkscycle(itag(iitag),degree) ) then 
-               write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a simple cycle'
-               write(*,'(4X,A,X,I4)') 'The length of the shortest simple cycle is',itag(iitag)
-             else 
-! If the aggregate does not form a single cycle then find the shortest simple cycle
-               write(*,'(4X,2(A,X,I4,X),A)') 'Aggregate',inmol,'of type',itype+1,'is a n-cycle'
-!                 
-               write(*,'(4X,A,X,I4)') 'The length of the shortest simple cycle is',findshortc(itag(iitag),auxadj,degree)
-             end if
-! 
-           end if
-           write(*,*)
 !
-           deallocate(auxadj,degree)
-           deallocate(icmol,icycle,ictag,ncmol)
+           end do  
+!
+           table(idxoh,idxph,itype-1) = table(idxoh,idxph,itype-1)     &
+                                                                 + 1.0d0
+!
+           deallocate(adjmol,degree)
+           deallocate(adjaux)
 !
          end do
        end do
 !
        return
        end subroutine analyze_agg
+!
+!======================================================================!
+!
+       integer function idxbody(nnode,adj,degree)
+!
+       use graphtools, only: chktree,                                  &
+                             chkltree,                                 &             
+                             chkscycle
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nnode,nnode),intent(in)  ::  adj      !  Adjacency matrix in the N-body simplified rep.
+       integer,dimension(nnode),intent(in)        ::  degree   !  Degree of each vertex
+       integer,intent(in)                         ::  nnode    !  Number of bodies
+!
+! Local variables
+!
+       real(kind=8)                               ::  dpaux1   !
+       real(kind=8)                               ::  dpaux2   !
+       integer,dimension(nnode)                   ::  degaux   !  Degree of each vertex of the largest block
+       integer,dimension(nnode)                   ::  ibody    !  Bodies identifier (imol)
+       integer,dimension(nnode)                   ::  iblck    !  Blocks identifier (iagg)
+       integer,dimension(nnode)                   ::  isize    !  Blocks size       (itag)
+       integer,dimension(nnode)                   ::  nsize    !  Number of blocks of each size (nmol)
+       integer                                    ::  nblck    !  Number of blocks (nagg)
+       integer                                    ::  msize    !  Size of the largest block
+       integer                                    ::  i        !  Index
+       logical                                    ::  false    !
+!
+! Classifying aggregate according to its interactions
+! ---------------------------------------------------
+!
+       false = .FALSE.
+!
+       if ( nnode .eq. 0 ) then
+         idxbody = 9
+       else if ( nnode .gt. 2 ) then
+! Block-diagonalizing the adjacency matrix for bodies of type iibody
+         call blockdiag(nnode,adj,ibody,iblck,isize,nnode,nsize,       &
+                        nblck,dpaux1,dpaux2,1,false)
+!
+         msize = isize(nnode)
+!
+!~          write(*,'(9X,A,X,20(X,I3))') 'ibody : ',ibody(:)
+!~          write(*,'(9X,A,X,20(X,I3))') 'iblck : ',iblck(:)
+!~          write(*,'(9X,A,X,20(X,I3))') 'isize : ',isize(:)
+!~          write(*,'(9X,A,X,20(X,I3))') 'nsize : ',nsize(:)
+!~          write(*,'(9X,A,X,20(X,I3))') 'msize : ',msize
+!~          write(*,'(9X,A,X,20(X,I3))') 'nblck : ',nblck
+!~          write(*,*)
+! Marking the aggregate according to its topology
+         select case ( msize )
+           case (2)
+!
+             idxbody = 2
+!
+           case (3)
+! Saving the degrees of the largest block vertices
+             do i = 1, msize
+               degaux(i) = degree(ibody(nnode-msize+i))
+             end do
+!
+!~              write(*,'(9X,A,20(X,I2))') 'Degrees',degaux(:msize)
+!~              write(*,*)
+! Checking if the aggregate is linear or cyclic
+             if ( chktree(msize,degaux(:msize)) ) then 
+!~                write(*,'(9X,A)') 'The bodies form a linear tree'
+!~                write(*,*)
+               idxbody = 3
+             else
+!~                write(*,'(9X,A)') 'The bodies form a simple cycle'
+!~                write(*,*)
+               idxbody = 4
+             end if
+!
+           case (4)
+! Saving the degrees of the largest block vertices
+             do i = 1, msize
+               degaux(i) = degree(ibody(nnode-msize+i))
+             end do
+!
+!~              write(*,'(9X,A,20(X,I2))') 'Degrees',degaux(:msize)
+!~              write(*,*)
+! Checking if the aggregate is linear or cyclic
+             if ( chktree(msize,degaux(:msize)) ) then 
+               if ( chkltree(msize,degaux(:msize)) ) then 
+!~                  write(*,'(9X,A)') 'The bodies form a linear tree'
+!~                  write(*,*)
+                 idxbody = 6
+               else
+!~                  write(*,'(9X,A)') 'The bodies form a tree'
+!~                  write(*,*)
+                 idxbody = 5
+               end if
+             else
+               if ( chkscycle(msize,degaux(:msize)) ) then 
+!~                  write(*,'(9X,A)') 'The bodies form a simple cycle'
+!~                  write(*,*)
+                 idxbody = 8
+               else
+!~                  write(*,'(9X,A)') 'The bodies form a cycle'
+!~                  write(*,*)
+                 idxbody = 7
+               end if
+             end if
+!
+         end select
+!
+       else
+!
+         idxbody = 1
+!
+       end if
+!
+       return
+       end function idxbody
 !
 !======================================================================!

@@ -18,8 +18,6 @@
          real(kind=8),dimension(3)                  ::  latvec  !  Box vectors
        end type groinp  
 !
-       type(groinp)                                 ::  sys     !  System information
-!
        end module datatypes
 !
 !======================================================================!

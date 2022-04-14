@@ -7,19 +7,21 @@
 !
 !======================================================================!
 !
-! LMRCQSORT - Logical Matrix Rows and Columns Quicksort
+! LMRCIVQSORT - Logical Matrix Rows and Columns Integer Vector Quicksort
 !
-! This subroutine performs the permutations of the rows and columns in  
-!  the interval [LOW,HIGH] of a logical matrix ADJ(n,n) of dimension n
-!  based on the order given in the array A(n)
+! This subroutine performs the permutations in the interval [LOW,HIGH]
+!  of the rows and columns of a logical matrix ADJ(N,N) of dimension N
+!  and the elements of an integer vector IVEC(N) based on the order gi-
+!  ven in the array REF(N)
 !
 ! Seen on: https://cs.stackexchange.com/questions/104816/implementation-of-quicksort-to-handle-duplicates
 !
-       recursive subroutine lmrcqsort(n,ref,adj,low,high)
+       recursive subroutine lmrcivqsort(n,ref,adj,ivec,low,high)
 !
 ! Input/output variables
 !
        integer,dimension(n),intent(inout)    ::  ref
+       integer,dimension(n),intent(inout)    ::  ivec
        logical,dimension(n,n),intent(inout)  ::  adj
        integer,intent(in)                    ::  n
        integer,intent(in)                    ::  low
@@ -27,7 +29,7 @@
 !
 ! Local variables
 !
-       logical,dimension(n)                  ::  laux
+       logical,dimension(n)                  ::  lvaux
        real(kind=4)                          ::  rndm
        integer                               ::  pivot
        integer                               ::  left
@@ -52,17 +54,21 @@
          do while ( right .le. upper ) 
            if ( ref(right) .lt. pivot ) then
 ! Sorting aggregates as they were found
-             iaux     = ref(left)
+             iaux       = ref(left)
              ref(left)  = ref(right)
              ref(right) = iaux
-! Exchanging rows of the adjacency matrix
-             laux(:)      = adj(:,left)
+! Permuting columns of the adjacency matrix
+             lvaux(:)     = adj(:,left)
              adj(:,left)  = adj(:,right)
-             adj(:,right) = laux(:)
-! Exchanging columns of the adjacency matrix
-             laux(:)      = adj(right,:)
+             adj(:,right) = lvaux(:)
+! Permuting rows of the adjacency matrix
+             lvaux(:)     = adj(right,:)
              adj(right,:) = adj(left,:)
-             adj(left,:)  = laux(:)
+             adj(left,:)  = lvaux(:)
+! Permuting elements of the integer vector
+             iaux        = ivec(left)
+             ivec(left)  = ivec(right)
+             ivec(right) = iaux
 ! Updating partitions
              left  = left  + 1
              right = right + 1
@@ -71,14 +77,18 @@
              iaux       = ref(upper)
              ref(upper) = ref(right)
              ref(right) = iaux
-! Exchanging rows of the adjacency matrix
-             laux(:)      = adj(:,upper)
+! Permuting columns of the adjacency matrix
+             lvaux(:)     = adj(:,upper)
              adj(:,upper) = adj(:,right)
-             adj(:,right) = laux(:)
-! Exchanging columns of the adjacency matrix
-             laux(:)      = adj(right,:)
+             adj(:,right) = lvaux(:)
+! Permuting rows of the adjacency matrix
+             lvaux(:)     = adj(right,:)
              adj(right,:) = adj(upper,:)
-             adj(upper,:)  = laux(:)
+             adj(upper,:) = lvaux(:)
+! Permuting elements of the integer vector
+             iaux        = ivec(upper)
+             ivec(upper) = ivec(right)
+             ivec(right) = iaux
 ! Updating partitions
              upper = upper - 1
            else
@@ -89,11 +99,11 @@
 !  
 ! Sorting the partitions not containing duplicates
 !
-         call lmrcqsort(n,ref,adj,low,left-1)
-         call lmrcqsort(n,ref,adj,right,high)
+         call lmrcivqsort(n,ref,adj,ivec,low,left-1)
+         call lmrcivqsort(n,ref,adj,ivec,right,high)
        end if
 !
-       end subroutine lmrcqsort
+       end subroutine lmrcivqsort
 !
 !======================================================================!
 !

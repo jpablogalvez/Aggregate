@@ -614,6 +614,56 @@
 !
 !======================================================================!
 !
+       subroutine rndmseed(seed)
+!
+       implicit none
+!
+! Declaration of the in/out variables
+!
+       logical,intent(in)                ::  seed    !
+!
+! Declaration of the local variables
+!
+       integer,dimension(:),allocatable  ::  rndm    !
+       integer,dimension(8)              ::  values  !
+       integer                           ::  n       ! 
+       integer                           ::  i,j     ! 
+!
+! Initializing the random seed
+!       
+       if ( seed ) then
+         call random_seed(size=n)
+         allocate(rndm(n))
+!
+         call date_and_time(VALUES=values)
+!
+         do i = 1, n
+           rndm(i) = 0
+           do j = 1, 8
+             rndm(i) = rndm(i) + values(j)*i
+           end do
+         end do
+!
+         call random_seed(put=rndm)
+       else
+         call random_seed(size=n)
+!
+         allocate(rndm(n))
+!
+         do i = 1, n
+           rndm(i) = i*n
+         end do
+!
+         call random_seed(put=rndm)
+       end if
+!
+       deallocate(rndm)
+!
+       return
+       end subroutine rndmseed
+!
+!======================================================================!
+!
        subroutine print_info(i,n,A,B,C,str1,str2,str3)
 !
        implicit none

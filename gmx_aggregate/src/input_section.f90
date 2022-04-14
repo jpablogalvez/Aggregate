@@ -13,7 +13,7 @@
 !
 !======================================================================!
 !
-       subroutine read_gro(conf)
+       subroutine read_gro(conf,sys)
 !
        use datatypes
        use utils
@@ -24,15 +24,15 @@
 !
 ! Input/output variables
 !
-       character(len=leninp),intent(in)         ::  conf     !  Structure file name
-
+       character(len=leninp),intent(in)  ::  conf     !  Structure file name
+       type(groinp),intent(inout)        ::  sys      !  System information
 !
 ! Local variables
 !
-       character(len=lenarg)                    ::  straux  !  Auxiliary string
-       character(len=5)                         ::  aux     !
-       integer                                  ::  io      !  Input/Output status
-       integer                                  ::  i,j,k   !  Indexes
+       character(len=lenarg)             ::  straux  !  Auxiliary string
+       character(len=5)                  ::  aux     !
+       integer                           ::  io      !  Input/Output status
+       integer                           ::  i,j,k   !  Indexes
 !
 ! Reading Gromacs configuration file
 ! ----------------------------------
@@ -85,11 +85,14 @@
            case ( 'H' )
              sys%mass(j) = 1.007825d0
            case ( 'HE' )
-             sys%mass(j) = 4.002602d0  ! Not exact
+             sys%mass(j)   = 4.002602d0  ! Not exact
+             sys%atname(j) = 'He'
            case ( 'LI' )
              sys%mass(j) = 6.941d0     ! Not exact
+             sys%atname(j) = 'Li'
            case ( 'BE' )
              sys%mass(j) = 9.012182d0  ! Not exact
+             sys%atname(j) = 'Be'
            case ( 'B' )
              sys%mass(j) = 10.811d0    ! Not exact
            case ( 'C' )
@@ -102,12 +105,16 @@
              sys%mass(j) = 18.998403d0 ! Not exact
            case ( 'NE' )
              sys%mass(j) = 20.1797d0   ! Not exact
+             sys%atname(j) = 'Ne'
            case ( 'CL' )
              sys%mass(j) = 35.453d0    ! Not exact
+             sys%atname(j) = 'Cl'
            case ( 'AR' )
              sys%mass(j) = 39.948d0    ! Not exact
+             sys%atname(j) = 'Ar'
            case ( 'KR' )
              sys%mass(j) = 83.798d0    ! Not exact
+             sys%atname(j) = 'Kr'
            case default
              write(*,*) straux, 'Not yet!'
              call exit(0)
