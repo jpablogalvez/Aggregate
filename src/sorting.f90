@@ -107,6 +107,75 @@
 !
 !======================================================================!
 !
+! IQSORT - Integer Quicksort
+!
+! Seen on: https://cs.stackexchange.com/questions/104816/implementation-of-quicksort-to-handle-duplicates
+!
+       recursive subroutine iqsort(n,ref,low,high)
+!
+! Input/output variables
+!
+       integer,dimension(n),intent(inout)  ::  ref
+       integer,intent(in)                  ::  n
+       integer,intent(in)                  ::  low
+       integer,intent(in)                  ::  high
+!
+! Local variables
+!
+       real(kind=4)                        ::  rndm
+       integer                             ::  pivot
+       integer                             ::  left
+       integer                             ::  right
+       integer                             ::  upper
+       integer                             ::  iaux
+!
+! Sorting elements with indexes in the interval [low,high]
+! --------------------------------------------------------
+!
+       if ( low .lt. high ) then
+! Choice a random pivot (not best performance, but avoids worst-case)
+         call random_number(rndm)
+         pivot = ref(low + FLOOR((high+1-low)*rndm))
+!
+! Partitioning the reference array
+!
+         left  = low
+         right = low
+         upper = high
+! Sorting block of elements with respect to the pivot
+         do while ( right .le. upper ) 
+           if ( ref(right) .lt. pivot ) then
+! Sorting reference array
+             iaux       = ref(left)
+             ref(left)  = ref(right)
+             ref(right) = iaux
+! Updating partitions
+             left  = left  + 1
+             right = right + 1
+           else if ( ref(right) .gt. pivot ) then
+! Sorting reference array
+             iaux       = ref(upper)
+             ref(upper) = ref(right)
+             ref(right) = iaux
+! Updating partitions
+             upper = upper - 1
+           else
+! Updating partitions
+             right = right + 1
+           end if
+         end do
+!  
+! Sorting the partitions not containing duplicates
+!
+         call iqsort(n,ref,low,left-1)
+         call iqsort(n,ref,right,high)
+
+       end if
+!
+       end subroutine iqsort
+!
+!======================================================================!
+!
 ! IVQSORT - Integer Vector Quicksort
 !
 ! Seen on: https://cs.stackexchange.com/questions/104816/implementation-of-quicksort-to-handle-duplicates

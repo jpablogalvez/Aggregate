@@ -3,5 +3,6 @@
        integer  ::  jnmol    !
        integer  ::  iimol    !
        integer  ::  jimol    !
-       integer  ::  iitag    !
-       integer  ::  jitag    !
+       integer  ::  inagg    !
+       integer  ::  iiagg    !
+       integer  ::  jiagg    !

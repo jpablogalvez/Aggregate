@@ -7,6 +7,327 @@
 !
 !======================================================================!
 !
+! BUILDADJMOLLINK - BUILD ADJacency matrix MOLecule-based representation
+!                   using a LINKed list
+!
+       subroutine buildadjmollink(nnode,adj,neidis,msubg,mgrps,thr,    &
+                                  ngrps,igrps,grps,natms,posi,list,    &
+                                  nhead,head,cell,ncell,box)
+!
+       use geometry,   only: sminimgvec
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nnode,nnode),intent(out)      ::  adj     !  Adjacency matrix
+       real(kind=4),dimension(3,natms),intent(in)      ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)            ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(mgrps,mgrps),intent(in)  ::  thr     !
+       real(kind=8),intent(in)                         ::  neidis  !
+       integer,dimension(nhead*13),intent(in)          ::  cell    !
+       integer,dimension(3),intent(in)                 ::  ncell   !
+       integer,dimension(natms),intent(in)             ::  list    !
+       integer,dimension(nhead),intent(in)             ::  head    !
+       integer,dimension(mgrps),intent(in)             ::  ngrps   !  
+       integer,dimension(mgrps),intent(in)             ::  igrps   ! 
+       integer,dimension(msubg),intent(in)             ::  grps    ! 
+       integer,intent(in)                              ::  msubg   !
+       integer,intent(in)                              ::  mgrps   !  Number of subgroups
+       integer,intent(in)                              ::  nnode   !  Number of residues
+       integer,intent(in)                              ::  natms   ! 
+       integer,intent(in)                              ::  nhead   !
+!
+! Local variables
+!
+       real(kind=4),dimension(3)                       ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
+       real(kind=4)                                    ::  dis      !  Minimum image distance
+       real(kind=4)                                    ::  mindis   !
+       integer                                         ::  icell    !
+       integer                                         ::  jcell    !
+       integer                                         ::  iicell   !
+       integer                                         ::  incell   !
+       integer                                         ::  iinode   !
+       integer                                         ::  innode   !
+       integer                                         ::  jinode   !
+       integer                                         ::  jnnode   !
+       integer                                         ::  iigrps   !
+       integer                                         ::  ingrps   !
+       integer                                         ::  jigrps   !
+       integer                                         ::  insubg   !
+       integer                                         ::  jnsubg   !
+       integer                                         ::  ni,nj    !
+       integer                                         ::  i        !
+!
+! Building the adjacency matrix in the molecule-based representation
+! ------------------------------------------------------------------
+!
+       adj(:,:) = .FALSE. 
+!
+       do iinode = 1, nnode
+         innode = (iinode-1)*msubg
+         do ingrps = 1, mgrps           ! alternatively insubg = 1, msubg
+           i = innode + igrps(ingrps)   ! alternatively ni = innode + insubg
+           do iigrps = 1, ngrps(ingrps)
+!
+             ni = i + iigrps
+!
+             icell  = 1 + int(posi(1,ni)/box(1)*ncell(1))              &
+                     + int(posi(2,ni)/box(2)*ncell(2))*ncell(1)        &
+                     + int(posi(3,ni)/box(3)*ncell(3))*ncell(1)*ncell(2) 
+!
+! Loop over all atoms below atom NI in the current cell
+!
+             nj = list(ni)
+             do while ( nj .gt. 0 )
+               jinode = (nj - 1)/msubg + 1    ! FLAG: chek if this is correct
+               if ( (jinode.ne.iinode) .and.                           &
+                                        (.NOT.adj(jinode,iinode)) ) then
+                 jnsubg = nj - (jinode - 1)*msubg
+                 mindis = thr(grps(jnsubg),ingrps) ! alternatively thr(grps(jngrps),grps(ingrps))
+                 if ( mindis .gt. 1.0e-5 ) then
+                   r   = sminimgvec(posi(:,ni),posi(:,nj),box)
+                   dis = dot_product(r,r)
+                   if ( dis .le. mindis ) then
+                     adj(jinode,iinode) = .TRUE.
+                     adj(iinode,jinode) = .TRUE.
+                   end if
+                 end if
+               end if
+               nj = list(nj)
+             end do
+!
+! Loop over all atoms in the neighboring cells
+!
+             incell = 13*(icell - 1)
+!
+             do iicell = 1, 13
+!
+               jcell = cell(incell+iicell)
+!
+               nj = head(jcell)
+               do while ( nj .gt. 0 )
+                 jinode = (nj - 1)/msubg + 1    ! FLAG: chek if this is correct
+                 if ( (jinode.ne.iinode) .and.                         &
+                                        (.NOT.adj(jinode,iinode)) ) then
+                   jnsubg = nj - (jinode - 1)*msubg
+                   mindis = thr(grps(jnsubg),ingrps) ! alternatively thr(grps(jngrps),grps(ingrps))
+                   if ( mindis .gt. 1.0e-5 ) then
+                     r   = sminimgvec(posi(:,ni),posi(:,nj),box)
+                     dis = dot_product(r,r)
+                     if ( dis .le. mindis ) then
+                       adj(jinode,iinode) = .TRUE.
+                       adj(iinode,jinode) = .TRUE.
+                     end if
+                   end if
+                 end if
+                 nj = list(nj)
+               end do
+             end do
+!
+           end do
+         end do
+       end do
+!
+       return
+       end subroutine buildadjmollink
+!
+!======================================================================!
+!
+! BUILDADJMOLBUB - BUILD ADJacency matrix MOLecule-based representation
+!                   using BUBles
+!
+!~        subroutine buildadjmolbub(nnode,adj,neidis,msubg,mgrps,thr,     &
+!~                                  ngrps,igrps,grps,natms,posi,box)
+!~ !
+!~        use geometry,   only: sminimgvec
+!~ !
+!~        implicit none
+!~ !
+!~ ! Input/output variables
+!~ !
+!~        logical,dimension(nnode,nnode),intent(out)      ::  adj     !  Adjacency matrix
+!~        real(kind=4),dimension(3,natms),intent(in)      ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
+!~        real(kind=4),dimension(3),intent(in)            ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+!~        real(kind=8),dimension(mgrps,mgrps),intent(in)  ::  thr     !
+!~        real(kind=8),intent(in)                         ::  neidis  !
+!~        integer,dimension(mgrps),intent(in)             ::  ngrps   !  
+!~        integer,dimension(mgrps),intent(in)             ::  igrps   ! 
+!~        integer,dimension(msubg),intent(in)             ::  grps    ! 
+!~        integer,intent(in)                              ::  msubg   !
+!~        integer,intent(in)                              ::  mgrps   !  Number of subgroups
+!~        integer,intent(in)                              ::  nnode   !  Number of residues
+!~        integer,intent(in)                              ::  natms   ! 
+!~ !
+!~ ! Local variables
+!~ !
+!~        real(kind=4),dimension(3)                       ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
+!~        real(kind=8)                                    ::  dis      !  Minimum image distance
+!~        real(kind=8)                                    ::  mindis   !  Distance threshold between groups
+!~        integer                                         ::  iinode   !
+!~        integer                                         ::  innode   !
+!~        integer                                         ::  jinode   !
+!~        integer                                         ::  jnnode   !
+!~        integer                                         ::  iigrps   !
+!~        integer                                         ::  ingrps   !
+!~        integer                                         ::  jigrps   !
+!~        integer                                         ::  jngrps   !
+!~        integer                                         ::  ni,nj    !
+!~        integer                                         ::  i,j      !
+!~ !
+!~ ! Building the adjacency matrix in the molecule-based representation
+!~ ! ------------------------------------------------------------------
+!~ !
+!~        adj(:,:) = .FALSE. 
+!~ !
+!~        do iinode = 1, nnode-1
+!~          innode = (iinode-1)*msubg
+!~          do jinode = iinode+1, nnode
+!~            jnnode = (jinode-1)*msubg
+!~ !
+!~            ingrps = 0
+!~            do while ( (ingrps.lt.mgrps) .or. (dis.gt.mindis) .or.      &
+!~                                                        (dis.le.neidis) )
+!~              ingrps = ingrps + 1
+!~              i = innode + igrps(ingrps) 
+!~ ! 
+!~              iigrps = 0
+!~              do while ( (iigrps.lt.ngrps(ingrps)) .or. (dis.gt.mindis) &
+!~                                                   .or. (dis.le.neidis) )
+!~                iigrps = iigrps + 1
+!~                ni = i + iigrps
+!~ !
+!~                jngrps = 0
+!~                do while ( (jngrps.lt.mgrps) .or. (dis.gt.mindis)       &
+!~                                                   .or. (dis.le.neidis) )
+!~                  jngrps = jngrps + 1
+!~ !
+!~                  mindis = thr(ingrps,jngrps)   
+!~ !
+!~                  if ( mindis .gt. 1.0e-6 ) then 
+!~                    j = jnnode + igrps(jngrps)
+!~ !
+!~                    jigrps = 0
+!~                    do while ( (jigrps.lt.ngrps(jngrps)) .or.           &
+!~                                   (dis.gt.mindis) .or. (dis.le.neidis) )
+!~                      jigrps = jigrps + 1
+!~ !
+!~                      nj = j + jigrps                    
+!~ !
+!~                      r   = sminimgvec(posi(:,ni),posi(:,nj),box)
+!~                      dis = dot_product(r,r)
+!~ !
+!~                      if ( dis .le. mindis ) then
+!~                        adj(iinode,jinode) = .TRUE.
+!~                        adj(jinode,iinode) = .TRUE.
+!~                      end if
+!~ !
+!~                    end do  !  jigrps
+!~                  end if
+!~               end do       !  jngrps
+!~              end do        !  iigrps
+!~            end do          !  ingrps
+!~          end do            !  jinode
+!~        end do              !  iinode
+!~ !
+!~        return
+!~        end subroutine buildadjmolbub
+!
+!======================================================================!
+!
+! BUILDADJMOLBUB - BUILD ADJacency matrix MOLecule-based representation
+!                   using BUBles
+!
+       subroutine buildadjmolbub(nnode,adj,neidis,msubg,mgrps,nat,     &
+                                 thr,ngrps,igrps,grps,natms,posi,box)
+!
+       use geometry,   only: sminimgvec
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nnode,nnode),intent(out)  ::  adj     !  Adjacency matrix
+       real(kind=4),dimension(3,natms),intent(in)  ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(nat,nat),intent(in)  ::  thr     !
+       real(kind=8),intent(in)                     ::  neidis  !
+       integer,dimension(nat),intent(in)           ::  ngrps   !  
+       integer,dimension(nat),intent(in)           ::  igrps   ! 
+       integer,dimension(nat),intent(in)           ::  grps    ! 
+       integer,intent(in)                          ::  msubg   !
+       integer,intent(in)                          ::  mgrps   !  Number of subgroups
+       integer,intent(in)                          ::  nnode   !  Number of residues
+       integer,intent(in)                          ::  natms   ! 
+       integer,intent(in)                          ::  nat     ! 
+!
+! Local variables
+!
+       real(kind=4),dimension(3)                   ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
+       real(kind=8)                                ::  dis      !  Minimum image distance
+       real(kind=8)                                ::  mindis   !  Distance threshold between groups
+       integer                                     ::  iinode   !
+       integer                                     ::  innode   !
+       integer                                     ::  jinode   !
+       integer                                     ::  jnnode   !
+       integer                                     ::  iigrps   !
+       integer                                     ::  ingrps   !
+       integer                                     ::  jigrps   !
+       integer                                     ::  jngrps   !
+       integer                                     ::  ni,nj    !
+       integer                                     ::  i,j      !
+!
+! Building the adjacency matrix in the molecule-based representation
+! ------------------------------------------------------------------
+!
+       adj(:,:) = .FALSE. 
+!
+       do iinode = 1, nnode-1
+         innode = (iinode-1)*msubg
+         do jinode = iinode+1, nnode
+           jnnode = (jinode-1)*msubg
+           do ingrps = 1, mgrps           
+             i = innode + igrps(ingrps)  
+             do iigrps = 1, ngrps(ingrps)
+               ni = i + iigrps
+               do jngrps = 1, mgrps
+!
+                 mindis = thr(jngrps,ingrps)   
+!
+                 if ( mindis .gt. 1.0e-6 ) then 
+                   j = jnnode + igrps(jngrps)
+!
+                   do jigrps = 1, ngrps(jngrps)
+!~                      nj = j + jigrps                    
+!
+                     r   = sminimgvec(posi(:,ni),posi(:,j+jigrps),box)
+                     dis = dot_product(r,r)
+!
+                     if ( dis .le. mindis ) then
+                       adj(iinode,jinode) = .TRUE.
+                       adj(jinode,iinode) = .TRUE.
+                       GO TO 1000
+                     end if
+!
+                     if ( dis .gt. neidis ) then
+                       GO TO 1000
+                     end if
+!
+                   end do  !  jigrps
+                 end if
+!
+              end do       !  jngrps
+             end do        !  iigrps
+           end do          !  ingrps
+1000       continue           
+         end do            !  jinode
+       end do              !  iinode
+!
+       return
+       end subroutine buildadjmolbub
+!
+!======================================================================!
+!
 ! BUILDADJMOL - BUILD ADJacency matrix MOLecule-based representation
 !
        subroutine buildadjmol(ngrps,grps,nsubg,subg,nnode,igrps,adj,   &
@@ -48,47 +369,6 @@
        real(kind=8)                                      ::  dist     !  Minimum image distance
        real(kind=8)                                      ::  mindis   !  Distance threshold between groups
 !
-! Saving coordinates based on the group-based representation
-! ----------------------------------------------------------
-!
-       do irenum = 1, nnode
-         ingrps = (irenum-1)*natmol
-         iisubg = 0
-         ii     = 0
-         do iigrps = 1, ngrps
-           svaux(:) = coord(:,ingrps+igrps(ii+1))
-           do insubg = 1, grps(iigrps)
-             iisubg = iisubg + 1
-             if ( subg(iisubg) .ne. 1 ) then
-               i = ii
-               do iat = 1, subg(iisubg)
-                 i = i + 1
-!
-                 atcoord(:,iat) = minimgvec(svaux(:),                  &
-                                           coord(:,ingrps+igrps(i)),   &
-                                           box)
-                 atcoord(:,iat) = svaux(:) + atcoord(:,iat)
-!
-                 atmass(iat)    = mass(igrps(i))
-               end do
-!
-               cofm(:) = cofm_vector(subg(iisubg),                     &
-                                     atcoord(:,:subg(iisubg)),         &
-                                     atmass(:subg(iisubg)) )
-! 
-               i = ii
-               do iat = 1, subg(iisubg)
-                 i = i + 1
-                 coord(:,ingrps+igrps(i)) = cofm(:)
-               end do            
-             end if
-!
-             ii = ii + subg(iisubg)
-!
-           end do
-         end do
-       end do
-!
 ! Building the adjacency matrix in the molecule-based representation
 ! ------------------------------------------------------------------
 !
@@ -118,7 +398,7 @@
                      jj     = jj + subg(jisubg)
                      j      = jngrps + igrps(jj)
 !
-                     r    = minimgvec(coord(:,i),coord(:,j),box)
+                     r    = sminimgvec(coord(:,i),coord(:,j),box)
                      dist = dot_product(r,r)
 !
                      if ( dist .le. mindis ) then
@@ -154,7 +434,7 @@
                                subg,igrps,adj,thr,nnode,imol,adjmol,   &
                                natconf,coord,box,debug)
 !
-       use geometry,   only: minimgvec
+       use geometry,   only: sminimgvec
 !
        implicit none
 !
@@ -230,7 +510,7 @@
 !
                        if ( mindis .gt. 1.0e-6 ) then 
                          do jisubg = 1, grps(jngrps+jigrps)
-                           r    = minimgvec(coord(:,iat),coord(:,jnat+ &
+                           r    = sminimgvec(coord(:,iat),coord(:,jnat+&
                                               igrps(jnsubg+jisubg)),box)
                            dist = dot_product(r,r)
 !
@@ -295,10 +575,10 @@
        integer,dimension(nnode),intent(out)       ::  imol    !  Molecules identifier
        integer,dimension(nnode),intent(out)       ::  iagg    !  Aggregates identifier
        integer,dimension(nnode),intent(out)       ::  itag    !  Aggregates size
-       integer,dimension(maxagg),intent(out)      ::  nmol    !  Number of aggregates of each size
+       integer,dimension(nnode),intent(out)       ::  nmol    !  Number of aggregates of each size
        integer,intent(out)                        ::  nagg    !  Number of aggregates
        integer,intent(in)                         ::  nnode   !  Number of molecules
-       integer,intent(in)                         ::  maxagg  !  Maximum aggregate size
+       integer,intent(out)                        ::  maxagg  !  Maximum aggregate size
        logical,intent(in)                         ::  debug   !  Debug mode
 !
 ! Local variables
@@ -323,6 +603,8 @@
        ntag    = 0
        nntag   = 0
        itag(:) = 0
+! 
+       maxagg  = 1
 !
 ! Outer loop over each node
 !
@@ -380,11 +662,8 @@
            end do
            nntag = nntag + ntag
 ! Update the number of aggregates of each size
-           if ( ntag .lt. maxagg ) then
-             nmol(ntag)   = nmol(ntag)   + 1
-           else
-             nmol(maxagg) = nmol(maxagg) + 1
-           end if
+           if ( ntag .gt. maxagg ) maxagg = ntag
+           nmol(ntag)   = nmol(ntag)   + 1
          end if
        end do
 !

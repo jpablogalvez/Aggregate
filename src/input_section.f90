@@ -38,6 +38,7 @@
 !
        open(unit=uniinp,file=trim(conf),action='read',                 &
             status='old',iostat=io)
+!
        if ( io .ne. 0 ) then
          write(*,'(2X,68("="))')
          write(*,'(3X,A)')      'ERROR:  Missing input file'
@@ -45,11 +46,13 @@
          write(*,'(3X,A)')   'Input file '//trim(conf)//               &
                                    ' not found in the current directory'
          write(*,'(2X,68("="))')
+         write(*,*)
          call print_end()
        end if
 !
-         read(uniinp,'(A)') sys%title
-         read(uniinp,*)     sys%nat
+       read(uniinp,'(A)') sys%title
+       read(uniinp,*)     sys%nat
+!
        allocate(sys%renum(sys%nat)   ,  &
                 sys%rename(sys%nat)  ,  &
                 sys%atname(sys%nat)  ,  &
@@ -79,6 +82,7 @@
          end do
 !
          sys%atname(j) = straux
+         straux = uppercase(straux)
 !
          select case ( straux )
            case ( 'H' )
@@ -120,7 +124,6 @@
          end select
        end do
 !
-! Computing total mass of the molecule
        sys%totm = 0.0d0
        do i = 1, sys%nat
          sys%totm = sys%totm + sys%mass(i)
@@ -131,8 +134,8 @@
 !
 !======================================================================!
 !
-       subroutine read_inp(inp,nat,tgrp,grptag,body,grps,subg,igrps,   &
-                           nbody,ngrps,nsubg,thr,thr2)
+       subroutine read_inp(inp,nat,tgrp,grptag,body,grps,subg,atms,    &
+                           mbody,mgrps,msubg,matms,thr,thr2)
 !
        use utils
 !
@@ -148,10 +151,11 @@
        integer,dimension(nat),intent(out)           ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(out)           ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(out)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(out)           ::  igrps   !  Atoms identifier
-       integer,intent(out)                          ::  nbody   !  Number of bodies
-       integer,intent(out)                          ::  ngrps   !  Number of groups
-       integer,intent(out)                          ::  nsubg   !  Number of subgroups
+       integer,dimension(nat),intent(out)           ::  atms    !  Atoms identifier
+       integer,intent(out)                          ::  mbody   !  Number of bodies
+       integer,intent(out)                          ::  mgrps   !  Number of groups
+       integer,intent(out)                          ::  msubg   !  Number of subgroups
+       integer,intent(out)                          ::  matms   !  
        integer,intent(in)                           ::  nat     !  Number of atoms in the molecule
 !
 ! Local variables
@@ -166,9 +170,12 @@
        thr(:,:)  = 0.0d0
        thr2(:,:) = 0.0d0
 !
-       nbody    = nat
-       ngrps    = nat
-       nsubg    = nat
+       tgrp = 'MOLREP Title'
+!
+       mbody    = nat
+       mgrps    = nat
+       msubg    = nat
+       matms    = nat
 !
        do i = 1, nat
          write(grptag(i),'(I8)') i
@@ -176,7 +183,7 @@
          body(i)   = i
          grps(i)   = i
          subg(i)   = i
-         igrps(i)  = i
+         atms(i)   = i
        end do
 !
 ! Reading general input file
@@ -218,7 +225,7 @@
              call findline(line,'blck','**MOLREP')
 !
              call read_molrep(line,'**MOLREP',nat,tgrp,grptag,body,    &
-                              grps,subg,igrps,nbody,ngrps,nsubg)      
+                              grps,subg,atms,mbody,mgrps,msubg,matms)      
 !      
            case ('**THRESH','**THRESHOLD')
 !~              write(*,*) 
@@ -227,7 +234,7 @@
 !
              call findline(line,'blck','**THRESHOLD')
 !
-             call read_threshold(line,'**THRESHOLD',nat,thr,ngrps,     &
+             call read_threshold(line,'**THRESHOLD',nat,thr,mgrps,     &
                                  grptag)
 !
            case ('**INTERTHRESH','**INTERTHRESHOLD')
@@ -238,7 +245,7 @@
              call findline(line,'blck','**INTERTHRESHOLD')
 !
              call read_interthreshold(line,'**INTERTHRESHOLD',nat,thr2,&
-                                      ngrps,grptag)
+                                      mgrps,grptag)
 !
            case default
              write(*,*)
@@ -260,7 +267,7 @@
 !======================================================================!
 !
        subroutine read_molrep(key,blck,nat,tgrp,grptag,body,grps,subg, &
-                              igrps,nbody,ngrps,nsubg)
+                              atms,mbody,mgrps,msubg,matms)
 !
        use utils
 !
@@ -268,42 +275,39 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                  ::  blck    !  Block name
-       character(len=leninp),intent(inout)          ::  key     !
-       character(len=leninp),intent(out)            ::  tgrp    !  Groups file title
-       integer,intent(in)                           ::  nat     !  Number of atoms in the molecule
-       character(len=8),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
-       integer,dimension(nat),intent(out)           ::  body    !  Number of groups in each body
-       integer,dimension(nat),intent(out)           ::  grps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(out)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(out)           ::  igrps   !  Atoms identifier
-       integer,intent(out)                          ::  nbody   !  Number of bodies
-       integer,intent(out)                          ::  ngrps   !  Number of groups
-       integer,intent(out)                          ::  nsubg   !  Number of subgroups
+       character(len=*),intent(in)                    ::  blck    !  Block name
+       character(len=leninp),intent(inout)            ::  key     !
+       character(len=leninp),intent(inout)            ::  tgrp    !  Groups file title
+       integer,intent(in)                             ::  nat     !  Number of atoms in the molecule
+       character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       integer,dimension(nat),intent(inout)           ::  body    !  Number of groups in each body
+       integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
+       integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
+       integer,intent(inout)                          ::  mbody   !  Number of bodies
+       integer,intent(inout)                          ::  mgrps   !  Number of groups
+       integer,intent(inout)                          ::  msubg   !  Number of subgroups
+       integer,intent(inout)                          ::  matms   !  
 !
 ! Local variables
 !
        character(len=leninp)                        ::  line    !
        integer                                      ::  posi    !
-       integer                                      ::  aux     !
        integer                                      ::  io      !  Input/Output status
        integer                                      ::  i,j,k   !  Indexes
 !
 ! Reading MOLREP block sections 
 ! -----------------------------
-!  
-       tgrp = 'MOLREP Title'
+!
+       mbody    = 0
+       mgrps    = 0
+       msubg    = 0
+       matms    = 0
 !
        body(:)  = 0
        grps(:)  = 0
        subg(:)  = 0
-       igrps(:) = 0
-!
-       nbody = 0
-       ngrps = 0
-       nsubg = 0
-!
-       aux = 0
+       atms(:)  = 0
 !
        do
 ! Changing lowercase letters by uppercase letters 
@@ -324,7 +328,7 @@
              call findline(key,'blck','**MOLREP')
 !
            case ('*BODY')
-             nbody = nbody + 1
+             mbody = mbody + 1
 !
              call findline(key,'sect','*BODY')
 !
@@ -332,8 +336,8 @@
 !~              write(*,*) '  Reading *BODY section'
 !~              write(*,*)
 !
-             call read_body(key,'*BODY',nat,grptag,body,grps,subg,     &
-                            igrps,nbody,ngrps,nsubg,aux)
+             call read_body(key,'*BODY',blck,nat,grptag,body,grps,     &
+                            subg,atms,mbody,mgrps,msubg,matms)
 !
            case ('**END')
 !~              write(*,*) 
@@ -350,8 +354,8 @@
 !
 !======================================================================!
 !
-       subroutine read_body(key,sect,nat,grptag,body,grps,subg,igrps,  &
-                            nbody,ngrps,nsubg,aux)
+       subroutine read_body(key,sect,blck,nat,grptag,body,grps,subg,   &
+                            atms,mbody,mgrps,msubg,matms)
 !
        use utils
 !
@@ -360,17 +364,18 @@
 ! Input/output variables
 !
        character(len=*),intent(in)                    ::  sect    !  Section name
+       character(len=*),intent(in)                    ::  blck    !  Block name
        character(len=leninp),intent(inout)            ::  key     !  
        integer,intent(in)                             ::  nat     !  Number of atoms in the molecule
        character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
        integer,dimension(nat),intent(inout)           ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(inout)           ::  igrps   !  Atoms identifier
-       integer,intent(inout)                          ::  nbody   !  Number of bodies
-       integer,intent(inout)                          ::  ngrps   !  Number of groups
-       integer,intent(inout)                          ::  nsubg   !  Number of subgroups
-       integer,intent(inout)                          ::  aux     !
+       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
+       integer,intent(inout)                          ::  mbody   !  Number of bodies
+       integer,intent(inout)                          ::  mgrps   !  Number of groups
+       integer,intent(inout)                          ::  msubg   !  Number of subgroups
+       integer,intent(inout)                          ::  matms   !
 !
 ! Local variables
 !
@@ -391,32 +396,32 @@
 ! Reading the different block sections       
          select case (key)
            case ('.GRP','.GROUP')
-             body(nbody) = body(nbody) + 1
+             body(mbody) = body(mbody) + 1
 !
 !~              write(*,*) 
 !~              write(*,*) '    Reading .GRP option'
 !~              write(*,*)
 !
-             call read_grps('.GRP',nat,grptag,grps,subg,igrps,ngrps,   &
-                            nsubg,aux)
+             call read_grps('.GRP',nat,grptag,grps,subg,atms,mgrps,    &
+                            msubg,matms)
 !
              call findline(key,'sect',sect)
              if ( key(1:1) .eq. '*' ) return
 !
            case ('.SGRP','.SUBGROUP')
-             body(nbody) = body(nbody) + 1
+             body(mbody) = body(mbody) + 1
 !
 !~              write(*,*) 
 !~              write(*,*) '    Reading .SGRP option'
 !~              write(*,*)
-             call read_grps('.SGRP',nat,grptag,grps,subg,igrps,ngrps,  &
-                            nsubg,aux)
+             call read_grps('.SGRP',nat,grptag,grps,subg,atms,mgrps,   &
+                            msubg,matms)
 !
              call findline(key,'sect',sect)
              if ( key(1:1) .eq. '*' ) return
 !
            case default
-             call unkopt(key,sect)
+             call unkopt(key,sect,blck)
          end select  
        end do
 !
@@ -425,8 +430,8 @@
 !
 !======================================================================!
 !
-       subroutine read_grps(opt,nat,grptag,grps,subg,igrps,ngrps,      &
-                            nsubg,aux)
+       subroutine read_grps(opt,nat,grptag,grps,subg,atms,mgrps,       &
+                            msubg,matms)
 !
        use utils
 !
@@ -439,10 +444,10 @@
        character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
        integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(inout)           ::  igrps   !  Atoms identifier
-       integer,intent(inout)                          ::  ngrps   !  Number of groups
-       integer,intent(inout)                          ::  nsubg   !  NUmber of subgroups
-       integer,intent(inout)                          ::  aux     !
+       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
+       integer,intent(inout)                          ::  mgrps   !  Number of groups
+       integer,intent(inout)                          ::  msubg   !  NUmber of subgroups
+       integer,intent(inout)                          ::  matms   !
 !
 ! Local variables
 !
@@ -472,7 +477,7 @@
 !
 ! Procesing the keywords line
 !
-         ngrps = ngrps + 1  
+         mgrps = mgrps + 1  
 !
          do
            if ( len_trim(line) == 0 ) return
@@ -495,26 +500,26 @@
                read(arg,*) natgrp
 !
                if ( trim(opt) .eq. '.GRP' ) then
-                 nsubg       = nsubg + 1
-                 grps(ngrps) = 1
-                 subg(nsubg) = natgrp
+                 msubg       = msubg + 1
+                 grps(mgrps) = 1
+                 subg(msubg) = natgrp
                else if ( trim(opt) .eq. '.SGRP' ) then
-                 old   = nsubg
-                 nsubg = nsubg + natgrp
-                 grps(ngrps) = natgrp
-                 subg(old+1:nsubg) = 1
+                 old   = msubg
+                 msubg = msubg + natgrp
+                 grps(mgrps) = natgrp
+                 subg(old+1:msubg) = 1
                end if    
 !
-               read(uniinp,*) igrps(aux+1:aux+natgrp)
+               read(uniinp,*) atms(matms+1:matms+natgrp)
 !
-               aux = aux + natgrp
+               matms = matms + natgrp
 !        
              case ('name')
                call chkkeyarg(key,line,arg)
-               grptag(ngrps) = arg
+               grptag(mgrps) = arg
 !
              case default
-               call unkkey(key,opt)
+               call unkkeysect(key,opt)
            end select  
 !
            key = line
@@ -527,7 +532,7 @@
 !
 !======================================================================!
 !
-       subroutine read_threshold(key,blck,nat,thr,ngrps,grptag)
+       subroutine read_threshold(key,blck,nat,thr,mgrps,grptag)
 !
        use utils
 !
@@ -540,7 +545,7 @@
        real(kind=8),dimension(nat,nat),intent(inout)  ::  thr     !
        character(len=8),dimension(nat),intent(in)     ::  grptag  !
        integer,intent(in)                             ::  nat     !
-       integer,intent(in)                             ::  ngrps   !  Number of groups
+       integer,intent(in)                             ::  mgrps   !  Number of groups
 
 !
 ! Local variables
@@ -590,7 +595,7 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                caux1 = key(:posi-1)
-               iaux1 = findcv(ngrps,grptag,caux1)  
+               iaux1 = findcv(mgrps,grptag,caux1)  
                if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
 !
                key   = key(posi+1:)   
@@ -601,7 +606,7 @@
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
-               iaux2 = findcv(ngrps,grptag,caux2)  
+               iaux2 = findcv(mgrps,grptag,caux2)  
                if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
 !
                key   = key(posi+1:)   
@@ -640,7 +645,7 @@
 !
 !======================================================================!
 !
-       subroutine read_interthreshold(key,blck,nat,thr,ngrps,grptag)
+       subroutine read_interthreshold(key,blck,nat,thr,mgrps,grptag)
 !
        use utils
 !
@@ -653,7 +658,7 @@
        real(kind=8),dimension(nat,nat),intent(inout)  ::  thr     !
        character(len=8),dimension(nat),intent(in)     ::  grptag  !
        integer,intent(in)                             ::  nat     !
-       integer,intent(in)                             ::  ngrps   !  Number of groups
+       integer,intent(in)                             ::  mgrps   !  Number of groups
 
 !
 ! Local variables
@@ -703,7 +708,7 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                caux1 = key(:posi-1)
-               iaux1 = findcv(ngrps,grptag,caux1)  
+               iaux1 = findcv(mgrps,grptag,caux1)  
                if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
 !
                key   = key(posi+1:)   
@@ -714,7 +719,7 @@
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
-               iaux2 = findcv(ngrps,grptag,caux2)  
+               iaux2 = findcv(mgrps,grptag,caux2)  
                if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
 !
                key   = key(posi+1:)   
