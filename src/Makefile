@@ -30,18 +30,26 @@ MODOBJ  = $(patsubst %.f90,$(ODIR)/%.o,$(SRCMOD))
 MODOBJ := $(patsubst %.F90,$(ODIR)/%.o,$(MODOBJ))
 MODMOD  = $(patsubst $(ODIR)/%.o,$(MDIR)/%.mod,$(MODOBJ))
 
+dir_guard=@mkdir -p $(@D)
+
 default: $(MODOBJ) $(OBJ)
+	@mkdir -p $(BDIR)
 	$(FC) $(MODOBJ) $(OBJ) -o $(BDIR)/$(PROGRAM) $(libpath)
 
 # Compiler steps for all objects
 $(ODIR)/%.o: %.F90
+	@mkdir -p $(MDIR)
+	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
 
 $(ODIR)/%.o: %.f90
+	@mkdir -p $(MDIR)
+	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
 
 # Linker
 $(BDIR)/$(PROGRAM) : $(OBJ)
+	$(dir_guard)
 	$(FC) $(FLFLAGS) -o $@ $< $(libpath) 
 
 # Dependencies : Main program depends on all modules

@@ -1,0 +1,7 @@
+# Objects
+*.o
+*.mod
+
+# Binaries
+test
+aggregate
