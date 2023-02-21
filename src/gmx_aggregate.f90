@@ -12,8 +12,8 @@
 !
        implicit none
 !
-       include 'parameters.h'
        include 'timings.h'
+       include 'inout.h'
        include 'info.h'
 !
        type(groinp)                               ::  sys      !  Monomer information
@@ -26,8 +26,16 @@
        logical                                    ::  dopim    !  PIM calculation flag
        real(kind=8),dimension(:,:,:),allocatable  ::  pim      !  Pairwise interaction matrix
        real(kind=8),dimension(:,:),allocatable    ::  thr      !  Distance threshold
+       real(kind=8),dimension(:,:),allocatable    ::  thr2     !  Distance threshold
+       real(kind=4),dimension(:,:),allocatable    ::  coord    !  Auxiliary coordinates
        real(kind=8),dimension(:),allocatable      ::  pop      !  Populations
+       real(kind=8),dimension(:),allocatable      ::  conc     !  Concentrations
+       real(kind=8),dimension(:),allocatable      ::  frac     !  Fractions
        real(kind=8),dimension(9,9,3)              ::  table    !  Number of aggregates of each type
+       real(kind=8),dimension(3)                  ::  Kc 
+       real(kind=8),dimension(3)                  ::  Kx
+       real(kind=8)                               ::  cin      !  Stechiometric concentration
+       real(kind=8)                               ::  volu     !  
        real(kind=8)                               ::  maxdis   !  Screening distance
        real(kind=8)                               ::  dpaux    !  Auxiliary double precision number
        integer,dimension(:),allocatable           ::  nmol     !  Number of aggregates of each size
@@ -49,10 +57,13 @@
        integer                                    ::  maxstep  !  Last step for analysis
        integer                                    ::  nsteps   !  Number of snapshots analyzed
        integer                                    ::  maxagg   !  Maximum aggregate size
+       integer                                    ::  nsolv    !
        integer                                    ::  io       !  Status
        integer                                    ::  i,j,k    !  Indexes
        logical                                    ::  seed     !  Random seed flag
        logical                                    ::  debug    !  Debug mode
+!
+       real(kind=8),parameter                     ::  Na = 6.022140760E+23
 ! Declaration of a variable of type xtcfile
        type(xtcfile)                              ::  xtcf     !  xtc file informacion
 ! Declaration of a variable of type trrfile
@@ -106,8 +117,8 @@
        io = index(conf,'.')
        if ( io .eq. 0 ) conf = trim(conf)//'.gro'
 !
-       io = index(outp,'.')
-       if ( io .eq. 0 ) outp = trim(outp)//'.dat'
+       if ( outp(len_trim(outp)-3:) .eq. '.dat' )                      &
+                                          outp = outp(:len_trim(outp)-4)
 !
        maxdis = maxdis**2
 !
@@ -142,7 +153,9 @@
 !
        call read_gro(conf,sys)
 ! Opening populations output file
-       open(unit=uniout,file=trim(outp),action='write')
+       open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
+       open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
+       open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
 !
        if ( traj(len_trim(traj)-3:) .eq. '.xtc' ) then 
 ! Initialize it with the names of xtc files you want to read in and write out
@@ -152,21 +165,27 @@
 !
          nnode  = xtcf%NATOMS/sys%nat
 !
+         allocate(coord(3,xtcf%NATOMS))
+         allocate(thr2(sys%nat,sys%nat))
          allocate(thr(sys%nat,sys%nat))
          allocate(adj(nnode,nnode),imol(nnode),iagg(nnode),            &
-                  itag(nnode),nmol(maxagg),pop(maxagg))
+                  itag(nnode),nmol(maxagg))
+         allocate(pop(maxagg),conc(maxagg),frac(maxagg))
          allocate(grptag(sys%nat),body(sys%nat),grps(sys%nat),         &
                   subg(sys%nat),igrps(sys%nat))
+!
+         coord(:,:) = xtcf%pos(:,:)
 !
 ! Processing general input file
 !
          call read_inp(inp,sys%nat,tgrp,grptag,body,grps,subg,igrps,   &
-                       nbody,ngrps,nsubg,thr)
+                       nbody,ngrps,nsubg,thr,thr2) 
 !
          allocate(pim(ngrps,ngrps,maxagg-1))
 !
          pim(:,:,:) = 0
          thr(:,:)   = thr(:,:)**2
+         thr2(:,:)   = thr2(:,:)**2
 !
          call system_clock(t2read)
 !
@@ -179,8 +198,14 @@
          write(*,'(4X,A)') 'Please wait, this may take a while...'
          write(*,*)
 !
-         nsteps = 0
-         pop(:) = 0.0d0
+         nsteps  = 0
+         pop(:)  = 0.0d0
+         conc(:) = 0.0d0
+         frac(:) = 0.0d0
+         cin     = 0.0d0
+         volu    = 0.0d0
+!
+         nsolv = 10000
 !
          table(:,:,:) = 0.0d0
 !
@@ -197,7 +222,7 @@
              call system_clock(t1adj)     
 !
              call buildadjmol(ngrps,grps,nsubg,subg,nnode,igrps,adj,   &
-                              thr,maxdis,xtcf%NATOMS,xtcf%pos,sys%nat, &
+                              thr2,maxdis,xtcf%NATOMS,xtcf%pos,sys%nat,&
                               sys%mass,(/xtcf%box(1,1),xtcf%box(2,2),  &
                               xtcf%box(3,3)/),debug)
 !
@@ -212,10 +237,23 @@
 !
 ! Printing the population of every aggregate
 !
-             write(uniout,'(I10,20(X,F6.2))') xtcf%STEP,               &
+             write(uniout+1,'(I10,20(X,F12.8))') xtcf%STEP,             &
                                                   real(nmol(:))/nagg*100
+             write(uniout+2,'(I10,20(X,F12.10))') xtcf%STEP,           &
+                                              real(nmol(:))/(nagg+nsolv)
+             write(uniout+3,'(I10,20(X,F12.10))') xtcf%STEP,           &
+                             real(nmol(:))/xtcf%box(1,1)**3/(Na*1.0E-24)
 !
              pop(:) = pop(:) + real(nmol(:))/nagg*100
+!
+             frac(:) = frac(:) + real(nmol(:))/(nagg+nsolv)
+!
+             conc(:) = conc(:) + real(nmol(:))/xtcf%box(1,1)**3        &
+                                                           /(Na*1.0E-24)
+!
+             cin = cin + real(nnode)/xtcf%box(1,1)**3/(Na*1.0E-24)
+!
+             volu = volu + xtcf%box(1,1)**3
 !
 ! Printing summary of the results
 ! 
@@ -258,7 +296,8 @@
                               sys%nat,igrps,thr,nnode,adj,imol,itag,   & 
                               maxagg,nmol,xtcf%NATOMS,xtcf%pos,        &
                               (/xtcf%box(1,1),xtcf%box(2,2),           &
-                                xtcf%box(3,3)/),debug)
+                                xtcf%box(3,3)/),coord,sys%mass,        &
+                              sys%atname,xtcf%STEP,outp,debug)
 !
            end if
 !
@@ -267,6 +306,8 @@
            call system_clock(t1read)
 !
            call xtcf%read
+!
+           coord(:,:) = xtcf%pos(:,:)
 !
            call system_clock(t2read)
 !
@@ -285,7 +326,7 @@
 ! Averaging pairwise interaction matrix
 !  
        if ( dopim ) then
-         pim(:,:,:) = pim(:,:,:)/nsteps
+         pim(:,:,:) = pim(:,:,:)/nsteps ! FLAG: not need this operation
 !
          do i = 1, maxagg-1
            dpaux = 0.0d0
@@ -301,6 +342,22 @@
 ! Averaging populations
 !
        pop(:) = pop(:)/nsteps
+!
+       frac(:) = frac(:)/nsteps
+!
+       conc(:) = conc(:)/nsteps
+!
+       Kc(1) = conc(2)/conc(1)**2
+       Kc(2) = conc(3)/conc(1)**3
+       Kc(3) = conc(4)/conc(1)**4
+!
+       Kx(1) = frac(2)/frac(1)**2
+       Kx(2) = frac(3)/frac(1)**3
+       Kx(3) = frac(4)/frac(1)**4
+!
+       cin = cin/nsteps
+!
+       volu = volu/nsteps
 !
        table(:,:,:) = table(:,:,:)/nsteps
 !
@@ -319,19 +376,38 @@
        write(*,'(1X,A)') 'Output information'
        write(*,'(1X,18("-"))')
        write(*,*)
-       write(*,'(1X,A,3X,I11)')     'Number of frames analyzed : ',    &
+       write(*,'(1X,A,3X,I11)')      'Number of frames analyzed : ',   &
                                                                   nsteps
-       write(*,'(1X,A,20(X,F6.2))') 'Global populations        : ',    &
+       write(*,*)
+       write(*,'(1X,A,20(X,F12.8))') 'Initial concentration     : ',cin
+       write(*,'(1X,A,20(X,F12.6))') 'Average volume            : ',volu
+       write(*,*)
+       write(*,'(1X,A,20(X,F6.2))')  'Global populations        : ',   &
                                                                   pop(:)
+       write(*,'(1X,A,20(X,D12.6))') 'Global fractions          : ',   &
+                                                                 frac(:)
+       write(*,'(1X,A,20(X,D12.6))') 'Global concentrations     : ',   &
+                                                                 conc(:)
+       write(*,*) 
+       write(*,'(2X,A)') 'Equilibrium constants'
+       write(*,'(2X,A)') '---------------------'
+       write(*,*)
+       write(*,'(1X,2(1X,A12))') 'Kc','Kx'
+       write(*,'(1X,2(1X,D12.6))') Kc(1),Kx(1)
+       write(*,'(1X,2(1X,D12.6))') Kc(2),Kx(2)
+       write(*,'(1X,2(1X,D12.6))') Kc(3),Kx(3)
        write(*,*)
 !
        do i = 1, 3
          write(*,'(3X,A,X,I3)') 'Populations of the aggregates belonging to type',i+1
          write(*,'(3X,51("-"))') 
-         write(*,'(8X,A5)')          'IDXOH'
-         write(*,'(1X,A5,20(X,I6))') 'IDXPh',(k,k=1,9)
+         write(*,'(8X,3(1X,A))') 'IDXOH','IDXPh','Population'
          do j = 1, 9
-           write(*,'(I6,20(X,F6.2))') j,(table(k,j,i),k=1,9)
+           do k = 1, 9
+             if ( table(k,j,i) .gt. 1e-3 ) then
+               write(*,'(8X,2(1X,I4),1X,F6.2)') k,j,table(k,j,i)
+             end if
+           end do
          end do
          write(*,*)
        end do
@@ -352,12 +428,16 @@
 !
 ! Deallocate memory
 !
-       deallocate(thr)
-       deallocate(adj,imol,iagg,itag,nmol,pop)
+       deallocate(coord)
+       deallocate(thr,thr2)
+       deallocate(adj,imol,iagg,itag,nmol)
+       deallocate(pop,conc,frac)
        deallocate(grptag,body,grps,subg,igrps)
        deallocate(pim)
 !
-       close(uniout)
+       close(uniout+1)
+       close(uniout+2)
+       close(uniout+3)
 !
 ! Printing timings
 !
@@ -411,7 +491,7 @@
 !
        implicit none
 !
-       include 'parameters.h'
+       include 'inout.h'
        include 'info.h'
 !
 ! Input/output variables
@@ -596,8 +676,7 @@
 !
        implicit none
 !
-       include 'info.h'
-!~        include 'idxadj.h'
+       include 'inout.h'
 !
 ! Input/output variables
 !
@@ -629,15 +708,15 @@
        write(aux,*) xtcf%STEP
        aux = adjustl(aux)
 !
-       straux = outp(:len_trim(outp)-4)//'_'//trim(aux)//'.xtc'
-       aux    = outp(:len_trim(outp)-4)//'_'//trim(aux)//'.xyz'
+       straux = trim(outp)//'_'//trim(aux)//'.xtc'
+       aux    = trim(outp)//'_'//trim(aux)//'.xyz'
 ! Printing global coordinates in xtc format
        call xtco%init(straux,'w')
        call xtco%write(xtcf%natoms,xtcf%step,xtcf%time,xtcf%box,       &
                                                      xtcf%pos,xtcf%prec)
        call xtco%close
 ! Printing global coordinates in xyz format
-       open(unit=uniinp,file=aux,action='write')
+       open(unit=uniinp,file=trim(aux),action='write')
 !
        write(uniinp,*) xtcf%NATOMS
        write(uniinp,*) sys%title
@@ -662,16 +741,16 @@
              write(aux,*) xtcf%STEP
              aux = adjustl(aux)
 !
-             straux = outp(:len_trim(outp)-4)//'_'//trim(aux)//        &
-                                               '_'//trim(straux)//'.xyz'
-             open(unit=uniinp,file=straux,action='write')
+             straux = trim(outp)//'_'//trim(aux)//'_'//trim(straux)//  &
+                                                                  '.xyz'
+             open(unit=uniinp,file=trim(straux),action='write')
 !
              nsize = itag(n)
            end if
 !
            cofm(:)  = 0.0d0
            mass     = 0.0d0
-           svaux(:) = xtcf%pos(:,(imol(n)-1)*sys%nat+1)
+           svaux(:) = xtcf%pos(:,(imol(n)-1)*sys%nat+1) 
 !
            m = n - 1
            do p = 1, itag(n)
@@ -701,7 +780,8 @@
              r = (imol(m)-1)*sys%nat
              do q = 1, sys%nat
                r = r + 1
-               write(uniinp,*) sys%atname(q),(xtcf%pos(:,r) - cofm(:))*10
+               write(uniinp,'(A5,3(1X,F12.8))') sys%atname(q),         &
+                                            (xtcf%pos(:,r) - cofm(:))*10
              end do
            end do
 !
@@ -853,8 +933,8 @@
        real(kind=8)                                                ::  dist     !  Minimum image distance
        real(kind=8)                                                ::  mindis   !  Distance threshold between groups
 !
-! Building pairwise interaction matrix 
-! ------------------------------------
+! Building pairwise interaction matrix in the subgroup-based representation
+! -------------------------------------------------------------------------
 !
        fmt1 = '(8X,X,A,X,I2,2(X,A,X,I4),3(X,A,X,I2),X,A,X,I6)'
 !
@@ -1065,12 +1145,15 @@
 !
        subroutine analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,  &
                               natmol,igrps,thr,nnode,adj,imol,itag,    &
-                              maxagg,nmol,natconf,coord,box,debug)
+                              maxagg,nmol,natconf,coord,box,posi,      &
+                              atmass,atname,step,outp,debug)
 !
+       use geometry,   only: minimgvec
        use graphtools, only: buildadjbody
 !
        implicit none
 !
+       include 'inout.h'
        include 'idxpim.h'
        include 'idxadj.h'
 !
@@ -1079,8 +1162,12 @@
        real(kind=8),dimension(9,9,3),intent(inout)       ::  table    !  Number of aggregates of each type
        logical,dimension(nnode,nnode),intent(in)         ::  adj      !  Adjacency matrix in the molecule representation
        real(kind=8),dimension(natmol,natmol),intent(in)  ::  thr      !  Distance threshold
+       real(kind=4),dimension(3,natconf),intent(inout)   ::  posi     !  Auxiliary coordinates
        real(kind=4),dimension(3,natconf),intent(in)      ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)              ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(natmol),intent(in)         ::  atmass   !
+       character(len=lenout),intent(in)                  ::  outp     !  Output file name
+       character(len=5),dimension(natmol),intent(in)     ::  atname   !      
        integer,dimension(maxagg),intent(in)              ::  nmol     !  Number of aggregates of each size
        integer,dimension(nnode),intent(in)               ::  imol     !  Molecules identifier
        integer,dimension(nnode),intent(in)               ::  itag     !  Aggregates size
@@ -1095,16 +1182,23 @@
        integer,intent(in)                                ::  maxagg   !  Maximum aggregate size
        integer,intent(in)                                ::  natconf  !  Total number of atoms
        integer,intent(in)                                ::  natmol   !  Atoms per residue
+       integer,intent(in)                                ::  step     !
        logical,intent(in)                                ::  debug    !  Debug mode
 !
 ! Local variables
 !
+       real(kind=8),dimension(3)                         ::  cofm     !  Center of mass vector
+       real(kind=4),dimension(3)                         ::  svaux    !  Auxiliary single precision vector
+       real(kind=8)                                      ::  mass     !  Total mass of the aggregate
        logical,dimension(:,:),allocatable                ::  adjmol   !  Adjacency matrix in the molecule-based rep.  ! FLAG: rename as adjaux
        logical,dimension(:,:),allocatable                ::  adjaux   !  Auxiliary adjacency matrix                   ! FLAG: rename as adjbody
        integer,dimension(:),allocatable                  ::  degree   !  Degree of each vertex
+       integer                                           ::  ijmol
        integer                                           ::  idxbody  !  Index for the body-body interactions
        integer                                           ::  idxoh    !  Index for the OH-OH interactions
        integer                                           ::  idxph    !  Index for the Ph-Ph interactions
+       integer                                           ::  uniconf  !
+       character(len=lenout)                             ::  aux      !  Auxiliary string
 !
 ! Analyzing aggregates of size lower or equal than 4
 ! --------------------------------------------------
@@ -1243,6 +1337,59 @@
            table(idxoh,idxph,itype-1) = table(idxoh,idxph,itype-1)     &
                                                                  + 1.0d0
 !
+           uniconf = itype*100 + idxoh*10 + idxph
+!
+           write(aux,*) uniconf
+           aux = adjustl(aux)
+!
+           aux = trim(outp)//'_'//trim(aux)//'.xyz'
+!
+           cofm(:)  = 0.0d0
+           mass     = 0.0d0
+           svaux(:) = posi(:,(imol(iitag)-1)*natmol+1)
+!
+           ijmol = iimol
+           do irenum = 1, itag(iitag)
+             ijmol = ijmol + 1
+             i     = (imol(ijmol)-1)*natmol
+             do iat = 1, natmol
+               i = i + 1
+! 
+               mass = mass + atmass(iat)
+!
+               posi(:,i) = minimgvec(svaux(:),posi(:,i),box)
+               posi(:,i) = svaux(:) + posi(:,i)
+!
+               do j = 1, 3
+                 cofm(j) = cofm(j) + atmass(iat)*posi(j,i)
+               end do
+             end do
+           end do
+!
+           cofm(:) = cofm(:)/mass           
+!
+           open(unit=uniconf,file=trim(aux),position='append',         &
+                action='write')
+!
+           write(uniconf,*) natmol*itag(iitag)
+           write(uniconf,'(1X,A,1X,I12,20(X,I5))')'STEP=',step,        &
+                                         imol(iitag:iitag+itag(iitag)-1)
+!
+           ijmol = iimol
+           do irenum = 1, itag(iitag)
+             ijmol = ijmol + 1
+             i     = (imol(ijmol)-1)*natmol
+             do iat = 1, natmol
+               i = i + 1
+! 
+               write(uniconf,'(A5,3(1X,F12.8))') atname(iat),          &
+                                                (posi(:,i) - cofm(:))*10
+!
+             end do
+           end do
+!
+           close(uniconf)
+! 
            deallocate(adjmol,degree)
            deallocate(adjaux)
 !

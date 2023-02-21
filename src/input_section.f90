@@ -3,6 +3,7 @@
        module input_section
        implicit none
 !
+       include 'inout.h'
        include 'info.h'
 !
        private
@@ -20,8 +21,6 @@
 !
        implicit none
 !
-       include 'info.h'
-!
 ! Input/output variables
 !
        character(len=leninp),intent(in)  ::  conf     !  Structure file name
@@ -29,7 +28,7 @@
 !
 ! Local variables
 !
-       character(len=lenarg)             ::  straux  !  Auxiliary string
+       character(len=leninp)             ::  straux  !  Auxiliary string
        character(len=5)                  ::  aux     !
        integer                           ::  io      !  Input/Output status
        integer                           ::  i,j,k   !  Indexes
@@ -133,7 +132,7 @@
 !======================================================================!
 !
        subroutine read_inp(inp,nat,tgrp,grptag,body,grps,subg,igrps,   &
-                           nbody,ngrps,nsubg,thr)
+                           nbody,ngrps,nsubg,thr,thr2)
 !
        use utils
 !
@@ -145,6 +144,7 @@
        character(len=leninp),intent(out)            ::  tgrp    !  Groups file title
        character(len=8),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
        real(kind=8),dimension(nat,nat),intent(out)  ::  thr     !  Distance threshold
+       real(kind=8),dimension(nat,nat),intent(out)  ::  thr2    !  Distance threshold
        integer,dimension(nat),intent(out)           ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(out)           ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(out)           ::  subg    !  Number of atoms in each subgroup
@@ -163,7 +163,8 @@
 !
 ! Setting defaults
 !
-       thr(:,:) = 0.0d0
+       thr(:,:)  = 0.0d0
+       thr2(:,:) = 0.0d0
 !
        nbody    = nat
        ngrps    = nat
@@ -228,6 +229,16 @@
 !
              call read_threshold(line,'**THRESHOLD',nat,thr,ngrps,     &
                                  grptag)
+!
+           case ('**INTERTHRESH','**INTERTHRESHOLD')
+!~              write(*,*) 
+!~              write(*,*) 'Reading **THRESHOLD block'
+!~              write(*,*) 
+!
+             call findline(line,'blck','**INTERTHRESHOLD')
+!
+             call read_interthreshold(line,'**INTERTHRESHOLD',nat,thr2,&
+                                      ngrps,grptag)
 !
            case default
              write(*,*)
@@ -626,6 +637,119 @@
 !
        return
        end subroutine read_threshold
+!
+!======================================================================!
+!
+       subroutine read_interthreshold(key,blck,nat,thr,ngrps,grptag)
+!
+       use utils
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)                    ::  blck    !
+       character(len=leninp),intent(inout)            ::  key     !
+       real(kind=8),dimension(nat,nat),intent(inout)  ::  thr     !
+       character(len=8),dimension(nat),intent(in)     ::  grptag  !
+       integer,intent(in)                             ::  nat     !
+       integer,intent(in)                             ::  ngrps   !  Number of groups
+
+!
+! Local variables
+!
+       character(len=leninp)                          ::  line    !
+       character(len=8)                               ::  caux1   !
+       character(len=8)                               ::  caux2   !
+       real(kind=8)                                   ::  daux    !
+       integer                                        ::  iaux1   !
+       integer                                        ::  iaux2   !
+       integer                                        ::  posi    !
+       integer                                        ::  aux     !
+       integer                                        ::  io      !  Input/Output status
+       integer                                        ::  i,j,k   !  Indexes
+!
+! Reading THRESHOLD block options 
+! -------------------------------
+!
+       do
+! Changing lowercase letters by uppercase letters 
+         key = uppercase(key)
+! Keeping just the first string
+         posi = index(key,' ')           
+         if ( posi .gt. 0 ) key = key(:posi-1)
+! Reading the different section options       
+         select case (key)
+           case ('.THR')
+!~              write(*,*) 
+!~              write(*,*) 'Reading .THR option'
+!~              write(*,*)
+!
+             read(uniinp,*) daux    ! FLAG: check if a value is introduced
+!
+             thr(:,:) = daux
+!
+             call findline(key,'blck','**THRESHOLD')
+!
+           case ('.VALUES')
+!~              write(*,*) 
+!~              write(*,*) 'Reading .VALUES option'
+!~              write(*,*)
+!
+             call findline(key,'opt','.VALUES')
+!
+             do
+               posi  = scan(key,' ') 
+               if ( posi .eq. 0 ) call errkey('option','.VALUES')
+!
+               caux1 = key(:posi-1)
+               iaux1 = findcv(ngrps,grptag,caux1)  
+               if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
+!
+               key   = key(posi+1:)   
+               key   = adjustl(key)
+               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
+                                                       '.VALUES')
+!
+               posi  = scan(key,' ') 
+!
+               caux2 = key(:posi-1)
+               iaux2 = findcv(ngrps,grptag,caux2)  
+               if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
+!
+               key   = key(posi+1:)   
+               key   = adjustl(key)
+               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
+                                                       '.VALUES')
+!
+               posi  = scan(key,' ') 
+               if ( posi .eq. 0 ) call errkey('option','.VALUES')
+!
+               key = key(:posi-1)
+               read(key,*) daux
+!
+               thr(iaux1,iaux2) = daux
+               thr(iaux2,iaux1) = daux
+!
+               call findline(key,'opt','.VALUES')
+!
+               if ( (uppercase(key(1:1)).eq.'*') .or.                  &
+                                     (uppercase(key(1:1)).eq.'.') ) exit
+             end do
+!
+           case ('**END')
+!~              write(*,*) 
+!~              write(*,*) 'Exiting from **THRESHOLD block'
+!~              write(*,*)
+             return
+!
+           case default
+             call unksect(key,blck)
+         end select  
+       end do
+!
+       return
+       end subroutine read_interthreshold
 !
 !======================================================================!
 !

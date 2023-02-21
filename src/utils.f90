@@ -147,7 +147,7 @@
 !
 !======================================================================!
 !
-       subroutine read_intvec(i,n,nbox)
+       subroutine read_intvec(i,n,ivec)
 !
        implicit none
 !
@@ -157,7 +157,7 @@
 !
        integer,intent(inout)             ::  i       !  Argument index
        integer,intent(in)                ::  n       !  Vector dimension
-       integer,dimension(n),intent(out)  ::  nbox    !  Integer vector
+       integer,dimension(n),intent(out)  ::  ivec    !  Integer vector
 !
 ! Local variables
 !
@@ -167,7 +167,7 @@
 !
        do k = 1, n
          call get_command_argument(i,next,status=io)
-         read(next,*) nbox(k)
+         read(next,*) ivec(k)
          i = i + 1
        end do
 !
@@ -180,7 +180,7 @@
 !
        implicit none
 !
-       include 'info.h'
+       include 'inout.h'
 !
        character(len=leninp),intent(in)     ::  line
        character(len=leninp),intent(inout)  ::  key
@@ -201,7 +201,7 @@
 !
        implicit none
 !
-       include 'info.h'
+       include 'inout.h'
 !
        character(len=leninp),intent(in)     ::  key
        character(len=leninp),intent(inout)  ::  line
@@ -237,6 +237,7 @@
 !
        implicit none
 !
+       include 'inout.h'
        include 'info.h'
 !
        character(len=leninp),intent(in)     ::  line
@@ -545,7 +546,7 @@
 !
        implicit none
 !
-       include 'info.h'
+       include 'inout.h'
 !
 ! Input/output variables
 !

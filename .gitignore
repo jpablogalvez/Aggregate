@@ -5,3 +5,13 @@
 # Binaries
 test
 aggregate
+
+# Miscellaneous
+.gitignore
+*dat
+*inp
+*xyz
+*xtc
+*gro
+*old*
+*out*
