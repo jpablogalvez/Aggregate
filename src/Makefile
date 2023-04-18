@@ -15,13 +15,18 @@ FLFLAGS = -g
 FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate
 SRCF90  = gmx_aggregate.f90
-SRCMOD  = datatypes.f90      \
+SRCMOD  = xdr.F90            \
+          datatypes.f90      \
+          lengths.f90        \
+          printings.f90      \
           utils.f90          \
+          timings.f90        \
           input_section.f90  \
           geometry.f90       \
           graphtools.f90     \
           sorting.f90        \
-          xdr.F90 
+          screening.f90      \
+          aggtools.f90
 
 # Find all source files, create a list of corresponding object files
 OBJ     = $(patsubst %.f90,$(ODIR)/%.o,$(SRCF90))

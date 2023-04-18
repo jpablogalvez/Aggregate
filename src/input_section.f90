@@ -1,10 +1,8 @@
 !======================================================================!
 !
        module input_section
-       implicit none
 !
-       include 'inout.h'
-       include 'info.h'
+       implicit none
 !
        private
        public  ::  read_inp,                                           &
@@ -28,10 +26,8 @@
 !
 ! Local variables
 !
-       character(len=leninp)             ::  straux  !  Auxiliary string
-       character(len=5)                  ::  aux     !
        integer                           ::  io      !  Input/Output status
-       integer                           ::  i,j,k   !  Indexes
+       integer                           ::  i       !  Index
 !
 ! Reading Gromacs configuration file
 ! ----------------------------------
@@ -59,75 +55,76 @@
                 sys%atnum(sys%nat)   ,  &
                 sys%mass(sys%nat))
 !
-       do k = 1, sys%nat
-         read(uniinp,'(I5,2A5,I5,3F8.3)') sys%renum(k),   &
-                                          sys%rename(k),  &
-                                          sys%atname(k),  &
-                                          sys%atnum(k)
+       do i = 1, sys%nat       ! TODO: check if lines are correctly read
+         read(uniinp,'(I5,2A5,I5,3F8.3)') sys%renum(i),   &
+                                          sys%rename(i),  &
+                                          sys%atname(i),  &
+                                          sys%atnum(i)
        end do
-         read(uniinp,*) sys%latvec
+       read(uniinp,*) sys%latvec
+!
        close(uniinp)
 !
-       do j = 1, sys%nat
-         aux    = adjustl(sys%atname(j))
-         straux = ''
-         do
-           select case ( aux(1:1) )
-             case ( 'a':'z','A':'Z')
-               straux = trim(straux)//aux(1:1)
-               aux    = aux(2:)
-             case default
-               exit
-           end select
-         end do
+!~        do j = 1, sys%nat
+!~          aux    = adjustl(sys%atname(j))
+!~          straux = ''
+!~          do
+!~            select case ( aux(1:1) )
+!~              case ( 'a':'z','A':'Z')
+!~                straux = trim(straux)//aux(1:1)
+!~                aux    = aux(2:)
+!~              case default
+!~                exit
+!~            end select
+!~          end do
 !
-         sys%atname(j) = straux
-         straux = uppercase(straux)
-!
-         select case ( straux )
-           case ( 'H' )
-             sys%mass(j) = 1.007825d0
-           case ( 'HE' )
-             sys%mass(j)   = 4.002602d0  ! Not exact
-             sys%atname(j) = 'He'
-           case ( 'LI' )
-             sys%mass(j) = 6.941d0     ! Not exact
-             sys%atname(j) = 'Li'
-           case ( 'BE' )
-             sys%mass(j) = 9.012182d0  ! Not exact
-             sys%atname(j) = 'Be'
-           case ( 'B' )
-             sys%mass(j) = 10.811d0    ! Not exact
-           case ( 'C' )
-             sys%mass(j) = 12.0d0
-           case ( 'N' )
-             sys%mass(j) = 14.003074d0
-           case ( 'O' )
-             sys%mass(j) = 15.994915d0
-           case ( 'F' )
-             sys%mass(j) = 18.998403d0 ! Not exact
-           case ( 'NE' )
-             sys%mass(j) = 20.1797d0   ! Not exact
-             sys%atname(j) = 'Ne'
-           case ( 'CL' )
-             sys%mass(j) = 35.453d0    ! Not exact
-             sys%atname(j) = 'Cl'
-           case ( 'AR' )
-             sys%mass(j) = 39.948d0    ! Not exact
-             sys%atname(j) = 'Ar'
-           case ( 'KR' )
-             sys%mass(j) = 83.798d0    ! Not exact
-             sys%atname(j) = 'Kr'
-           case default
-             write(*,*) straux, 'Not yet!'
-             call exit(0)
-         end select
-       end do
-!
-       sys%totm = 0.0d0
-       do i = 1, sys%nat
-         sys%totm = sys%totm + sys%mass(i)
-       end do
+!~          sys%atname(j) = straux(:5)
+!~          straux = uppercase(straux)
+!~ !
+!~          select case ( straux )
+!~            case ( 'H' )
+!~              sys%mass(j) = 1.007825d0
+!~            case ( 'HE' )
+!~              sys%mass(j)   = 4.002602d0  ! Not exact
+!~              sys%atname(j) = 'He'
+!~            case ( 'LI' )
+!~              sys%mass(j) = 6.941d0     ! Not exact
+!~              sys%atname(j) = 'Li'
+!~            case ( 'BE' )
+!~              sys%mass(j) = 9.012182d0  ! Not exact
+!~              sys%atname(j) = 'Be'
+!~            case ( 'B' )
+!~              sys%mass(j) = 10.811d0    ! Not exact
+!~            case ( 'C' )
+!~              sys%mass(j) = 12.0d0
+!~            case ( 'N' )
+!~              sys%mass(j) = 14.003074d0
+!~            case ( 'O' )
+!~              sys%mass(j) = 15.994915d0
+!~            case ( 'F' )
+!~              sys%mass(j) = 18.998403d0 ! Not exact
+!~            case ( 'NE' )
+!~              sys%mass(j) = 20.1797d0   ! Not exact
+!~              sys%atname(j) = 'Ne'
+!~            case ( 'CL' )
+!~              sys%mass(j) = 35.453d0    ! Not exact
+!~              sys%atname(j) = 'Cl'
+!~            case ( 'AR' )
+!~              sys%mass(j) = 39.948d0    ! Not exact
+!~              sys%atname(j) = 'Ar'
+!~            case ( 'KR' )
+!~              sys%mass(j) = 83.798d0    ! Not exact
+!~              sys%atname(j) = 'Kr'
+!~            case default
+!~              write(*,*) straux, 'Not yet!'
+!~              call exit(0)
+!~          end select
+!~        end do
+!~ !
+!~        sys%totm = 0.0d0
+!~        do i = 1, sys%nat
+!~          sys%totm = sys%totm + sys%mass(i)
+!~        end do
 !
        return
        end subroutine read_gro
@@ -137,33 +134,34 @@
        subroutine read_inp(inp,nat,tgrp,grptag,body,grps,subg,atms,    &
                            mbody,mgrps,msubg,matms,thr,thr2)
 !
+       use printings
        use utils
 !
        implicit none
 !
 ! Input/output variables
 !
-       character(len=leninp),intent(in)             ::  inp     !  General input file name
-       character(len=leninp),intent(out)            ::  tgrp    !  Groups file title
-       character(len=8),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
-       real(kind=8),dimension(nat,nat),intent(out)  ::  thr     !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(out)  ::  thr2    !  Distance threshold
-       integer,dimension(nat),intent(out)           ::  body    !  Number of groups in each body
-       integer,dimension(nat),intent(out)           ::  grps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(out)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(out)           ::  atms    !  Atoms identifier
-       integer,intent(out)                          ::  mbody   !  Number of bodies
-       integer,intent(out)                          ::  mgrps   !  Number of groups
-       integer,intent(out)                          ::  msubg   !  Number of subgroups
-       integer,intent(out)                          ::  matms   !  
-       integer,intent(in)                           ::  nat     !  Number of atoms in the molecule
+       character(len=leninp),intent(in)                  ::  inp     !  General input file name
+       character(len=leninp),intent(out)                 ::  tgrp    !  Groups file title
+       character(len=lentag),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
+       real(kind=8),dimension(nat,nat),intent(out)       ::  thr     !  Distance threshold
+       real(kind=8),dimension(nat,nat),intent(out)       ::  thr2    !  Distance threshold
+       integer,dimension(nat),intent(out)                ::  body    !  Number of groups in each body
+       integer,dimension(nat),intent(out)                ::  grps    !  Number of subgroups in each group
+       integer,dimension(nat),intent(out)                ::  subg    !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(out)                ::  atms    !  Atoms identifier
+       integer,intent(out)                               ::  mbody   !  Number of bodies
+       integer,intent(out)                               ::  mgrps   !  Number of groups
+       integer,intent(out)                               ::  msubg   !  Number of subgroups
+       integer,intent(out)                               ::  matms   !  
+       integer,intent(in)                                ::  nat     !  Number of atoms in the molecule
 !
 ! Local variables
 !
-       character(len=leninp)                        ::  line    !
-       character(len=leninp)                        ::  key     !
-       integer                                      ::  io      !  Input/Output status
-       integer                                      ::  i,j,k   !  Indexes
+       character(len=leninp)                             ::  line    !
+       character(len=leninp)                             ::  key     !
+       integer                                           ::  io      !  Input/Output status
+       integer                                           ::  i       !  Indexes
 !
 ! Setting defaults
 !
@@ -275,26 +273,23 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                    ::  blck    !  Block name
-       character(len=leninp),intent(inout)            ::  key     !
-       character(len=leninp),intent(inout)            ::  tgrp    !  Groups file title
-       integer,intent(in)                             ::  nat     !  Number of atoms in the molecule
-       character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
-       integer,dimension(nat),intent(inout)           ::  body    !  Number of groups in each body
-       integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
-       integer,intent(inout)                          ::  mbody   !  Number of bodies
-       integer,intent(inout)                          ::  mgrps   !  Number of groups
-       integer,intent(inout)                          ::  msubg   !  Number of subgroups
-       integer,intent(inout)                          ::  matms   !  
+       character(len=*),intent(in)                         ::  blck    !  Block name
+       character(len=leninp),intent(inout)                 ::  key     !
+       character(len=leninp),intent(inout)                 ::  tgrp    !  Groups file title
+       integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
+       integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
+       integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(inout)                ::  atms    !  Atoms identifier
+       integer,intent(inout)                               ::  mbody   !  Number of bodies
+       integer,intent(inout)                               ::  mgrps   !  Number of groups
+       integer,intent(inout)                               ::  msubg   !  Number of subgroups
+       integer,intent(inout)                               ::  matms   !  
 !
 ! Local variables
 !
-       character(len=leninp)                        ::  line    !
-       integer                                      ::  posi    !
-       integer                                      ::  io      !  Input/Output status
-       integer                                      ::  i,j,k   !  Indexes
+       integer                                             ::  posi    !
 !
 ! Reading MOLREP block sections 
 ! -----------------------------
@@ -363,26 +358,23 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                    ::  sect    !  Section name
-       character(len=*),intent(in)                    ::  blck    !  Block name
-       character(len=leninp),intent(inout)            ::  key     !  
-       integer,intent(in)                             ::  nat     !  Number of atoms in the molecule
-       character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
-       integer,dimension(nat),intent(inout)           ::  body    !  Number of groups in each body
-       integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
-       integer,intent(inout)                          ::  mbody   !  Number of bodies
-       integer,intent(inout)                          ::  mgrps   !  Number of groups
-       integer,intent(inout)                          ::  msubg   !  Number of subgroups
-       integer,intent(inout)                          ::  matms   !
+       character(len=*),intent(in)                         ::  sect    !  Section name
+       character(len=*),intent(in)                         ::  blck    !  Block name
+       character(len=leninp),intent(inout)                 ::  key     !  
+       integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
+       integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
+       integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(inout)                ::  atms    !  Atoms identifier
+       integer,intent(inout)                               ::  mbody   !  Number of bodies
+       integer,intent(inout)                               ::  mgrps   !  Number of groups
+       integer,intent(inout)                               ::  msubg   !  Number of subgroups
+       integer,intent(inout)                               ::  matms   !
 !
 ! Local variables
 !
-       character(len=leninp)                          ::  line    !
-       integer                                        ::  posi    !
-       integer                                        ::  io      !  Input/Output status
-       integer                                        ::  i,j,k   !  Indexes
+       integer                                             ::  posi    !
 !
 ! Reading BODY section options 
 ! ----------------------------
@@ -439,26 +431,25 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                    ::  opt     !  Option name
-       integer,intent(in)                             ::  nat     !  Number of atoms in the molecule
-       character(len=8),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
-       integer,dimension(nat),intent(inout)           ::  grps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(inout)           ::  subg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(inout)           ::  atms    !  Atoms identifier
-       integer,intent(inout)                          ::  mgrps   !  Number of groups
-       integer,intent(inout)                          ::  msubg   !  NUmber of subgroups
-       integer,intent(inout)                          ::  matms   !
+       character(len=*),intent(in)                         ::  opt     !  Option name
+       integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
+       integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(inout)                ::  atms    !  Atoms identifier
+       integer,intent(inout)                               ::  mgrps   !  Number of groups
+       integer,intent(inout)                               ::  msubg   !  NUmber of subgroups
+       integer,intent(inout)                               ::  matms   !
 !
 ! Local variables
 !
-       character(len=leninp)                          ::  line    ! 
-       character(len=leninp)                          ::  key     ! 
-       character(len=leninp)                          ::  arg     !  
-       integer                                        ::  natgrp  !
-       integer                                        ::  posi    ! 
-       integer                                        ::  io      !  Input/Output status
-       integer                                        ::  old     !
-       integer                                        ::  i,j,k   !  Indexes
+       character(len=leninp)                               ::  line    ! 
+       character(len=leninp)                               ::  key     ! 
+       character(len=leninp)                               ::  arg     !  
+       integer                                             ::  natgrp  !
+       integer                                             ::  posi    ! 
+       integer                                             ::  io      !  Input/Output status
+       integer                                             ::  old     !
 !
 ! Reading GRPS option keywords 
 ! ----------------------------
@@ -516,7 +507,7 @@
 !        
              case ('name')
                call chkkeyarg(key,line,arg)
-               grptag(mgrps) = arg
+               grptag(mgrps) = arg(:lentag)
 !
              case default
                call unkkeysect(key,opt)
@@ -540,26 +531,22 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                    ::  blck    !
-       character(len=leninp),intent(inout)            ::  key     !
-       real(kind=8),dimension(nat,nat),intent(inout)  ::  thr     !
-       character(len=8),dimension(nat),intent(in)     ::  grptag  !
-       integer,intent(in)                             ::  nat     !
-       integer,intent(in)                             ::  mgrps   !  Number of groups
+       character(len=*),intent(in)                         ::  blck    !
+       character(len=leninp),intent(inout)                 ::  key     !
+       real(kind=lentag),dimension(nat,nat),intent(inout)  ::  thr     !
+       character(len=8),dimension(nat),intent(in)          ::  grptag  !
+       integer,intent(in)                                  ::  nat     !
+       integer,intent(in)                                  ::  mgrps   !  Number of groups
 
 !
 ! Local variables
 !
-       character(len=leninp)                          ::  line    !
-       character(len=8)                               ::  caux1   !
-       character(len=8)                               ::  caux2   !
-       real(kind=8)                                   ::  daux    !
-       integer                                        ::  iaux1   !
-       integer                                        ::  iaux2   !
-       integer                                        ::  posi    !
-       integer                                        ::  aux     !
-       integer                                        ::  io      !  Input/Output status
-       integer                                        ::  i,j,k   !  Indexes
+       character(len=8)                                    ::  caux1   !
+       character(len=8)                                    ::  caux2   !
+       real(kind=8)                                        ::  daux    !
+       integer                                             ::  iaux1   !
+       integer                                             ::  iaux2   !
+       integer                                             ::  posi    !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------
@@ -653,26 +640,22 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                    ::  blck    !
-       character(len=leninp),intent(inout)            ::  key     !
-       real(kind=8),dimension(nat,nat),intent(inout)  ::  thr     !
-       character(len=8),dimension(nat),intent(in)     ::  grptag  !
-       integer,intent(in)                             ::  nat     !
-       integer,intent(in)                             ::  mgrps   !  Number of groups
+       character(len=*),intent(in)                         ::  blck    !
+       character(len=leninp),intent(inout)                 ::  key     !
+       real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
+       character(len=lentag),dimension(nat),intent(in)     ::  grptag  !
+       integer,intent(in)                                  ::  nat     !
+       integer,intent(in)                                  ::  mgrps   !  Number of groups
 
 !
 ! Local variables
 !
-       character(len=leninp)                          ::  line    !
-       character(len=8)                               ::  caux1   !
-       character(len=8)                               ::  caux2   !
-       real(kind=8)                                   ::  daux    !
-       integer                                        ::  iaux1   !
-       integer                                        ::  iaux2   !
-       integer                                        ::  posi    !
-       integer                                        ::  aux     !
-       integer                                        ::  io      !  Input/Output status
-       integer                                        ::  i,j,k   !  Indexes
+       character(len=8)                                    ::  caux1   !
+       character(len=8)                                    ::  caux2   !
+       real(kind=8)                                        ::  daux    !
+       integer                                             ::  iaux1   !
+       integer                                             ::  iaux2   !
+       integer                                             ::  posi    !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------

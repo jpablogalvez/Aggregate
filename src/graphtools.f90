@@ -10,9 +10,9 @@
 ! BUILDADJMOLLINK - BUILD ADJacency matrix MOLecule-based representation
 !                   using a LINKed list
 !
-       subroutine buildadjmollink(nnode,adj,neidis,msubg,mgrps,thr,    &
-                                  ngrps,igrps,grps,natms,posi,list,    &
-                                  nhead,head,cell,ncell,box)
+       subroutine buildadjmollink(nnode,adj,msubg,mgrps,thr,ngrps,     &
+                                  igrps,grps,natms,posi,list,nhead,    &
+                                  head,cell,ncell,box)
 !
        use geometry,   only: sminimgvec
 !
@@ -24,7 +24,6 @@
        real(kind=4),dimension(3,natms),intent(in)      ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)            ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=8),dimension(mgrps,mgrps),intent(in)  ::  thr     !
-       real(kind=8),intent(in)                         ::  neidis  !
        integer,dimension(nhead*13),intent(in)          ::  cell    !
        integer,dimension(3),intent(in)                 ::  ncell   !
        integer,dimension(natms),intent(in)             ::  list    !
@@ -50,11 +49,8 @@
        integer                                         ::  iinode   !
        integer                                         ::  innode   !
        integer                                         ::  jinode   !
-       integer                                         ::  jnnode   !
        integer                                         ::  iigrps   !
        integer                                         ::  ingrps   !
-       integer                                         ::  jigrps   !
-       integer                                         ::  insubg   !
        integer                                         ::  jnsubg   !
        integer                                         ::  ni,nj    !
        integer                                         ::  i        !
@@ -84,7 +80,7 @@
                if ( (jinode.ne.iinode) .and.                           &
                                         (.NOT.adj(jinode,iinode)) ) then
                  jnsubg = nj - (jinode - 1)*msubg
-                 mindis = thr(grps(jnsubg),ingrps) ! alternatively thr(grps(jngrps),grps(ingrps))
+                 mindis = real(thr(grps(jnsubg),ingrps)) ! alternatively thr(grps(jngrps),grps(ingrps))
                  if ( mindis .gt. 1.0e-5 ) then
                    r   = sminimgvec(posi(:,ni),posi(:,nj),box)
                    dis = dot_product(r,r)
@@ -111,7 +107,7 @@
                  if ( (jinode.ne.iinode) .and.                         &
                                         (.NOT.adj(jinode,iinode)) ) then
                    jnsubg = nj - (jinode - 1)*msubg
-                   mindis = thr(grps(jnsubg),ingrps) ! alternatively thr(grps(jngrps),grps(ingrps))
+                   mindis = real(thr(grps(jnsubg),ingrps)) ! alternatively thr(grps(jngrps),grps(ingrps))
                    if ( mindis .gt. 1.0e-5 ) then
                      r   = sminimgvec(posi(:,ni),posi(:,nj),box)
                      dis = dot_product(r,r)
@@ -235,11 +231,11 @@
 !
 !======================================================================!
 !
-! BUILDADJMOLBUB - BUILD ADJacency matrix MOLecule-based representation
-!                   using BUBles
+! BUILDADJMOLBUB - BUILD ADJacency matrix in the MOLecule-based 
+!                   representation using BUBles
 !
        subroutine buildadjmolbub(nnode,adj,neidis,msubg,mgrps,nat,     &
-                                 thr,ngrps,igrps,grps,natms,posi,box)
+                                 thr,ngrps,igrps,natms,posi,box)
 !
        use geometry,   only: sminimgvec
 !
@@ -254,7 +250,6 @@
        real(kind=8),intent(in)                     ::  neidis  !
        integer,dimension(nat),intent(in)           ::  ngrps   !  
        integer,dimension(nat),intent(in)           ::  igrps   ! 
-       integer,dimension(nat),intent(in)           ::  grps    ! 
        integer,intent(in)                          ::  msubg   !
        integer,intent(in)                          ::  mgrps   !  Number of subgroups
        integer,intent(in)                          ::  nnode   !  Number of residues
@@ -274,7 +269,7 @@
        integer                                     ::  ingrps   !
        integer                                     ::  jigrps   !
        integer                                     ::  jngrps   !
-       integer                                     ::  ni,nj    !
+       integer                                     ::  ni       !
        integer                                     ::  i,j      !
 !
 ! Building the adjacency matrix in the molecule-based representation
@@ -298,7 +293,7 @@
                    j = jnnode + igrps(jngrps)
 !
                    do jigrps = 1, ngrps(jngrps)
-!~                      nj = j + jigrps                    
+!                     nj = j + jigrps                    
 !
                      r   = sminimgvec(posi(:,ni),posi(:,j+jigrps),box)
                      dis = dot_product(r,r)
@@ -330,9 +325,8 @@
 !
 ! BUILDADJMOL - BUILD ADJacency matrix MOLecule-based representation
 !
-       subroutine buildadjmol(ngrps,grps,nsubg,subg,nnode,igrps,adj,   &
-                              thr,maxdis,natconf,coord,natmol,mass,    &
-                              box,debug)
+       subroutine buildadjmol(ngrps,grps,subg,nnode,igrps,adj,thr,     &
+                              maxdis,natconf,coord,natmol,box)
 !
        use geometry
 !
@@ -345,27 +339,19 @@
        logical,dimension(nnode,nnode),intent(out)        ::  adj      !  Adjacency matrix
        real(kind=4),dimension(3,natconf),intent(inout)   ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=8),dimension(natmol,natmol),intent(in)  ::  thr      !  Distance threshold
-       real(kind=8),dimension(natmol),intent(in)         ::  mass     !  Atomic masses
        real(kind=4),dimension(3),intent(in)              ::  box      !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=8),intent(in)                           ::  maxdis   !  Screening distance
        integer,dimension(natmol),intent(in)              ::  grps     !  Number of subgroups in each group
        integer,dimension(natmol),intent(in)              ::  subg     !  Number of atoms in each subgroup
        integer,dimension(natmol),intent(in)              ::  igrps    !  Atoms identifier
        integer,intent(in)                                ::  ngrps    !  Number of groups
-       integer,intent(in)                                ::  nsubg    !  Number of subgroups
        integer,intent(in)                                ::  nnode    !  Number of residues
        integer,intent(in)                                ::  natconf  !  Total number of atoms
        integer,intent(in)                                ::  natmol   !  Atoms per residue
-       logical,intent(in)                                ::  debug    !  Debug mode
 !
 ! Local variables
 !
-       character(len=54)                                 ::  fmt1     !  Format string
-       real(kind=4),dimension(3,natmol)                  ::  atcoord  !  Subgroup coordinates !FLAG: kind=8 to kind=4
-       real(kind=8),dimension(natmol)                    ::  atmass   !  Subgroup masses
-       real(kind=8),dimension(3)                         ::  cofm     !  Center of mass coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3)                         ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
-       real(kind=4),dimension(3)                         ::  svaux    !  Auxiliary single precision vector
        real(kind=8)                                      ::  dist     !  Minimum image distance
        real(kind=8)                                      ::  mindis   !  Distance threshold between groups
 !
@@ -430,129 +416,124 @@
 !
 ! BUILDADJBODY - BUILD ADJacency matrix n-BODY simplified representation
 !
-       subroutine buildadjbody(natmol,nbody,body,ngrps,grps,nsubg,     &
-                               subg,igrps,adj,thr,nnode,imol,adjmol,   &
-                               natconf,coord,box,debug)
-!
-       use geometry,   only: sminimgvec
-!
-       implicit none
-!
-       include 'idxadj.h'
-!
-! Input/output variables
-!
-       logical,dimension(nbody*nnode,nbody*nnode),intent(out) ::  adj      !  Adjacency matrix
-       logical,dimension(nnode,nnode),intent(in)              ::  adjmol   !  Adjacency matrix
-       real(kind=4),dimension(3,natconf),intent(in)           ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
-       real(kind=8),dimension(natmol,natmol),intent(in)       ::  thr      !  Distance threshold
-       real(kind=4),dimension(3),intent(in)                   ::  box      !  Simulation box !FLAG: kind=8 to kind=4
-       integer,dimension(nnode),intent(in)                    ::  imol     !   
-       integer,dimension(natmol),intent(in)                   ::  body     !  Number of groups in each body
-       integer,dimension(natmol),intent(in)                   ::  grps     !  Number of subgroups in each group
-       integer,dimension(natmol),intent(in)                   ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(natmol),intent(in)                   ::  igrps    !  Atoms identifier
-       integer,intent(in)                                     ::  nbody    !  Number of bodies
-       integer,intent(in)                                     ::  ngrps    !  Number of groups
-       integer,intent(in)                                     ::  nsubg    !  Number of subgroups
-       integer,intent(in)                                     ::  nnode    !  Number of residues
-       integer,intent(in)                                     ::  natconf  !  Total number of atoms
-       integer,intent(in)                                     ::  natmol   !  Atoms per residue
-       logical,intent(in)                                     ::  debug    !  Debug mode
-!
-! Local variables
-!
-       character(len=54)                                      ::  fmt1     !  Format string
-       real(kind=4),dimension(3)                              ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
-       real(kind=8)                                           ::  dist     !  Minimum image distance
-       real(kind=8)                                           ::  mindis   !  Distance threshold between groups
-!
-! Building the adjacency matrix in the N-body simplified representation
-! ---------------------------------------------------------------------
-!
-       adj(:,:) = .FALSE. 
-!
-       inbody = 0
-       do irenum = 1, nnode-1
-!~ write(*,'(1X,A,X,I4)') 'Starting IRESIDUE',irenum
-!~ write(*,*) '----------------------------------'
-!~ write(*,*)
-         inat = (imol(irenum)-1)*natmol
-!
-         jnbody = inbody + nbody           
-         do jrenum = irenum+1, nnode
-           if ( adjmol(jrenum,irenum) ) then
-!~ write(*,'(1X,A,X,I4)') 'Comparing with JRESIDUE',jrenum
-!~ write(*,*)
-             jnat = (imol(jrenum)-1)*natmol
-!
-             ingrps = 0
-             ii     = 0
-             do iibody = 1, nbody
-               jngrps = 0
-               jj     = 0
-               do jibody = 1, nbody
-!~ write(*,'(3X,6(X,A,X,I3),X,A,X,I6)') 'COMPARING inbody',inbody+iibody, &
-!~                                           'WITH jibody',jnbody+jibody
-!~ write(*,*)
-                 insubg = ii
-                 do iigrps = 1, body(iibody)
-                   do iisubg = 1, grps(ingrps+iigrps)
-                     iat = inat + igrps(insubg+iisubg)    ! FLAG: now it takes the first atom in the group
-!
-!~ write(*,'(5X,2(X,A,X,I3),X,A,X,I6,X,A,X,F4.2)') 'COMPARING iigrps',ingrps+iigrps,  &
-!~ 'iisubg',insubg+iisubg,'iat',iat
-!
-                     jnsubg = jj
-                     do jigrps = 1, body(jibody)
-!
-                       mindis = thr(ingrps+iigrps,jngrps+jigrps)   
-!
-                       if ( mindis .gt. 1.0e-6 ) then 
-                         do jisubg = 1, grps(jngrps+jigrps)
-                           r    = sminimgvec(coord(:,iat),coord(:,jnat+&
-                                              igrps(jnsubg+jisubg)),box)
-                           dist = dot_product(r,r)
-!
-!~ write(*,'(5X,2(X,A,X,I3),X,A,X,I6,2(X,A,X,F4.2))') '     WITH jigrps',jngrps+jigrps,  &
-!~ 'jisubg',jnsubg+jisubg,'jat',jnat+igrps(jnsubg+jisubg),'MINDIS',sqrt(mindis),'DIST',sqrt(dist)
-                           if ( dist .le. mindis ) then
-                             adj(jnbody+jibody,inbody+iibody) = .TRUE.
-                             adj(inbody+iibody,jnbody+jibody) = .TRUE.
-!
-                             do j = jigrps, body(jibody)
-                               jnsubg = jnsubg + grps(jngrps+j)
-                             end do
-!
-                             do i = iigrps, body(iibody)
-                               insubg = insubg + grps(ingrps+i)
-                             end do
-!
-                             GO TO 1000
-                           end if
-                         end do
-                       end if
-                       jnsubg = jnsubg + grps(jngrps+jigrps)
-                     end do
-!~ write(*,*)
-                   end do
-                   insubg = insubg + grps(ingrps+iigrps)
-                 end do
-1000             continue
-                 jj = jnsubg
-                 jngrps = jngrps + body(jibody)
-               end do
-               ii = insubg 
-               ingrps = ingrps + body(iibody)
-             end do     
-           end if 
-           jnbody = jnbody + nbody 
-         end do
-           inbody = inbody + nbody 
-       end do
-!
-       return
-       end subroutine buildadjbody
+!~        subroutine buildadjbody(natmol,nbody,body,grps,     &
+!~                                igrps,adj,thr,nnode,imol,adjmol,   &
+!~                                natconf,coord,box)
+!~ !
+!~        use geometry,   only: sminimgvec
+!~ !
+!~        implicit none
+!~ !
+!~        include 'idxadj.h'
+!~ !
+!~ ! Input/output variables
+!~ !
+!~        logical,dimension(nbody*nnode,nbody*nnode),intent(out) ::  adj      !  Adjacency matrix
+!~        logical,dimension(nnode,nnode),intent(in)              ::  adjmol   !  Adjacency matrix
+!~        real(kind=4),dimension(3,natconf),intent(in)           ::  coord    !  Atomic coordinates !FLAG: kind=8 to kind=4
+!~        real(kind=8),dimension(natmol,natmol),intent(in)       ::  thr      !  Distance threshold
+!~        real(kind=4),dimension(3),intent(in)                   ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+!~        integer,dimension(nnode),intent(in)                    ::  imol     !   
+!~        integer,dimension(natmol),intent(in)                   ::  body     !  Number of groups in each body
+!~        integer,dimension(natmol),intent(in)                   ::  grps     !  Number of subgroups in each group
+!~        integer,dimension(natmol),intent(in)                   ::  igrps    !  Atoms identifier
+!~        integer,intent(in)                                     ::  nbody    !  Number of bodies
+!~        integer,intent(in)                                     ::  nnode    !  Number of residues
+!~        integer,intent(in)                                     ::  natconf  !  Total number of atoms
+!~        integer,intent(in)                                     ::  natmol   !  Atoms per residue
+!~ !
+!~ ! Local variables
+!~ !
+!~        real(kind=4),dimension(3)                              ::  r        !  Minimum image vector !FLAG: kind=8 to kind=4
+!~        real(kind=8)                                           ::  dist     !  Minimum image distance
+!~        real(kind=8)                                           ::  mindis   !  Distance threshold between groups
+!~ !
+!~ ! Building the adjacency matrix in the N-body simplified representation
+!~ ! ---------------------------------------------------------------------
+!~ !
+!~        adj(:,:) = .FALSE. 
+!~ !
+!~        inbody = 0
+!~        do irenum = 1, nnode-1
+!write(*,'(1X,A,X,I4)') 'Starting IRESIDUE',irenum
+!write(*,*) '----------------------------------'
+!write(*,*)
+!~          inat = (imol(irenum)-1)*natmol
+!~ !
+!~          jnbody = inbody + nbody           
+!~          do jrenum = irenum+1, nnode
+!~            if ( adjmol(jrenum,irenum) ) then
+!write(*,'(1X,A,X,I4)') 'Comparing with JRESIDUE',jrenum
+!write(*,*)
+!~              jnat = (imol(jrenum)-1)*natmol
+!~ !
+!~              ingrps = 0
+!~              ii     = 0
+!~              do iibody = 1, nbody
+!~                jngrps = 0
+!~                jj     = 0
+!~                do jibody = 1, nbody
+!write(*,'(3X,6(X,A,X,I3),X,A,X,I6)') 'COMPARING inbody',inbody+iibody, &
+!                                          'WITH jibody',jnbody+jibody
+!write(*,*)
+!~                  insubg = ii
+!~                  do iigrps = 1, body(iibody)
+!~                    do iisubg = 1, grps(ingrps+iigrps)
+!~                      iat = inat + igrps(insubg+iisubg)    ! FLAG: now it takes the first atom in the group
+!~ !
+!write(*,'(5X,2(X,A,X,I3),X,A,X,I6,X,A,X,F4.2)') 'COMPARING iigrps',ingrps+iigrps,  &
+!'iisubg',insubg+iisubg,'iat',iat
+!~ !
+!~                      jnsubg = jj
+!~                      do jigrps = 1, body(jibody)
+!~ !
+!~                        mindis = thr(ingrps+iigrps,jngrps+jigrps)   
+!~ !
+!~                        if ( mindis .gt. 1.0e-6 ) then 
+!~                          do jisubg = 1, grps(jngrps+jigrps)
+!~                            r    = sminimgvec(coord(:,iat),coord(:,jnat+&
+!~                                               igrps(jnsubg+jisubg)),box)
+!~                            dist = dot_product(r,r)
+!~ !
+!write(*,'(5X,2(X,A,X,I3),X,A,X,I6,2(X,A,X,F4.2))') '     WITH jigrps',jngrps+jigrps,  &
+!'jisubg',jnsubg+jisubg,'jat',jnat+igrps(jnsubg+jisubg),'MINDIS',sqrt(mindis),'DIST',sqrt(dist)
+!~                            if ( dist .le. mindis ) then
+!~                              adj(jnbody+jibody,inbody+iibody) = .TRUE.
+!~                              adj(inbody+iibody,jnbody+jibody) = .TRUE.
+!~ !
+!~                              do j = jigrps, body(jibody)
+!~                                jnsubg = jnsubg + grps(jngrps+j)
+!~                              end do
+!~ !
+!~                              do i = iigrps, body(iibody)
+!~                                insubg = insubg + grps(ingrps+i)
+!~                              end do
+!~ !
+!~                              GO TO 1000
+!~                            end if
+!~                          end do
+!~                        end if
+!~                        jnsubg = jnsubg + grps(jngrps+jigrps)
+!~                      end do
+!write(*,*)
+!~                    end do
+!~                    insubg = insubg + grps(ingrps+iigrps)
+!~                  end do
+!~ 1000             continue
+!~                  jj = jnsubg
+!~                  jngrps = jngrps + body(jibody)
+!~                end do
+!~                ii = insubg 
+!~                ingrps = ingrps + body(iibody)
+!~              end do     
+!~            end if 
+!~            jnbody = jnbody + nbody 
+!~          end do
+!~            inbody = inbody + nbody 
+!~        end do
+!~ !
+!~        return
+!~        end subroutine buildadjbody
 !
 !======================================================================!
 !
@@ -563,7 +544,7 @@
 !  representaion ADJ(NODE,NODE) using Breadth First Search.  
 !
        subroutine findcompundir(nnode,adj,imol,iagg,itag,maxagg,nmol,  &
-                                nagg,debug)
+                                nagg)
 !
        implicit none
 !
@@ -579,13 +560,12 @@
        integer,intent(out)                        ::  nagg    !  Number of aggregates
        integer,intent(in)                         ::  nnode   !  Number of molecules
        integer,intent(out)                        ::  maxagg  !  Maximum aggregate size
-       logical,intent(in)                         ::  debug   !  Debug mode
 !
 ! Local variables
 !
        logical,dimension(nnode)                   ::  notvis  !  Nodes visited
        integer,dimension(nnode)                   ::  queue   !  Queue of connected nodes
-       integer                                    ::  i,j,k   !  Indexes
+       integer                                    ::  i       !  Indexes
 !
 ! Performing Breadth First Search over the target molecules
 ! ---------------------------------------------------------
@@ -729,7 +709,7 @@
 ! Local variables
 !
        integer                              ::  degsum  !  Sum of all degrees
-       integer                              ::  i,j     !
+       integer                              ::  i       !
 !
 ! Checking if the input graph is a tree 
 ! -------------------------------------
@@ -768,7 +748,7 @@
 ! Local variables
 !
        integer                              ::  numdeg  !  Number of nodes with degree two
-       integer                              ::  i,j     !  Indexes
+       integer                              ::  i       !  Indexes
 !
 ! Checking if the input graph is a linear tree 
 ! --------------------------------------------
@@ -856,7 +836,6 @@
        logical,dimension(nnode)                   ::  notvis  !  Nodes visited
        integer,dimension(nnode)                   ::  queue   !  Queue of connected nodes
        integer,dimension(nnode)                   ::  dist    !  Distances from the source node
-       integer,dimension(nnode)                   ::  parent  !  Parent nodes
 !
 ! Finding farthest node and its distance from source node
 ! -------------------------------------------------------
@@ -929,8 +908,7 @@
 !
 ! Local variables
 !
-       integer                              ::  numdeg  !  Number of nodes with degree two
-       integer                              ::  i,j     !  Indexes
+       integer                              ::  i       !  Indexes
 !
 ! Checking if the input graph is a single cycle 
 ! ---------------------------------------------
@@ -1047,90 +1025,6 @@
 !    
        return
        end function findshortc
-!
-!======================================================================!
-!
-! FINDSCYCLE - FIND Simple CYCLEs
-!
-! This subroutine identifies the simple cycles present in an undirected 
-!  unweighted graph of NNODE vertices given as an adjacency matrix
-!  representaion ADJ(NODE,NODE) such that any subset of vertices of a 
-!  cycle does not form another cycle
-!
-! Seen on: https://www.geeksforgeeks.org/count-of-simple-cycles-in-an-undirected-graph-having-n-vertices/
-!
-!~        subroutine findscycle(nnode,adj,imol,icycle,itag,nmol,ncycle,    &
-!~                             debug)
-!~ !
-!~        implicit none
-!~ !
-!~        include 'idxbfs.h'
-!~ !
-!~ ! Input/output variables
-!~ !
-!~        logical,dimension(nnode,nnode),intent(in)     ::  adj      !  Adjacency matrix
-!~        integer,dimension(nnode),intent(out)          ::  imol     !  Molecules-in-cycle identifier
-!~        integer,dimension(nnode),intent(out)          ::  icycle   !  Cycles identifier
-!~        integer,dimension(nnode),intent(out)          ::  itag     !  Cycles size
-!~        integer,dimension(nnode),intent(out)          ::  nmol     !  Number of cycles of each size
-!~        integer,intent(out)                           ::  ncycle   !  Number of simple cycles
-!~        integer,intent(in)                            ::  nnode    !  Number of molecules
-!~        logical,intent(in)                            ::  debug    !  Debug mode
-!~ !
-!~ ! Local variables
-!~ !
-!~        integer,dimension(2**nnode,nnode)             ::  state    !  Dynamic programming state
-!~        integer                                       ::  mask     !  Node-set mask
-!~        integer                                       ::  nodeset  !  Number of set bits in mask
-!~        integer                                       ::  setbit   !  First set bit in mask
-!~        integer                                       ::  aux      !  Auxiliary number of set bits
-!~        integer                                       ::  i,j,k    !  Indexes
-!~ !
-!~ ! Identifying simple cycles in an undirected unweighted graph having
-!~ !   NNODE vertices
-!~ !
-!~        ncycle      = 0
-!~        state(:,:)  = 0
-!~ ! Iterating over all subsets 
-!~        do mask = 1, 2**nnode
-!~ ! Finding the number of set bits
-!~          nodeset = popcnt(mask)+1
-!~ ! Finding the first set bit
-!~          setbit  = trailz(mask)+1
-!~ !
-!~          if ( nodeset .eq. 1 ) then
-!~ ! If the nodeset contains only 1 set bit then initialize it with 1
-!~ !  For a node to form part of a cycle must have at least 2 edges
-!~            state(mask,setbit) = 1
-!~          else
-!~ ! If the nodeset contains more than 1 set bit then iterate over all bits 
-!~ !  of the mask
-!~            do j = setbit+1, nnode
-!~ ! Check if the  bit is set and is not the first node
-!~              if ( iand(mask,2**j) .ne. 0 ) then
-!~ ! Remove this bit and compute the node set        
-!~                aux = ieor(mask,2**j)
-!~ ! Iterate over the masks not equal to j
-!~                do k = 1, nnode
-!~ ! If the kth bit is set and there is an edge from k to j
-!~                  if ( (iand(aux,2**k).ne.0) .and. adj(k,j) ) then
-!~ ! If there is an edge then add the number of loops in this mask that 
-!~ !  ends at k and does not contain j to the state for the node-set mask
-!~                    state(mask,j) = state(mask,j) + state(aux,k)
-!~ ! If the first node is connected with the jth and nd nodeSet is greater 
-!~ !  than 2, then add the value of dp[mask][j] to the variable ncycle
-!~                    if ( adj(j,setbit) .and. ( nodeset.gt.2) ) then
-!~                      ncycle = ncycle + state(mask,j)
-!~                    end if
-!~                  end if
-!~                end do
-!~              end if
-!~            end do
-!~          end if
-!~        end do
-!~ !
-!~        return
-!~        end subroutine findscycle
 !
 !======================================================================!
 !
