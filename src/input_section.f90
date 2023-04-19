@@ -531,22 +531,22 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)                         ::  blck    !
-       character(len=leninp),intent(inout)                 ::  key     !
-       real(kind=lentag),dimension(nat,nat),intent(inout)  ::  thr     !
-       character(len=8),dimension(nat),intent(in)          ::  grptag  !
-       integer,intent(in)                                  ::  nat     !
-       integer,intent(in)                                  ::  mgrps   !  Number of groups
+       character(len=*),intent(in)                      ::  blck    !
+       character(len=leninp),intent(inout)              ::  key     !
+       real(kind=8),dimension(nat,nat),intent(inout)    ::  thr     !
+       character(len=lentag),dimension(nat),intent(in)  ::  grptag  !
+       integer,intent(in)                               ::  nat     !
+       integer,intent(in)                               ::  mgrps   !  Number of groups
 
 !
 ! Local variables
 !
-       character(len=8)                                    ::  caux1   !
-       character(len=8)                                    ::  caux2   !
-       real(kind=8)                                        ::  daux    !
-       integer                                             ::  iaux1   !
-       integer                                             ::  iaux2   !
-       integer                                             ::  posi    !
+       character(len=lentag)                            ::  caux1   !
+       character(len=lentag)                            ::  caux2   !
+       real(kind=8)                                     ::  daux    !
+       integer                                          ::  iaux1   !
+       integer                                          ::  iaux2   !
+       integer                                          ::  posi    !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------
@@ -650,8 +650,8 @@
 !
 ! Local variables
 !
-       character(len=8)                                    ::  caux1   !
-       character(len=8)                                    ::  caux2   !
+       character(len=lentag)                               ::  caux1   !
+       character(len=lentag)                               ::  caux2   !
        real(kind=8)                                        ::  daux    !
        integer                                             ::  iaux1   !
        integer                                             ::  iaux2   !

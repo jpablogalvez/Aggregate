@@ -4,14 +4,17 @@
 !
        use xdr, only: xtcfile
 !
+       use utils, only:  rndmseed
        use input_section
-       use screening
        use datatypes
        use timings
        use printings
-       use utils
+       use lengths
+       use aggtools
 !
        implicit none
+!
+       include 'inout.h'
 !
 ! System information
 !
@@ -37,60 +40,16 @@
        real(kind=8),dimension(:),allocatable           ::  pop      !  Populations
        real(kind=8),dimension(:),allocatable           ::  conc     !  Concentrations
        real(kind=8),dimension(:),allocatable           ::  frac     !  Molar fractions
-       real(kind=4),dimension(3)                       ::  box      !
-       real(kind=4),dimension(3)                       ::  oldbox   !
-       real(kind=4),dimension(3)                       ::  newbox   !
        real(kind=8)                                    ::  cin      !  Stechiometric concentration
        real(kind=8)                                    ::  volu     !  Simulation box volume
 !
 ! Aggregates information in the molecule-based representation
 !
-       logical,dimension(:,:),allocatable              ::  adj      !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  oldadj   !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  newadj   !  Adjacency matrix
-       integer,dimension(:),allocatable                ::  mol      !  Molecules identifier
-       integer,dimension(:),allocatable                ::  tag      !  Aggregates identifier
-       integer,dimension(:),allocatable                ::  agg      !  Aggregates size 
-       integer,dimension(:),allocatable                ::  oldmol   !  Molecules identifier
-       integer,dimension(:),allocatable                ::  oldtag   !  Aggregates identifier
-       integer,dimension(:),allocatable                ::  oldagg   !  Aggregates size 
-       integer,dimension(:),allocatable                ::  newmol   !  Molecules identifier
-       integer,dimension(:),allocatable                ::  newtag   !  Aggregates identifier
-       integer,dimension(:),allocatable                ::  newagg   !  Aggregates size 
-       integer,dimension(:),allocatable                ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  iagg     !  
-       integer,dimension(:),allocatable                ::  nmol     !  
-       integer,dimension(:),allocatable                ::  imol     !  
-       integer,dimension(:),allocatable                ::  oldnagg  !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  oldiagg  !  Number of aggregates of lower size
-       integer,dimension(:),allocatable                ::  oldnmol  !  
-       integer,dimension(:),allocatable                ::  oldimol  ! 
-       integer,dimension(:),allocatable                ::  newnagg  !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  newiagg  !  
-       integer,dimension(:),allocatable                ::  newnmol  !  
-       integer,dimension(:),allocatable                ::  newimol  ! 
-       integer,dimension(:),allocatable                ::  wasmap   !
-       integer,dimension(:),allocatable                ::  willmap  !
        integer                                         ::  nnode    !  Total number of molecules
        integer                                         ::  msize    !  Maximum aggregate size
-       integer                                         ::  nsize    !  
-       integer                                         ::  magg     !  Number of chemical species
-       integer                                         ::  oldstep  !
-       integer                                         ::  actstep  !
-       integer                                         ::  newstep  !
-       logical,dimension(:),allocatable                ::  iam      !
-       logical,dimension(:),allocatable                ::  iwas     !
-       logical,dimension(:),allocatable                ::  iwill    !
-       logical,dimension(:),allocatable                ::  imnot    !
-       logical,dimension(:),allocatable                ::  iwasnt   !
-       logical,dimension(:),allocatable                ::  iwont    !
-       logical,dimension(:),allocatable                ::  oldiam   !
-       logical,dimension(:),allocatable                ::  oldnot   !
 !
 ! Topological representations information
 !
-       real(kind=4),dimension(:,:),allocatable         ::  posi     !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable         ::  newposi  !  Auxiliary coordinates
        character(len=leninp)                           ::  tgrp     !  Groups file title
        character(len=lentag),dimension(:),allocatable  ::  grptag   !  Names of the groups
        integer,dimension(:),allocatable                ::  body     !  Number of groups in each body
@@ -126,17 +85,12 @@
        integer                                         ::  t1,t2    !  CPU times
        integer                                         ::  t1read   !  Initial reading time
        integer                                         ::  t2read   !  Final reading time
-       integer                                         ::  t1adj    !  Initial building time
-       integer                                         ::  t2adj    !  Final building time
-       integer                                         ::  t1scrn   !  Initial screening time
-       integer                                         ::  t2scrn   !  Final screening time
-       integer                                         ::  t1pim    !  Initial PIM analysis time
-       integer                                         ::  t2pim    !  Final PIM analysis time
 !
 ! Program control flags
 !
-       logical                                         ::  seed     !  Random seed flag
+       character(len=lentag)                           ::  schm     !  Calculation scheme flag
        logical                                         ::  dopim    !  PIM calculation flag
+       logical                                         ::  seed     !  Random seed flag
        logical                                         ::  debug    !  Debug mode
 !
 ! Auxiliary variables
@@ -158,6 +112,8 @@
        lin  = 45
        lfin = 90
 !
+       nsolv = 10000
+!
 ! Initializing timings
 !
        call system_clock(count_max=count_max,count_rate=count_rate)
@@ -176,7 +132,7 @@
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         msize,neidis,dopim,seed,debug)
+                         msize,neidis,schm,dopim,seed,debug)
 !
 ! Initializing random number generator
 !
@@ -237,31 +193,8 @@
 !
        nnode  = xtcf%NATOMS/sys%nat
 !
-       box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-!
-       allocate(adj(nnode,nnode))
-       allocate(oldadj(nnode,nnode),newadj(nnode,nnode))
-!
        allocate(thr(sys%nat,sys%nat))
        allocate(thr2(sys%nat,sys%nat))
-!
-       allocate(mol(nnode),tag(nnode),agg(nnode))
-       allocate(nmol(nnode),imol(nnode))
-       allocate(nagg(nnode),iagg(nnode))
-!
-       allocate(oldmol(nnode),oldtag(nnode),oldagg(nnode))
-       allocate(oldnmol(nnode),oldimol(nnode))
-       allocate(oldnagg(nnode),oldiagg(nnode))
-!
-       allocate(newmol(nnode),newtag(nnode),newagg(nnode))
-       allocate(newnmol(nnode),newimol(nnode))
-       allocate(newnagg(nnode),newiagg(nnode))
-!
-       allocate(iam(nnode),iwas(nnode),iwill(nnode))
-       allocate(imnot(nnode),iwasnt(nnode),iwont(nnode))
-       allocate(oldiam(nnode),oldnot(nnode))
-!
-       allocate(wasmap(nnode),willmap(nnode))
 !
        allocate(nbody(sys%nat),ngrps(sys%nat),nsubg(sys%nat))
        allocate(ibody(sys%nat),igrps(sys%nat),isubg(sys%nat))
@@ -350,9 +283,6 @@
 !
 ! Allocating variables depending on topological information 
 !
-       allocate(newposi(3,natms))
-       allocate(posi(3,natms))
-!
        allocate(pim(mgrps,mgrps,msize-1))
        allocate(pop(msize),conc(msize),frac(msize))
 !
@@ -370,245 +300,37 @@
        write(*,'(4X,A)') 'Please wait, this may take a while...'
        write(*,*)
 !
-       nsteps  = 0
-!
-       pim(:,:,:)   = 0.0d0
-       table(:,:,:) = 0.0d0
-!
-       pop(:)  = 0.0d0
-       conc(:) = 0.0d0
-       frac(:) = 0.0d0
-!
-       cin     = 0.0d0
-       volu    = 0.0d0
-!
-       nsolv = 10000                           ! FLAG: change this value
-!
-! Reading the first old-configuration
-!
-       do while ( xtcf%STEP .lt. minstep )
-         call xtcf%read
-         if ( xtcf%STAT .ne. 0 ) then
-           write(*,*)
-           write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
-           call print_end()
-         end if
-       end do
-!
-       oldbox  = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-       oldstep = xtcf%STEP
-!
        call system_clock(t2read)
 !
        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !
-! Building adjacency matrix of the first old-configuration
+       select case (trim(schm))
+         case ('original')
 !
-       call system_clock(t1adj) 
+           call aggdist(sys,xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
+                        pim,msize,pop,conc,frac,cin,volu,nsteps,       &
+                        grptag,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+                        nprint,minstep,maxstep,nsolv,dopim,debug)
 !
-       call buildadj(nnode,oldadj,natms,posi,xtcf%NATOMS,xtcf%pos,     &
-                     sys%nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,       &
-                     isubg,atms,oldbox,neidis)
+         case ('screening')
 !
-       call system_clock(t2adj) 
+           call aggscrn(sys,xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
+                        pim,msize,pop,conc,frac,cin,volu,nsteps,       &
+                        grptag,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+                        nprint,minstep,maxstep,nsolv,dopim,debug)
 !
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
+         case ('scrnlife')
 !
-! Reading the first configuration
+           stop 'SCRNLIFE scheme is not implemented yet!'
 !
-       call system_clock(t1read)
+       end select
 !
-       call xtcf%read
+       call system_clock(t1read)        
 !
-       if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
-         write(*,*)
-         write(*,*) 'ERROR: Not enough steps'
-         write(*,*) 
-         call print_end()
-       end if
+! Closing the trajectory file
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
-         call xtcf%read
-         if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
-           write(*,*)
-           write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
-           call print_end()
-         end if
-       end do
-!
-       box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-       actstep = xtcf%STEP
-!
-       call system_clock(t2read)
-!
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
-!
-! Building adjacency matrix of the first configuration
-!
-       call system_clock(t1adj) 
-!
-       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,        &
-                     sys%nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,       &
-                     isubg,atms,box,neidis)
-!
-       call system_clock(t2adj) 
-!
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
-!
-! Reading the first new-configuration
-!
-       call system_clock(t1read)
-!
-       call xtcf%read
-!
-       if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
-         write(*,*)
-         write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
-         call print_end()
-       end if
-!
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
-         call xtcf%read
-         if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
-           write(*,*)
-           write(*,*) 'ERROR:: Not enough steps'
-           write(*,*) 
-           call print_end()
-         end if
-       end do
-!
-! Analyzing frames in the inverval [minstep,maxstep]
-!
-       do while ( (xtcf%STAT.eq.0) .and. (xtcf%STEP.le.maxstep) )
-         if ( mod(xtcf%STEP-minstep,nprint) .eq. 0 ) then
-!
-           newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-           newstep   = xtcf%STEP
-! 
-           nsteps = nsteps + 1
-!
-           call system_clock(t2read)
-!
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
-!
-! Building adjacency matrix of the new-configuration
-!
-           call system_clock(t1adj) 
-!
-           call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,       &
-                         xtcf%pos,sys%nat,thr2,mgrps,ngrps,igrps,      &
-                         msubg,nsubg,isubg,atms,newbox,neidis)
-!
-           call system_clock(t2adj) 
-!
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
-!
-! Screening interactions between the molecules
-!
-           call system_clock(t1scrn)
-!
-           call scrnint(nnode,oldadj,adj,newadj)
-!
-           call system_clock(t2scrn)
-!
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
-!
-! Block-diagonalizing the interaction-corrected adjacency matrix
-!
-           call blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg,       &
-                          nmol,imol,magg)
-!
-! Printing the population of every aggregate
-!
-           call system_clock(t1read)
-!
-           do i = 1, msize
-             pop(i)  = pop(i)  + real(nagg(i))/magg*100
-             frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
-             conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-           end do     
-!
-           if ( nsize .gt. msize ) then
-             do i = msize+1, nsize
-               pop(msize)  = pop(msize)  + real(nagg(i))/magg*100
-               frac(msize) = frac(msize) + real(nagg(i))/(magg+nsolv)
-               conc(msize) = conc(msize) + real(nagg(i))/box(1)**3  
-             end do
-           end if                   
-!
-           write(uniout+1,'(I10,100(X,F12.8))') actstep,               &
-                                             real(nagg(:msize))/magg*100
-           write(uniout+2,'(I10,100(X,F12.10))') actstep,              &
-                                         real(nagg(:msize))/(magg+nsolv)
-           write(uniout+3,'(I10,100(X,F12.10))') actstep,              &
-                               real(nagg(:msize))/box(1)**3/(Na*1.0E-24)                            
-!
-           cin = cin + real(nnode)/box(1)**3
-!
-           volu = volu + box(1)**3
-!
-           call system_clock(t2read)
-!
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
-
-!~            if ( debug ) then
-!~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!~            end if
-!
-! Adding up the pairwise interaction matrix of the current snapshot
-! 
-!~            if ( dopim ) then
-!~              call system_clock(t1pim)     
-!~ !
-!~              call build_pim(ngrps,grps,nsubg,subg,sys%nat,atms,thr,   &
-!~                             nnode,mol,agg,msize,nagg,xtcf%NATOMS,   &
-!~                             xtcf%pos,(/xtcf%box(1,1),xtcf%box(2,2),    &
-!~                             xtcf%box(3,3)/),pim,debug)
-!~ !
-!~              call system_clock(t2pim)     
-!~ !
-!~              tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-!~            end if      
-!
-! Analyzing aggregates by their connectivity
-!
-!~            call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                             sys%nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                             msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                             (/xtcf%box(1,1),xtcf%box(2,2),             &
-!~                               xtcf%box(3,3)/),posi,sys%mass,          &
-!~                             sys%atname,xtcf%STEP,outp,debug)
-!
-           call system_clock(t1scrn)
-!
-           oldadj(:,:) = adj(:,:)
-           adj(:,:)    = newadj(:,:)
-!
-           oldbox(:) = box(:)
-           box(:)    = newbox(:)
-!
-           oldstep = actstep
-           actstep = newstep
-!
-           posi(:,:) = newposi(:,:)
-!
-           call system_clock(t2scrn)
-!
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
-!
-           call system_clock(t1read)
-!
-         end if
-!
-! Reading information of the next snapshot
-!
-         call xtcf%read
-!
-       end do
-! Close the file
        call xtcf%close
 !
 ! Averaging pairwise interaction matrix
@@ -700,28 +422,6 @@
 !
 ! Deallocate memory
 !
-       deallocate(newposi)
-       deallocate(posi)
-!
-       deallocate(thr,thr2)
-!
-       deallocate(adj,oldadj,newadj)
-!
-       deallocate(mol,tag,agg)
-       deallocate(nmol,imol,nagg,iagg)
-!
-       deallocate(oldmol,oldtag,oldagg)
-       deallocate(oldnmol,oldimol,oldnagg,oldiagg)
-!
-       deallocate(newmol,newtag,newagg)
-       deallocate(newnmol,newimol,newnagg,newiagg)
-!
-       deallocate(iam,iwas,iwill)
-       deallocate(imnot,iwasnt,iwont)
-       deallocate(oldiam,oldnot)
-!
-       deallocate(wasmap,willmap)
-!
        deallocate(nbody,ngrps,nsubg)
        deallocate(ibody,igrps,isubg)
        deallocate(body,grps,subg)
@@ -736,7 +436,6 @@
 !
 ! Printing timings
 !
-!
        call system_clock(t2)
        call system_clock(t2read)
 !
@@ -748,7 +447,11 @@
 !
        call print_time(6,1,'Total reading time',31,tread)
        call print_time(6,1,'Total building time',31,tadj)
-       call print_time(6,1,'Total screening time',31,tscrn)
+!       
+       if ( (trim(schm).eq.'screening') .or. (trim(schm).eq.'scrnlife') ) then
+         call print_time(6,1,'Total screening time',31,tscrn)
+       end if
+!
        call print_time(6,1,'Total BFS time',31,tbfs)
        call print_time(6,1,'Total sorting time',31,tsort)
 !
@@ -765,7 +468,8 @@
 !======================================================================!
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
-                               maxstep,msize,neidis,dopim,seed,debug)
+                               maxstep,msize,neidis,schm,dopim,seed,   &
+                               debug)
 !
        use printings
        use utils
@@ -778,6 +482,7 @@
        character(len=lenout),intent(out)         ::  outp     !  Populations file name
        character(len=leninp),intent(out)         ::  inp      !  Groups file name
        character(len=leninp),intent(out)         ::  conf     !  Structure file name
+       character(len=lentag),intent(out)         ::  schm     !  Calculation scheme flag
        logical,intent(out)                       ::  seed     !  Random seed flag
        logical,intent(out)                       ::  dopim    !  PIM calculation flag
        real(kind=8),intent(out)                  ::  neidis   !  Screening distance
@@ -802,6 +507,8 @@
        traj    = 'md.xtc'
        conf    = 'conf.gro'
        outp    = ''
+!
+       schm    = 'screen'
 !
        nprint  = 1
        minstep = 0
@@ -841,6 +548,35 @@
          if ( len_trim(arg) == 0 ) exit
          i = i+1
          select case ( arg )
+           case ('-s','--scheme') 
+             call get_command_argument(i,next,status=io)
+             call check_arg(next,io,arg,cmd)
+             next = lowercase(next)
+!
+             select case (trim(next))
+               case ('dist','distance','distances','original')
+                 schm = 'original'
+               case ('scrn','screen','screening')
+                 schm = 'screening'
+               case ('screening-lifetimes','scrnlife')
+                 schm = 'scrnlife'
+               case default
+                 write(*,'(2X,68("="))')
+                 write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
+                                                 'ed for --scheme option'
+                 write(*,*)
+                 write(*,'(3X,A)') 'Unrecognised value     : '//       &
+                                                              trim(next)
+                 write(*,*)
+                 write(*,'(3X,A)') 'Please, choose between:  "orig'//  &
+                                      'inal", "screening" or "scrnlife"'
+                 write(*,'(2X,68("="))')
+                 write(*,*)
+                 call print_end()
+             end select
+!
+             i = i + 1
+!
            case ('-f','-file','--file','-i','-inp','--inp','--input') 
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
@@ -955,6 +691,8 @@
        write(*,'(2X,A)') '-m,--msize            Maximum aggregate size'
        write(*,'(2X,A)') '-d,--neidis           Neighbour list cutoff'
        write(*,*)
+       write(*,'(2X,A)') '-s,--scheme           Aggregates identif'//  &
+                                                         'ier algorithm'
        write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
                                                      'nteraction matrix'
        write(*,*)
