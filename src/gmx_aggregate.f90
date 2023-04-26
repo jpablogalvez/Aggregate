@@ -140,7 +140,7 @@
 !
 ! Printing summary of the input information
 !
-       call print_title(6,1,'Input information','.')
+       call print_title(6,1,'Input information','-')
        write(*,*)
        call line_str(6,2,'General input file name',lin,':',            &
                      trim(inp),lfin)
@@ -307,23 +307,27 @@
        select case (trim(schm))
          case ('original')
 !
-           call aggdist(sys,xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
-                        pim,msize,pop,conc,frac,cin,volu,nsteps,       &
-                        grptag,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
-                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
-                        nprint,minstep,maxstep,nsolv,dopim,debug)
+           call aggdist(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,dopim,debug)
 !
          case ('screening')
 !
-           call aggscrn(sys,xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
-                        pim,msize,pop,conc,frac,cin,volu,nsteps,       &
-                        grptag,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
-                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
-                        nprint,minstep,maxstep,nsolv,dopim,debug)
+           call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,dopim,debug)
 !
          case ('scrnlife')
 !
-           stop 'SCRNLIFE scheme is not implemented yet!'
+           call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
+                            pim,msize,pop,conc,frac,cin,volu,nsteps,   &
+                            nbody,ngrps,nsubg,ibody,igrps,isubg,body,  &
+                            grps,subg,atms,mbody,mgrps,msubg,matms,    &
+                            nprint,minstep,maxstep,nsolv,dopim,debug)
 !
        end select
 !
@@ -375,7 +379,7 @@
 !
 ! Printing summary of the results
 !
-       call print_title(6,1,'Output information','.')
+       call print_title(6,1,'Output information','-')
        write(*,*)
        call line_int(6,2,'Number of frames analyzed',lin,':','I12',    &
                      nsteps,lfin)
@@ -442,20 +446,26 @@
        tcpu = dble(t2-t1)/dble(count_rate)
        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !
-       call print_time(6,1,'Total CPU time',31,tcpu) 
+       call print_time(6,1,'Total CPU time',35,tcpu) 
        write(*,'(1X,56("-"))')
 !
-       call print_time(6,1,'Total reading time',31,tread)
-       call print_time(6,1,'Total building time',31,tadj)
+       call print_time(6,1,'Total reading time',35,tread)
+       call print_time(6,1,'Total building time',35,tadj)
 !       
-       if ( (trim(schm).eq.'screening') .or. (trim(schm).eq.'scrnlife') ) then
-         call print_time(6,1,'Total screening time',31,tscrn)
+       if ( (trim(schm).eq.'screening') .or.                           &
+                                       (trim(schm).eq.'scrnlife') ) then
+         call print_time(6,1,'Total screening time',35,tscrn)
        end if
 !
-       call print_time(6,1,'Total BFS time',31,tbfs)
-       call print_time(6,1,'Total sorting time',31,tsort)
+       call print_time(6,1,'Total BFS time',35,tbfs)
+       call print_time(6,1,'Total sorting time',35,tsort)
+!       
+       if ( trim(schm) .eq. 'scrnlife' ) then
+         call print_time(6,1,'Total lifetimes calculation time',35,    &
+                         tlife)
+       end if
 !
-       if ( dopim ) call print_time(6,1,'Total PIM time',31,tpim)
+       if ( dopim ) call print_time(6,1,'Total PIM time',35,tpim)
 !
        write(*,*)
 !
@@ -508,7 +518,7 @@
        conf    = 'conf.gro'
        outp    = ''
 !
-       schm    = 'screen'
+       schm    = 'screening'
 !
        nprint  = 1
        minstep = 0
@@ -765,13 +775,13 @@
              cofm(:) = scenvec(3,nsubg(insubg),                        &
                                atcoord(:,:nsubg(insubg)))
 !
-             do i = 1, 3
-               if ( cofm(i) .ge. box(i) ) then
-                 cofm(i) = cofm(i) - box(i)
-               else if ( cofm(i) .lt. -1.0E-6 ) then
-                 cofm(i) = cofm(i) + box(i)
-               end if 
-             end do 
+!~              do i = 1, 3
+!~                if ( cofm(i) .ge. box(i) ) then
+!~                  cofm(i) = cofm(i) - box(i)
+!~                else if ( cofm(i) .lt. -1.0E-6 ) then
+!~                  cofm(i) = cofm(i) + box(i)
+!~                end if 
+!~              end do 
 !
              fcoord(:,j) = cofm(:)            
 !
@@ -779,13 +789,13 @@
 !
              fcoord(:,j) = rcoord(:,innode+atms(isubg(insubg)+1))
 !
-             do i = 1, 3
-               if ( fcoord(i,j) .ge. box(i) ) then
-                 fcoord(i,j) = fcoord(i,j) - box(i)
-               else if ( fcoord(i,j) .lt. -1.0E-6 ) then ! FLAG: chef if error when near boundaries
-                 fcoord(i,j) = fcoord(i,j) + box(i)
-               end if 
-             end do 
+!~              do i = 1, 3
+!~                if ( fcoord(i,j) .ge. box(i) ) then
+!~                  fcoord(i,j) = fcoord(i,j) - box(i)
+!~                else if ( fcoord(i,j) .lt. -1.0E-6 ) then ! FLAG: chef if error when near boundaries
+!~                  fcoord(i,j) = fcoord(i,j) + box(i)
+!~                end if 
+!~              end do 
 !
 !~ write(*,*) iinode,innode,innode+atms(isubg(insubg)+1)
            end if    
@@ -972,7 +982,7 @@
 !
 ! Building the adjacency matrix for the current snapshot
 !
-       call setcoord(nnode,msubg,nsubg,isubg,atms,natms,posi,          &
+       call setcoord(nnode,msubg,nsubg,isubg,atms,natms,posi,          & 
                      matms,inposi,nat,box)
 !
        call buildadjmolbub(nnode,adj,neidis,msubg,mgrps,nat,thr,       &

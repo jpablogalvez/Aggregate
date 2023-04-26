@@ -37,6 +37,9 @@
                                     (oldadj(j,i).and.newadj(j,i)) ) then
              adj(j,i) = .TRUE.
              adj(i,j) = .TRUE.
+           else
+             adj(j,i) = .FALSE.
+             adj(i,j) = .FALSE.
            end if
          end do
        end do
