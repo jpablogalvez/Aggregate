@@ -138,6 +138,8 @@
 !
        use geometry,   only: sminimgvec
 !
+       use omp_lib
+!
        implicit none
 !
 ! Input/output variables
@@ -174,7 +176,22 @@
 ! Building the adjacency matrix in the molecule-based representation
 ! ------------------------------------------------------------------
 !
-       adj(:,:) = .FALSE. 
+!$omp parallel do shared(adj)                                          &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,5)
+!
+       do i = 1, nnode
+           adj(:,i) = .FALSE. 
+       end do
+!
+!$omp end parallel do                   
+!
+!~ !$omp parallel do shared(adj,posi)                                     &
+!~ !$omp parallel do shared(adj,posi,box,thr,neidis)                      &
+!$omp parallel do shared(adj,posi,box,thr,neidis,igrps,ngrps)          &
+!$omp             private(r,dis,mindis,iinode,innode,jinode,jnnode,    &
+!$omp                     iigrps,ingrps,jigrps,jngrps,ni,i,j)          &
+!$omp             schedule(dynamic,5)
 !
        do iinode = 1, nnode-1
          innode = (iinode-1)*msubg
@@ -217,6 +234,8 @@
 1000       continue           
          end do            !  jinode
        end do              !  iinode
+!
+!$omp end parallel do                   
 !
        return
        end subroutine buildadjmolbub

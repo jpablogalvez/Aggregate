@@ -12,6 +12,8 @@
        use lengths
        use aggtools
 !
+       use omp_lib
+!
        implicit none
 !
        include 'inout.h'
@@ -87,7 +89,9 @@
 !
 ! Declaration of time control variables
 !
-       integer                                         ::  t1,t2    !  CPU times
+       real(kind=8)                                    ::  tin      !  Initial CPU time
+       real(kind=8)                                    ::  tfin     !  Final CPU time
+       integer                                         ::  t1,t2    !  Wall times
        integer                                         ::  t1read   !  Initial reading time
        integer                                         ::  t2read   !  Final reading time
 !
@@ -98,6 +102,11 @@
        logical                                         ::  dolife   !  Lifetimes calculation flag
        logical                                         ::  seed     !  Random seed flag
        logical                                         ::  debug    !  Debug mode
+!
+! OpenMP variables
+!
+       integer                                         ::  myid     !
+       integer                                         ::  nproc    !
 !
 ! Auxiliary variables
 !
@@ -113,6 +122,21 @@
        write(*,*)
        call print_start()
 !
+! Printing the number of threads available
+!
+!$omp parallel
+!
+      myid  = OMP_GET_THREAD_NUM()
+      nproc = OMP_GET_NUM_THREADS()
+!
+      if ( myid .eq. 0 ) then
+        write(*,'(2X,A,1X,I2,1X,A)') 'Running over',nproc,             &
+                                                        'OpenMP threads'
+        write(*,*)
+      end if
+!
+!$omp end parallel
+!
 ! Initializing line lengths
 !
        lin  = 45
@@ -122,11 +146,14 @@
 !
 ! Initializing timings
 !
+       call cpu_time(tin)
+!
        call system_clock(count_max=count_max,count_rate=count_rate)
        call system_clock(t1)  
        call system_clock(t1read)        
 !
        tcpu  = 0.0d0
+       twall = 0.0d0
        tread = 0.0d0
        tadj  = 0.0d0
        tbfs  = 0.0d0
@@ -134,6 +161,12 @@
        tscrn = 0.0d0
        tpim  = 0.0d0
        tconf = 0.0d0
+!
+       tcpuadj  = 0.0d0
+       tcpusort = 0.0d0
+       tcpubfs  = 0.0d0
+       tcpuscrn = 0.0d0
+       tcpulife = 0.0d0
 !
 ! Reading command line options
 !
@@ -467,28 +500,33 @@
 !
 ! Printing timings
 !
+       call cpu_time(tfin)
+!
        call system_clock(t2)
        call system_clock(t2read)
 !
-       tcpu = dble(t2-t1)/dble(count_rate)
+       tcpu = tfin - tin
+!
+       twall = dble(t2-t1)/dble(count_rate)
        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !
        call print_time(6,1,'Total CPU time',35,tcpu) 
-       write(*,'(1X,56("-"))')
+       call print_speed(6,1,'Total wall time',35,twall,tcpu) 
+       write(*,'(1X,68("-"))')
 !
        call print_time(6,1,'Total reading time',35,tread)
-       call print_time(6,1,'Total building time',35,tadj)
+       call print_speed(6,1,'Total building time',35,tadj,tcpuadj)
 !       
        if ( (trim(schm).eq.'screening') .or.                           &
                                        (trim(schm).eq.'scrnlife') ) then
-         call print_time(6,1,'Total screening time',35,tscrn)
+         call print_speed(6,1,'Total screening time',35,tscrn,tcpuscrn)
        end if
 !
-       call print_time(6,1,'Total BFS time',35,tbfs)
-       call print_time(6,1,'Total sorting time',35,tsort)
+       call print_speed(6,1,'Total BFS time',35,tbfs,tcpubfs)
+       call print_speed(6,1,'Total sorting time',35,tsort,tcpusort)
 !       
-       if ( dolife ) call print_time(6,1,'Total lifetimes calculat'//  &
-                                     'ion time',35,tlife)
+       if ( dolife ) call print_speed(6,1,'Total lifetimes calcula'//  &
+                                     'tion time',35,tlife,tcpulife)
 !
        if ( dopim ) call print_time(6,1,'Total PIM time',35,tpim)
 !
@@ -760,6 +798,8 @@
        use geometry,   only: sminimgvec,                               &
                              scenvec
 !
+       use omp_lib
+!
        implicit none
 !
 ! Input/output variables
@@ -779,17 +819,21 @@
 ! Local variables
 !
        real(kind=4),dimension(3,natmol)             ::  atcoord  !  Subgroup coordinates !FLAG: kind=8 to kind=4
-       real(kind=4),dimension(3)                    ::  cofm     !  Center of mass coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3)                    ::  svaux    !  Auxiliary single precision vector
        integer                                      ::  iinode   !
        integer                                      ::  innode   !
        integer                                      ::  jnnode   !
        integer                                      ::  iisubg   !
        integer                                      ::  insubg   !
-       integer                                      ::  i,j      !
+       integer                                      ::  j        !
 !
 ! Saving coordinates based on the subgroup-based representation
 ! -------------------------------------------------------------
+!
+!$omp parallel do shared(fcoord,rcoord,nsubg,isubg,atms)               &
+!$omp             private(atcoord,svaux,iinode,innode,jnnode,iisubg,   &
+!$omp                     insubg,j)                                    &
+!$omp             schedule(dynamic,5)
 !
        do iinode = 1, nnode
          innode = (iinode-1)*natmol
@@ -810,36 +854,21 @@
 !~ write(*,*) iinode,innode,innode+atms(isubg(insubg)+iisubg)
              end do
 !
-             cofm(:) = scenvec(3,nsubg(insubg),                        &
-                               atcoord(:,:nsubg(insubg)))
-!
-!~              do i = 1, 3
-!~                if ( cofm(i) .ge. box(i) ) then
-!~                  cofm(i) = cofm(i) - box(i)
-!~                else if ( cofm(i) .lt. -1.0E-6 ) then
-!~                  cofm(i) = cofm(i) + box(i)
-!~                end if 
-!~              end do 
-!
-             fcoord(:,j) = cofm(:)            
+             fcoord(:,j) = scenvec(3,nsubg(insubg),                    &
+                                   atcoord(:,:nsubg(insubg)))
+!           
 !
            else
 !
              fcoord(:,j) = rcoord(:,innode+atms(isubg(insubg)+1))
-!
-!~              do i = 1, 3
-!~                if ( fcoord(i,j) .ge. box(i) ) then
-!~                  fcoord(i,j) = fcoord(i,j) - box(i)
-!~                else if ( fcoord(i,j) .lt. -1.0E-6 ) then ! FLAG: chef if error when near boundaries
-!~                  fcoord(i,j) = fcoord(i,j) + box(i)
-!~                end if 
-!~              end do 
 !
 !~ write(*,*) iinode,innode,innode+atms(isubg(insubg)+1)
            end if    
          end do
 !~ write(*,*)
        end do
+!
+!$omp end parallel do                   
 !
        return
        end subroutine setcoord
@@ -1044,53 +1073,62 @@
        subroutine blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg, &
                             nmol,imol,magg)
 !
-       use timings,    only: tbfs,tsort,count_rate
+       use timings,    only: tbfs,tcpubfs,tsort,count_rate
        use graphtools, only: findcompundir
        use sorting,    only: ivvqsort,                                 &
                              ivqsort,                                  &
                              iqsort
 !
+       use omp_lib
+!
        implicit none
 !
 ! Input/output variables
 !
-       logical,dimension(nnode,nnode),intent(in)   ::  adj     !  Adjacency matrix
-       integer,dimension(nnode),intent(out)        ::  mol     !  Molecules identifier
-       integer,dimension(nnode),intent(out)        ::  tag     !  Aggregates identifier
-       integer,dimension(nnode),intent(out)        ::  agg     !  Aggregates size
-       integer,dimension(nnode),intent(out)        ::  nagg    !  Number of aggregates of each size
-       integer,dimension(nnode),intent(out)        ::  iagg    !
-       integer,dimension(nnode),intent(out)        ::  nmol    !
-       integer,dimension(nnode),intent(out)        ::  imol    !
-       integer,intent(in)                          ::  nnode   !  Number of molecules
-       integer,intent(out)                         ::  nsize   !  Maximum aggregate size
-       integer,intent(out)                         ::  magg    !  Number of aggregates
+       logical,dimension(nnode,nnode),intent(in)   ::  adj       !  Adjacency matrix
+       integer,dimension(nnode),intent(out)        ::  mol       !  Molecules identifier
+       integer,dimension(nnode),intent(out)        ::  tag       !  Aggregates identifier
+       integer,dimension(nnode),intent(out)        ::  agg       !  Aggregates size
+       integer,dimension(nnode),intent(out)        ::  nagg      !  Number of aggregates of each size
+       integer,dimension(nnode),intent(out)        ::  iagg      !
+       integer,dimension(nnode),intent(out)        ::  nmol      !
+       integer,dimension(nnode),intent(out)        ::  imol      !
+       integer,intent(in)                          ::  nnode     !  Number of molecules
+       integer,intent(out)                         ::  nsize     !  Maximum aggregate size
+       integer,intent(out)                         ::  magg      !  Number of aggregates
 !
 ! Local variables
 ! 
-       integer                                     ::  i,j,k   !  Indexes
+       integer                                     ::  i,j,k     !  Indexes
 !
 ! Declaration of time control variables
 !
-       integer                                     ::  t1bfs   !  Initial BFS time
-       integer                                     ::  t2bfs   !  Final BFS time
-       integer                                     ::  t1sort  !  Initial sorting time
-       integer                                     ::  t2sort  !  Final sorting time  
+       real(kind=8)                                ::  tinbfs    !  Initial CPU BFS time
+       real(kind=8)                                ::  tfinbfs   !  Final CPU BFS time
+       real(kind=8)                                ::  tinsort   !  Initial CPU sorting time
+       real(kind=8)                                ::  tfinsort  !  Final CPU sorting time
+       integer                                     ::  t1bfs     !  Initial BFS time
+       integer                                     ::  t2bfs     !  Final BFS time
+       integer                                     ::  t1sort    !  Initial sorting time
+       integer                                     ::  t2sort    !  Final sorting time  
 !
 ! Block-diagonalizing the adjacency matrix 
 !
+       call cpu_time(tinbfs)
        call system_clock(t1bfs)     
 !
        call findcompundir(nnode,adj,mol,tag,agg,nsize,nagg,magg)
 !
+       call cpu_time(tfinbfs)
        call system_clock(t2bfs)     
 !
+       tcpubfs = tcpubfs + tfinbfs - tinbfs
        tbfs = tbfs + dble(t2bfs-t1bfs)/dble(count_rate)
 !
 ! Sorting the blocks of the adjacency matrix according to their size,
 !  identifier, and canonical order of the constituent molecules
 !
-       call system_clock(t1sort)     
+       call system_clock(t1sort)         ! TODO: parallelize this region
 ! 
 ! Setting up iagg, imol and nmol arrays
 !
@@ -1110,16 +1148,26 @@
 !
 ! Sorting molecules based on their aggregate identifier
 !
+!$omp parallel do shared(nagg,tag,mol,imol)                            &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,1)
+!
        do i = 2, nsize-1
          if ( nagg(i) .gt. 1 ) then
            call ivqsort(nnode,tag,mol,imol(i)+1,imol(i+1))
          end if
        end do
 !
+!$omp end parallel do                   
+!
        if ( nagg(nsize) .gt. 1 )                                       &
                          call ivqsort(nnode,tag,mol,imol(nsize)+1,nnode)
 !
 ! Sorting molecules based on their canonical order
+!
+!$omp parallel do shared(nagg,mol,imol)                                &
+!$omp             private(i,j,k)                                       &
+!$omp             schedule(dynamic,1)
 !
        do i = 2, nsize
          k = imol(i)
@@ -1128,6 +1176,8 @@
            k = k + i
          end do
        end do
+!
+!$omp end parallel do                   
 !
        call system_clock(t2sort)     
 !

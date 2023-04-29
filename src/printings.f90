@@ -84,15 +84,60 @@
        write(straux,*) lenmid
        straux = adjustl(straux)
 !
-       fmt1 = trim(fmt1)//trim(straux)//'X,4(1X,I2,1X,A))'
+       fmt1 = trim(fmt1)//trim(straux)//'X,5(1X,I2,1X,A))'
 !
-       write(uni,fmt1) key,int(time/(60*60)),'h',                      &
-                        mod(int(time/60),60),'min',                    &
-                           mod(int(time),60),'sec',                    &  
-                   int(100*(time-int(time))),'msec'
+       write(uni,fmt1) key,int(time/(60*60*24)),'days',                &
+                              int(time/(60*60)),'h',                   &
+                           mod(int(time/60),60),'min',                 &
+                              mod(int(time),60),'sec',                 &  
+                      int(100*(time-int(time))),'msec'
 !
        return
        end subroutine print_time
+!
+!======================================================================!
+!
+       subroutine print_speed(uni,blnk,key,lenin,time,cputime)
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)  ::  key      !   
+       real(kind=8),intent(in)      ::  time     !
+       real(kind=8),intent(in)      ::  cputime  !
+       integer,intent(in)           ::  blnk     !   
+       integer,intent(in)           ::  uni      !   
+       integer,intent(in)           ::  lenin    !   
+!
+! Local variables
+!
+       character(len=64)            ::  straux   !
+       character(len=256)           ::  fmt1     !
+       real(kind=8)                 ::  speed    !
+       integer                      ::  lenmid   !
+!
+       speed = cputime/time
+!
+       write(straux,'(I4)') blnk
+       straux = adjustl(straux)
+!
+       fmt1 = '('//trim(straux)//'X,A,'
+!
+       lenmid = lenin - len(key) - blnk - 1   ! FLAG: check if iaux is negative
+       write(straux,*) lenmid
+       straux = adjustl(straux)
+!
+       fmt1 = trim(fmt1)//trim(straux)//'X,5(1X,I2,1X,A),F4.1,A)'
+!
+       write(uni,fmt1) key,int(time/(60*60*24)),'days',                &
+                              int(time/(60*60)),'h',                   &
+                           mod(int(time/60),60),'min',                 &
+                              mod(int(time),60),'sec',                 &  
+                      int(100*(time-int(time))),'msec (',speed,')'
+!
+       return
+       end subroutine print_speed
 !
 !======================================================================!
 !

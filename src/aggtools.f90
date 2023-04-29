@@ -43,87 +43,93 @@
        use printings
        use utils
 !
+       use omp_lib
+!
        implicit none
 !
 ! System information
 !
-       type(xtcfile),intent(inout)                              ::  xtcf     !  Trajectory information
+       type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
 !
 ! Interaction criteria information
 ! 
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr      !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr2     !  Distance threshold
-       real(kind=8),intent(in)                                  ::  neidis   !  Screening distance
+       real(kind=8),dimension(nat,nat),intent(in)               ::  thr       !  Distance threshold
+       real(kind=8),dimension(nat,nat),intent(in)               ::  thr2      !  Distance threshold
+       real(kind=8),intent(in)                                  ::  neidis    !  Screening distance
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim      !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop      !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc     !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac     !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin      !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu     !  Simulation box volume
-       integer,intent(out)                                      ::  nsteps   !  Number of snapshots analyzed
-       integer,intent(in)                                       ::  msize    !  Maximum aggregate size
+       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
+       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
+       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
+       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
+       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
+       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
+       integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
+       integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
 ! Trajectory control variables
 !     
-       integer,intent(in)                                       ::  nprint   !  Populations printing interval
-       integer,intent(in)                                       ::  minstep  !  First step for analysis
-       integer,intent(in)                                       ::  maxstep  !  Last step for analysis
+       integer,intent(in)                                       ::  nprint    !  Populations printing interval
+       integer,intent(in)                                       ::  minstep   !  First step for analysis
+       integer,intent(in)                                       ::  maxstep   !  Last step for analysis
 !
 ! Topological representations information
 !
-       integer,dimension(nat),intent(in)                        ::  body     !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  nbody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  ibody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  grps     !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  ngrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  igrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  nsubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  isubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  atms     !  Atoms identifier
-       integer,intent(in)                                       ::  nat      !  Monomer atoms
-       integer,intent(in)                                       ::  natms    !  Total number of subgroups in the system
-       integer,intent(in)                                       ::  mbody    !  Number of bodies
-       integer,intent(in)                                       ::  mgrps    !  Number of groups
-       integer,intent(in)                                       ::  msubg    !  Number of subgroups
-       integer,intent(in)                                       ::  matms    !  Number of interacting atoms in the monomer
+       integer,dimension(nat),intent(in)                        ::  body      !  Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  nbody     !  Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  ibody     !  Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  grps      !  Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  ngrps     !  Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  igrps     !  Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  subg      !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  nsubg     !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  isubg     !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  atms      !  Atoms identifier
+       integer,intent(in)                                       ::  nat       !  Monomer atoms
+       integer,intent(in)                                       ::  natms     !  Total number of subgroups in the system
+       integer,intent(in)                                       ::  mbody     !  Number of bodies
+       integer,intent(in)                                       ::  mgrps     !  Number of groups
+       integer,intent(in)                                       ::  msubg     !  Number of subgroups
+       integer,intent(in)                                       ::  matms     !  Number of interacting atoms in the monomer
 !
 ! Program control flags
 !
-       logical,intent(in)                                       ::  dopim    !  PIM calculation flag
-       logical,intent(in)                                       ::  debug    !  Debug mode
+       logical,intent(in)                                       ::  dopim     !  PIM calculation flag
+       logical,intent(in)                                       ::  debug     !  Debug mode
 !
 ! Aggregates information in the molecule-based representation
 !
-       logical,dimension(:,:),allocatable                       ::  adj      !  Adjacency matrix
-       logical,dimension(:,:),allocatable                       ::  oldadj   !  Adjacency matrix
-       logical,dimension(:,:),allocatable                       ::  newadj   !  Adjacency matrix
-       integer,dimension(:),allocatable                         ::  mol      !  Molecules identifier
-       integer,dimension(:),allocatable                         ::  tag      !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  agg      !  Aggregates size 
-       integer,dimension(:),allocatable                         ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  iagg     !  
-       integer,dimension(:),allocatable                         ::  nmol     !  
-       integer,dimension(:),allocatable                         ::  imol     !  
-       integer,intent(in)                                       ::  nnode    !  Total number of molecules
-       integer                                                  ::  nsize    !  Actual maximum aggregate size
-       integer                                                  ::  magg     !  Actual number of chemical species
-       integer                                                  ::  actstep  !
-       integer                                                  ::  newstep  !
+       logical,dimension(:,:),allocatable                       ::  adj       !  Adjacency matrix
+       logical,dimension(:,:),allocatable                       ::  oldadj    !  Adjacency matrix
+       logical,dimension(:,:),allocatable                       ::  newadj    !  Adjacency matrix
+       integer,dimension(:),allocatable                         ::  mol       !  Molecules identifier
+       integer,dimension(:),allocatable                         ::  tag       !   Aggregates identifier
+       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  nagg      !  Number of aggregates of each size
+       integer,dimension(:),allocatable                         ::  iagg      !  
+       integer,dimension(:),allocatable                         ::  nmol      !  
+       integer,dimension(:),allocatable                         ::  imol      !  
+       integer,intent(in)                                       ::  nnode     !  Total number of molecules
+       integer                                                  ::  nsize     !  Actual maximum aggregate size
+       integer                                                  ::  magg      !  Actual number of chemical species
+       integer                                                  ::  actstep   !
+       integer                                                  ::  newstep   !
 !
 ! Declaration of time control variables
 !
-       integer                                                  ::  t1read   !  Initial reading time
-       integer                                                  ::  t2read   !  Final reading time
-       integer                                                  ::  t1adj    !  Initial building time
-       integer                                                  ::  t2adj    !  Final building time
-       integer                                                  ::  t1scrn   !  Initial screening time
-       integer                                                  ::  t2scrn   !  Final screening time
-       integer                                                  ::  t1pim    !  Initial PIM analysis time
-       integer                                                  ::  t2pim    !  Final PIM analysis time
+       real(kind=8)                                             ::  tinadj    !  Initial CPU building time
+       real(kind=8)                                             ::  tfinadj   !  Final CPU building time
+       real(kind=8)                                             ::  tinscrn   !  Initial CPU screening time
+       real(kind=8)                                             ::  tfinscrn  !  Final CPU screening time
+       integer                                                  ::  t1read    !  Initial reading time
+       integer                                                  ::  t2read    !  Final reading time
+       integer                                                  ::  t1adj     !  Initial building time
+       integer                                                  ::  t2adj     !  Final building time
+       integer                                                  ::  t1scrn    !  Initial screening time
+       integer                                                  ::  t2scrn    !  Final screening time
+       integer                                                  ::  t1pim     !  Initial PIM analysis time
+       integer                                                  ::  t2pim     !  Final PIM analysis time
 !
 ! AnalysisPhenolMD variables
 !     
@@ -135,6 +141,7 @@
        real(kind=4),dimension(:,:),allocatable                  ::  newposi  !  Auxiliary coordinates
        real(kind=4),dimension(3)                                ::  box      !
        real(kind=4),dimension(3)                                ::  newbox   !
+       integer                                                  ::  i        !
 !
 ! Initializing variables
 !
@@ -185,14 +192,17 @@
 !
 ! Building adjacency matrix of the first old-configuration
 !
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,oldadj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
                      thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
                      box,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
 !
 ! Reading the first configuration
@@ -227,14 +237,17 @@
 !
 ! Building adjacency matrix of the first configuration
 !
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
                      box,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Reading the first new-configuration
@@ -276,24 +289,30 @@
 !
 ! Building adjacency matrix of the new-configuration
 !
+           call cpu_time(tinadj)
            call system_clock(t1adj) 
 !
            call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,       &
                          xtcf%pos,nat,thr2,mgrps,ngrps,igrps,msubg,    &
                          nsubg,isubg,atms,newbox,neidis)
 !
+           call cpu_time(tfinadj)
            call system_clock(t2adj) 
 !
+           tcpuadj = tcpuadj + tfinadj - tinadj
            tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Screening interactions between the molecules
 !
+           call cpu_time(tinscrn)
            call system_clock(t1scrn)
 !
            call scrnint(nnode,oldadj,adj,newadj)
 !
+           call cpu_time(tfinscrn)
            call system_clock(t2scrn)
 !
+           tcpuscrn = tcpuscrn + tfinscrn - tinscrn
            tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
@@ -340,19 +359,38 @@
 !~                               xtcf%box(3,3)/),posi,sys%mass,          &
 !~                             sys%atname,xtcf%STEP,outp,debug)
 !
+           call cpu_time(tinscrn)        ! TODO: parallelize this region
            call system_clock(t1scrn)
-!
-           oldadj(:,:) = adj(:,:)
-           adj(:,:)    = newadj(:,:)
 !
            box(:)    = newbox(:)
 !
            actstep = newstep
 !
-           posi(:,:) = newposi(:,:)
+!$omp parallel do shared(adj,oldadj,newadj)                            &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
 !
+           do i = 1, nnode
+             oldadj(:,i) = adj(:,i)
+             adj(:,i)    = newadj(:,i)
+           end do
+!
+!$omp end parallel do                   
+!
+!$omp parallel do shared(posi,newposi)                                 &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
+!
+           do i = 1, natms
+             posi(:,i) = newposi(:,i)
+           end do
+!
+!$omp end parallel do                   
+!
+           call cpu_time(tfinscrn)
            call system_clock(t2scrn)
 !
+           tcpuscrn = tcpuscrn + tfinscrn - tinscrn
            tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
            call system_clock(t1read)
@@ -481,10 +519,6 @@
 !
        integer                                                  ::  t1read   !  Initial reading time
        integer                                                  ::  t2read   !  Final reading time
-       integer                                                  ::  t1adj    !  Initial building time
-       integer                                                  ::  t2adj    !  Final building time
-       integer                                                  ::  t1pim    !  Initial PIM analysis time
-       integer                                                  ::  t2pim    !  Final PIM analysis time
 !
 ! AnalysisPhenolMD variables
 !     
@@ -658,7 +692,9 @@
 !
 ! Declaration of time control variables
 !
-integer :: i,j
+!
+       real(kind=8)                                               ::  tinadj   !  Initial CPU building time
+       real(kind=8)                                               ::  tfinadj  !  Final CPU building time
        integer                                                    ::  t1read   !  Initial reading time
        integer                                                    ::  t2read   !  Final reading time
        integer                                                    ::  t1adj    !  Initial building time
@@ -672,14 +708,17 @@ integer :: i,j
 !
 ! Building the adjacency matrix
 !
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
                      box,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Block-diagonalizing the adjacency matrix
@@ -763,6 +802,8 @@ integer :: i,j
        use timings
        use printings
        use utils
+!
+       use omp_lib
 !
        implicit none
 !
@@ -864,19 +905,21 @@ integer :: i,j
        integer                                                  ::  actstep   !
        integer                                                  ::  newstep   !
        integer                                                  ::  nextstep  !
-       logical,dimension(:),allocatable                         ::  iam       !
        logical,dimension(:),allocatable                         ::  iwas      !
        logical,dimension(:),allocatable                         ::  iwill     !
-       logical,dimension(:),allocatable                         ::  imnot     !
        logical,dimension(:),allocatable                         ::  iwasnt    !
        logical,dimension(:),allocatable                         ::  iwont     !
-       logical,dimension(:),allocatable                         ::  oldiam    !
-       logical,dimension(:),allocatable                         ::  oldnot    !
        logical,dimension(:),allocatable                         ::  oldiwas   !
        logical,dimension(:),allocatable                         ::  oldiwill  !
 !
 ! Declaration of time control variables
 !
+       real(kind=8)                                             ::  tinadj    !  Initial CPU building time
+       real(kind=8)                                             ::  tfinadj   !  Final CPU building time
+       real(kind=8)                                             ::  tinscrn   !  Initial CPU screening time
+       real(kind=8)                                             ::  tfinscrn  !  Final CPU screening time
+       real(kind=8)                                             ::  tinlife   !  Initial CPU lifetimes time
+       real(kind=8)                                             ::  tfinlife  !  Final CPU lifetimes time
        integer                                                  ::  t1read    !  Initial reading time
        integer                                                  ::  t2read    !  Final reading time
        integer                                                  ::  t1adj     !  Initial building time
@@ -900,7 +943,7 @@ integer :: i,j
        real(kind=4),dimension(3)                                ::  box       !
        real(kind=4),dimension(3)                                ::  newbox    !
        real(kind=4),dimension(3)                                ::  nextbox   !
-       integer                                                  ::  i,j         !   
+       integer                                                  ::  i,j       !   
        integer                                                  ::  iiagg     !   
        integer                                                  ::  inagg     !   
        integer                                                  ::  isize     ! 
@@ -937,9 +980,8 @@ integer :: i,j
        allocate(newnmol(nnode),newimol(nnode))
        allocate(newnagg(nnode),newiagg(nnode))
 !
-       allocate(iam(nnode),iwas(nnode),iwill(nnode))
-       allocate(imnot(nnode),iwasnt(nnode),iwont(nnode))
-       allocate(oldiam(nnode),oldnot(nnode))
+       allocate(iwas(nnode),iwill(nnode))
+       allocate(iwasnt(nnode),iwont(nnode))
        allocate(oldiwas(nnode),oldiwill(nnode))
 !
        allocate(wasmap(nnode),willmap(nnode))
@@ -973,14 +1015,17 @@ integer :: i,j
 !
 ! Building adjacency matrix of the first old-configuration
 !
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,nextadj,natms,posi,xtcf%NATOMS,xtcf%pos,    &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,     &
                      atms,nextbox,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Block-diagonalizing the adjacency matrix of the old-configuration
@@ -1020,14 +1065,17 @@ integer :: i,j
 !
 ! Building adjacency matrix of the first configuration
 !
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,        &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,       &
                      isubg,atms,box,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Reading the first new-configuration
@@ -1062,24 +1110,30 @@ integer :: i,j
 !
 ! Building adjacency matrix of the first new-configuration
 ! 
+       call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
        call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,xtcf%pos,  &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,     &
                      atms,newbox,neidis)
 !
+       call cpu_time(tfinadj)
        call system_clock(t2adj) 
 !
+       tcpuadj = tcpuadj + tfinadj - tinadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Screening interactions between the molecules
 !
+       call cpu_time(tinscrn)
        call system_clock(t1scrn)
 !
        call scrnint(nnode,nextadj,adj,newadj)
 !
+       call cpu_time(tfinscrn)
        call system_clock(t2scrn)
 !
+       tcpuscrn = tcpuscrn + tfinscrn - tinscrn
        tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
 ! Block-diagonalizing the first interaction-corrected adjacency matrix
@@ -1089,23 +1143,16 @@ integer :: i,j
 !
 ! Finding aggregates present in the old and the actual configurations
 !
+       call cpu_time(tinlife)
        call system_clock(t1life)
 ! 
        call scrnblock(nnode,oldsize,oldmol,nsize,mol,oldnagg,oldiagg,  &
                       oldnmol,oldimol,nagg,iagg,imol,iwas,iwasnt,wasmap)
 !
-       oldiam(:) = .FALSE.
-       oldnot(:) = .TRUE.
-!
-       do i = nagg(1)+1, magg
-         if ( wasmap(i) .ne. 0 ) then
-           oldiam(wasmap(i)) = .TRUE.
-           oldnot(wasmap(i)) = .FALSE.
-         end if
-       end do
-!
+       call cpu_time(tfinlife)
        call system_clock(t2life)
 !
+       tcpulife = tcpulife + tfinlife - tinlife
        tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
 !
 ! Reading the first next-configuration
@@ -1151,24 +1198,30 @@ integer :: i,j
 !
 ! Building adjacency matrix of the new-configuration
 !
+           call cpu_time(tinadj)
            call system_clock(t1adj) 
 !
            call buildadj(nnode,nextadj,natms,nextposi,xtcf%NATOMS,     &
                          xtcf%pos,nat,thr2,mgrps,ngrps,igrps,msubg,    &
                          nsubg,isubg,atms,nextbox,neidis)
 !
+           call cpu_time(tfinadj)
            call system_clock(t2adj) 
 !
+           tcpuadj = tcpuadj + tfinadj - tinadj
            tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Screening interactions between the molecules
 !
+           call cpu_time(tinscrn)
            call system_clock(t1scrn)
 !
            call scrnint(nnode,adj,newadj,nextadj)
 !
+           call cpu_time(tfinscrn)
            call system_clock(t2scrn)
 !
+           tcpuscrn = tcpuscrn + tfinscrn - tinscrn
            tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
@@ -1178,22 +1231,17 @@ integer :: i,j
 !
 ! Finding aggregates present in the new and the actual configurations
 !
+           call cpu_time(tinlife)
            call system_clock(t1life)
 ! 
            call scrnblock(nnode,newsize,newmol,nsize,mol,newnagg,      &
                           newiagg,newnmol,newimol,nagg,iagg,imol,      &
                           iwill,iwont,willmap)
-!
-           iam(:) = .FALSE.
-           imnot(:) = .TRUE.
-!
-           do i = nagg(1)+1, magg
-             if ( iwas(i) .or. iwill(i) ) then
-               iam(i)   = .TRUE.
-               imnot(i) = .FALSE.
-             end if
-           end do
 ! 
+!$omp parallel do shared(life,iwas,nagg)                               &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
+!
            do i = nagg(1)+1, magg
              if ( iwas(i) ) then
                life(i) = life(i) + 1
@@ -1202,8 +1250,12 @@ integer :: i,j
              end if
            end do
 !
+!$omp end parallel do                   
+!
+           call cpu_time(tfinlife)
            call system_clock(t2life)
 !
+           tcpulife = tcpulife + tfinlife - tinlife
            tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
 !
 !
@@ -1277,14 +1329,6 @@ integer :: i,j
                              newtag(newnagg(1)+1:),                    &  
                              newagg(newnagg(1)+1:),'mol','tag','agg')
 !
-             write(*,'(4X,A)') 'OLD I am'
-             do i = 2, oldsize
-               if ( (oldiagg(i)+oldnagg(i)) .lt. (oldiagg(i)+1) ) exit
-               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',oldiagg(i)+1,   &
-               'to',oldiagg(i)+oldnagg(i),':',oldiam(oldiagg(i)+1:oldiagg(i)+oldnagg(i))
-             end do
-             write(*,*)
-!
              write(*,'(4X,A)') 'I was'
              do i = 2, nsize
                if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
@@ -1297,8 +1341,8 @@ integer :: i,j
              write(*,'(4X,A)') 'I am'
              do i = 2, nsize
                if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
-               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
-                 'to',iagg(i)+nagg(i),':',iam(iagg(i)+1:iagg(i)+nagg(i))
+!~                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
+!                 'to',iagg(i)+nagg(i),':',iam(iagg(i)+1:iagg(i)+nagg(i))
                write(*,'(25X,20(1X,I5))') life(iagg(i)+1:iagg(i)+nagg(i))
              end do
              write(*,*)
@@ -1311,9 +1355,6 @@ integer :: i,j
                write(*,'(25X,20(1X,I5))') (willmap(iagg(i)+1:iagg(i)+nagg(i))-newnagg(1))
              end do
              write(*,*)
-!
-!~ !             call print_coord(xtcf,sys,outp,msize,                     &
-!~ !                              newnagg,nnode,newmol,newagg)
            end if
 !
 ! Printing the population of every aggregate
@@ -1355,46 +1396,52 @@ integer :: i,j
 !~                               xtcf%box(3,3)/),posi,sys%mass,          &
 !~                             sys%atname,xtcf%STEP,outp,debug)
 !
+           call cpu_time(tinlife)
            call system_clock(t1life)
 ! 
            call lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
                           willmap,iwont)
 !
+           call cpu_time(tfinlife)
            call system_clock(t2life)
 !
+           tcpulife = tcpulife + tfinlife - tinlife
            tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
 !
-           call system_clock(t1scrn)
-!
-           adj(:,:)    = newadj(:,:)
-           newadj(:,:) = nextadj(:,:)
+           call cpu_time(tinscrn)
+           call system_clock(t1scrn)     ! TODO: parallelize this region
 !
            box(:)    = newbox(:)
            newbox(:) = nextbox(:)
 !
-           oldmol(:) = mol(:)
-           oldagg(:) = agg(:)
-           oldtag(:) = tag(:)
-!
-           oldnagg(:) = nagg(:)
-           oldiagg(:) = iagg(:)
-!
-           oldnmol(:) = nmol(:)
-           oldimol(:) = imol(:)
-!
            oldmagg = magg
            oldsize = nsize
 !
-           oldiam(:) = iam(:)
-           oldnot(:) = imnot(:)
+!$omp parallel do default(shared)                                      &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
 !
-           oldiwas(:) = iwas(:)
-           oldiwill(:) = iwill(:)
-           oldlife(:) = life(:)
+           do i = 1, nnode
+             adj(:,i)    = newadj(:,i)
+             newadj(:,i) = nextadj(:,i)
 !
-           wasmap(:) = 0
-           iwas(:)   = .FALSE.
-           iwasnt(:) = .TRUE.
+             oldmol(i) = mol(i)
+             oldagg(i) = agg(i)
+             oldtag(i) = tag(i)
+!
+             oldnagg(i) = nagg(i)
+             oldiagg(i) = iagg(i)
+!
+             oldnmol(i) = nmol(i)
+             oldimol(i) = imol(i)
+!
+             oldiwas(i) = iwas(i)
+             oldiwill(i) = iwill(i)
+             oldlife(i) = life(i)
+!
+             wasmap(i) = 0
+             iwas(i)   = .FALSE.
+             iwasnt(i) = .TRUE.
 !
 !~            do i = nagg(1)+1, magg
 !~              if ( willmap(i) .ne. 0 ) then
@@ -1404,7 +1451,15 @@ integer :: i,j
 !~              end if
 !~            end do
 !~ !
-           auxlife(:) = 0
+             auxlife(i) = 0
+           end do
+!
+!$omp end parallel do                   
+!
+!$omp parallel do default(shared)                                      &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
+!
            do i = nagg(1)+1, magg
              if ( willmap(i) .ne. 0 ) then
                wasmap(willmap(i)) = i
@@ -1413,30 +1468,51 @@ integer :: i,j
                iwasnt(willmap(i)) = .FALSE.
              end if
            end do
-           life(:) = auxlife(:)
 !
-           mol(:) = newmol(:)
-           agg(:) = newagg(:)
-           tag(:) = newtag(:)
+!$omp end parallel do                   
 !
-           nagg(:) = newnagg(:)
-           iagg(:) = newiagg(:)
+             magg    = newmagg
+             nsize   = newsize
 !
-           nmol(:) = newnmol(:)
-           imol(:) = newimol(:)
+             oldstep = actstep
+             actstep = newstep
+             newstep = nextstep
 !
-           magg    = newmagg
-           nsize   = newsize
+!$omp parallel do default(shared)                                      &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
 !
-           oldstep = actstep
-           actstep = newstep
-           newstep = nextstep
+           do i = 1, nnode
+             life(:) = auxlife(i)
 !
-           posi(:,:) = newposi(:,:)
-           newposi(:,:) = nextposi(:,:)
+             mol(i) = newmol(i)
+             agg(i) = newagg(i)
+             tag(i) = newtag(i)
 !
+             nagg(i) = newnagg(i)
+             iagg(i) = newiagg(i)
+!
+             nmol(i) = newnmol(i)
+             imol(i) = newimol(i)
+           end do
+!
+!$omp end parallel do                   
+!
+!$omp parallel do shared(posi,newposi,nextposi)                        &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic)
+!
+           do i = 1, natms
+             posi(:,i) = newposi(:,i)
+             newposi(:,i) = nextposi(:,i)
+           end do
+!
+!$omp end parallel do                   
+!
+           call cpu_time(tfinscrn)
            call system_clock(t2scrn)
 !
+           tcpuscrn = tcpuscrn + tfinscrn - tinscrn
            tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
            call system_clock(t1read)
@@ -1451,33 +1527,33 @@ integer :: i,j
 !
 ! Averaging lifetimes of the last snapshot
 !
-       call system_clock(t2read)
+!~        call system_clock(t2read)
+!~ !
+!~        tread = tread + dble(t2read-t1read)/dble(count_rate) 
+!~ !
+!~        call system_clock(t1life)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+!~        do isize = 2, oldsize
+!~          do inagg = 1, oldnagg(isize)
+!~ !
+!~            iiagg = oldiagg(isize) + inagg
+!~ !
+!~            if ( oldiwas(iiagg) .and. oldiwill(iiagg) ) then
+!~              avlife(isize) = avlife(isize) + oldlife(iiagg)
+!~              nlife(isize)  = nlife(isize) + 1
+!~            end if
+!~ !
+!~          end do
+!~        end do
 !
-       call system_clock(t1life)
+!write(*,*) avlife(:3)
+!write(*,*) nlife(:3)
 !
-       do isize = 2, oldsize
-         do inagg = 1, oldnagg(isize)
+!~        call system_clock(t2life)
+!~ !
+!~        tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
 !
-           iiagg = oldiagg(isize) + inagg
-!
-           if ( oldiwas(iiagg) .and. oldiwill(iiagg) ) then
-             avlife(isize) = avlife(isize) + oldlife(iiagg)
-             nlife(isize)  = nlife(isize) + 1
-           end if
-!
-         end do
-       end do
-!
-!~ write(*,*) avlife(:3)
-!~ write(*,*) nlife(:3)
-!
-       call system_clock(t2life)
-!
-       tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
-!
-       call system_clock(t1read)
+!~        call system_clock(t1read)
 !
 ! Deallocate memory
 !
@@ -1497,9 +1573,9 @@ integer :: i,j
        deallocate(newmol,newtag,newagg)
        deallocate(newnmol,newimol,newnagg,newiagg)
 !
-       deallocate(iam,iwas,iwill)
-       deallocate(imnot,iwasnt,iwont)
-       deallocate(oldiam,oldnot,oldiwas,oldiwill)
+       deallocate(iwas,iwill)
+       deallocate(iwasnt,iwont)
+       deallocate(oldiwas,oldiwill)
 !
        deallocate(wasmap,willmap)
 !
@@ -1623,6 +1699,8 @@ integer :: i,j
        subroutine lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,   &
                             willmap,iwont)
 !
+       use omp_lib
+!
        implicit none
 !
 ! Input/Output variables
@@ -1648,6 +1726,10 @@ integer :: i,j
 !
 !~        auxlife(:) = 0
 !
+!$omp parallel do shared(iwont,life,iagg,avlife,nlife,nagg)            &
+!$omp             private(isize,inagg,iiagg)                           &
+!$omp             schedule(dynamic,1)
+!
        do isize = 2, nsize
          do inagg = 1, nagg(isize)
 !
@@ -1662,6 +1744,8 @@ integer :: i,j
 !
          end do
        end do
+!
+!$omp end parallel do                   
 !
 !~ write(*,*) avlife(:3)
 !~ write(*,*) nlife(:3)

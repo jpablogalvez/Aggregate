@@ -6,11 +6,11 @@ MDIR =./mod
 SDIR =.
 #libpath=/home/users/quicuan/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
 #libpath=/home/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
-libpath=/home/jpablo/lib/xdrfile/lib/libxdrfile.so
+libpath= /home/jpablo/lib/xdrfile/lib/libxdrfile.so
 #libpath=/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
 
 # Compiler/Linker settings
-FC = gfortran -I$(IDIR) -J$(MDIR)  # -Wno-argument-mismatch 
+FC = gfortran -fopenmp -I$(IDIR) -J$(MDIR)  # -Wno-argument-mismatch 
 FLFLAGS = -g
 FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate

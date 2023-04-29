@@ -15,6 +15,8 @@
 !
        subroutine scrnint(nnode,oldadj,adj,newadj)
 !
+       use omp_lib
+!
        implicit none
 !
 ! Input/output variables
@@ -30,6 +32,10 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
+!$omp parallel do shared(adj,oldadj,newadj)                            &
+!$omp             private(i,j)                                         &
+!$omp             schedule(dynamic)
+!
        do i = 1, nnode-1
          do j = i+1, nnode
            if ( (oldadj(j,i).and.adj(j,i)) .or.                        &
@@ -44,6 +50,8 @@
          end do
        end do
 !
+!$omp end parallel do                   
+!
        return
        end subroutine scrnint
 !
@@ -57,6 +65,8 @@
        subroutine scrnblock(nnode,rsize,rmol,tsize,tmol,rnagg,riagg,   &
                             rnmol,rimol,tnagg,tiagg,timol,life,death,  &
                             imap)
+!
+       use omp_lib
 !
        implicit none
 !
@@ -99,6 +109,12 @@
 ! 
        msize = tsize
        if ( rsize .lt. tsize ) msize = rsize
+!
+!$omp parallel do shared(life,death,imap,tnagg,tmol,rmol,tiagg,riagg,  &
+!$omp                    rnagg,rnmol,rimol,timol,msize)                &
+!$omp             private(isize,qiagg,iimol,jimol,qimol,iiagg,ni,nj,   &
+!$omp                     jiagg,jsize)                                 &
+!$omp             schedule(dynamic,1)
 !
        do isize = 2, msize
          if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
@@ -186,6 +202,8 @@
 !
          end if
        end do
+!
+!$omp end parallel do                   
 !
        return
        end subroutine scrnblock
