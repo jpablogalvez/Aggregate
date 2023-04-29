@@ -754,7 +754,7 @@ integer :: i,j
                               nsteps,nbody,ngrps,nsubg,ibody,igrps,    &
                               isubg,body,grps,subg,atms,mbody,mgrps,   &
                               msubg,matms,nprint,minstep,maxstep,      &
-                              nsolv,dopim,debug)
+                              nsolv,avlife,nlife,dopim,debug)
 !
        use xdr, only: xtcfile
 !
@@ -786,6 +786,14 @@ integer :: i,j
        real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
+!
+! Lifetimes calculation variables
+!
+       real(kind=8),dimension(nnode),intent(out)                ::  avlife    !
+       integer,dimension(nnode),intent(out)                     ::  nlife     !
+       integer,dimension(:),allocatable                         ::  life      !
+       integer,dimension(:),allocatable                         ::  oldlife   !
+       integer,dimension(:),allocatable                         ::  auxlife   !
 !
 ! Trajectory control variables
 !     
@@ -863,7 +871,9 @@ integer :: i,j
        logical,dimension(:),allocatable                         ::  iwasnt    !
        logical,dimension(:),allocatable                         ::  iwont     !
        logical,dimension(:),allocatable                         ::  oldiam    !
-       logical,dimension(:),allocatable                         ::  oldnot    ! 
+       logical,dimension(:),allocatable                         ::  oldnot    !
+       logical,dimension(:),allocatable                         ::  oldiwas   !
+       logical,dimension(:),allocatable                         ::  oldiwill  !
 !
 ! Declaration of time control variables
 !
@@ -890,7 +900,10 @@ integer :: i,j
        real(kind=4),dimension(3)                                ::  box       !
        real(kind=4),dimension(3)                                ::  newbox    !
        real(kind=4),dimension(3)                                ::  nextbox   !
-       integer                                                  ::  i         !  Index
+       integer                                                  ::  i,j         !   
+       integer                                                  ::  iiagg     !   
+       integer                                                  ::  inagg     !   
+       integer                                                  ::  isize     ! 
 !
 ! Initializing variables
 !
@@ -927,8 +940,11 @@ integer :: i,j
        allocate(iam(nnode),iwas(nnode),iwill(nnode))
        allocate(imnot(nnode),iwasnt(nnode),iwont(nnode))
        allocate(oldiam(nnode),oldnot(nnode))
+       allocate(oldiwas(nnode),oldiwill(nnode))
 !
        allocate(wasmap(nnode),willmap(nnode))
+!
+       allocate(life(nnode),auxlife(nnode),oldlife(nnode)) 
 !
 ! Allocating variables depending on topological information 
 !
@@ -971,23 +987,6 @@ integer :: i,j
 !
        call blockdiag(nnode,nextadj,oldmol,oldtag,oldagg,oldsize,      &
                       oldnagg,oldiagg,oldnmol,oldimol,oldmagg)
-
-!
-       if ( debug ) then
-         write(*,'(2X,A,X,I6)')     'Total number of entities : ',oldmagg
-         write(*,*)
-         write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ',oldnagg(oldsize)
-         write(*,'(2X,A,20(X,I6))') '  Accumulation           : ',oldiagg(oldsize)
-         write(*,*)
-         write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ',oldnmol(oldsize)
-         write(*,'(2X,A,20(X,I6))') '  Accumulation           : ',oldimol(oldsize)
-         write(*,*)
-!
-         call print_info(oldnagg(1),nnode-oldnagg(1),              &
-                         oldmol(oldnagg(1)+1:),                    &
-                         oldtag(oldnagg(1)+1:),                    &  
-                         oldagg(oldnagg(1)+1:),'mol','tag','agg')
-       end if
 !
 ! Reading the first configuration
 !
@@ -1132,6 +1131,10 @@ integer :: i,j
          end if
        end do
 !
+       life(:)   = 0
+       avlife(:) = 0.0d0
+       nlife(:)  = 0
+!
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
        do while ( (xtcf%STAT.eq.0) .and. (xtcf%STEP.le.maxstep) )
@@ -1188,6 +1191,14 @@ integer :: i,j
              if ( iwas(i) .or. iwill(i) ) then
                iam(i)   = .TRUE.
                imnot(i) = .FALSE.
+             end if
+           end do
+! 
+           do i = nagg(1)+1, magg
+             if ( iwas(i) ) then
+               life(i) = life(i) + 1
+             else
+               life(i) = 0
              end if
            end do
 !
@@ -1279,7 +1290,7 @@ integer :: i,j
                if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
                'to',iagg(i)+nagg(i),':',iwas(iagg(i)+1:iagg(i)+nagg(i))
-               write(*,'(25X,20(1X,I5))') wasmap(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') (wasmap(iagg(i)+1:iagg(i)+nagg(i))-oldnagg(1))
              end do
              write(*,*)
 !
@@ -1288,6 +1299,7 @@ integer :: i,j
                if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
                  'to',iagg(i)+nagg(i),':',iam(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') life(iagg(i)+1:iagg(i)+nagg(i))
              end do
              write(*,*)
 !
@@ -1296,7 +1308,7 @@ integer :: i,j
                if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
               'to',iagg(i)+nagg(i),':',iwill(iagg(i)+1:iagg(i)+nagg(i))
-               write(*,'(25X,20(1X,I5))') willmap(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') (willmap(iagg(i)+1:iagg(i)+nagg(i))-newnagg(1))
              end do
              write(*,*)
 !
@@ -1343,6 +1355,15 @@ integer :: i,j
 !~                               xtcf%box(3,3)/),posi,sys%mass,          &
 !~                             sys%atname,xtcf%STEP,outp,debug)
 !
+           call system_clock(t1life)
+! 
+           call lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
+                          willmap,iwont)
+!
+           call system_clock(t2life)
+!
+           tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+!
            call system_clock(t1scrn)
 !
            adj(:,:)    = newadj(:,:)
@@ -1367,17 +1388,32 @@ integer :: i,j
            oldiam(:) = iam(:)
            oldnot(:) = imnot(:)
 !
+           oldiwas(:) = iwas(:)
+           oldiwill(:) = iwill(:)
+           oldlife(:) = life(:)
+!
            wasmap(:) = 0
            iwas(:)   = .FALSE.
            iwasnt(:) = .TRUE.
 !
+!~            do i = nagg(1)+1, magg
+!~              if ( willmap(i) .ne. 0 ) then
+!~                wasmap(willmap(i)) = i
+!~                iwas(willmap(i))   = .TRUE.
+!~                iwasnt(willmap(i)) = .FALSE.
+!~              end if
+!~            end do
+!~ !
+           auxlife(:) = 0
            do i = nagg(1)+1, magg
              if ( willmap(i) .ne. 0 ) then
                wasmap(willmap(i)) = i
+               auxlife(willmap(i)) = life(i)
                iwas(willmap(i))   = .TRUE.
                iwasnt(willmap(i)) = .FALSE.
              end if
            end do
+           life(:) = auxlife(:)
 !
            mol(:) = newmol(:)
            agg(:) = newagg(:)
@@ -1413,7 +1449,39 @@ integer :: i,j
 !
        end do
 !
+! Averaging lifetimes of the last snapshot
+!
+       call system_clock(t2read)
+!
+       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+!
+       call system_clock(t1life)
+!
+       do isize = 2, oldsize
+         do inagg = 1, oldnagg(isize)
+!
+           iiagg = oldiagg(isize) + inagg
+!
+           if ( oldiwas(iiagg) .and. oldiwill(iiagg) ) then
+             avlife(isize) = avlife(isize) + oldlife(iiagg)
+             nlife(isize)  = nlife(isize) + 1
+           end if
+!
+         end do
+       end do
+!
+!~ write(*,*) avlife(:3)
+!~ write(*,*) nlife(:3)
+!
+       call system_clock(t2life)
+!
+       tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+!
+       call system_clock(t1read)
+!
 ! Deallocate memory
+!
+       deallocate(life,auxlife,oldlife)
 !
        deallocate(newposi,nextposi)
        deallocate(posi)
@@ -1431,7 +1499,7 @@ integer :: i,j
 !
        deallocate(iam,iwas,iwill)
        deallocate(imnot,iwasnt,iwont)
-       deallocate(oldiam,oldnot)
+       deallocate(oldiam,oldnot,oldiwas,oldiwill)
 !
        deallocate(wasmap,willmap)
 !
@@ -1545,6 +1613,63 @@ integer :: i,j
 !~ !
        return
        end subroutine printpop
+       !
+!======================================================================!
+!
+! LIFETIMES - LIFETIMES calculation
+!
+! This subroutine 
+!
+       subroutine lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,   &
+                            willmap,iwont)
+!
+       implicit none
+!
+! Input/Output variables
+!
+       real(kind=8),dimension(nnode),intent(inout)  ::  avlife   !  Average lifetimes
+       integer,dimension(nnode),intent(inout)       ::  nlife    !  
+       integer,dimension(nnode),intent(inout)       ::  life     !
+       integer,dimension(nnode),intent(in)          ::  willmap  !
+       integer,dimension(nnode),intent(in)          ::  nagg     !
+       integer,dimension(nnode),intent(in)          ::  iagg     !
+       integer,intent(in)                           ::  nnode    !  Total number of molecules
+       integer,intent(in)                           ::  nsize    ! 
+       logical,dimension(nnode),intent(in)          ::  iwont    !
+!
+! Local variables
+!
+       integer,dimension(nnode)                     ::  auxlife
+       integer                                      ::  iiagg    !   
+       integer                                      ::  inagg    !   
+       integer                                      ::  isize    !   
+!
+! Averaging lifetimes
+!
+!~        auxlife(:) = 0
+!
+       do isize = 2, nsize
+         do inagg = 1, nagg(isize)
+!
+           iiagg = iagg(isize) + inagg
+!
+           if ( iwont(iiagg) ) then
+             avlife(isize) = avlife(isize) + life(iiagg)
+             nlife(isize)  = nlife(isize) + 1
+!~            else
+!~              auxlife(willmap(iiagg)) = life(iiagg)
+           end if
+!
+         end do
+       end do
+!
+!~ write(*,*) avlife(:3)
+!~ write(*,*) nlife(:3)
+!
+!~        life(:) = auxlife(:)
+!
+       return
+       end subroutine lifetimes
 !
 !======================================================================!
 !

@@ -75,6 +75,11 @@
        integer                                         ::  maxstep  !  Last step for analysis
        integer                                         ::  nsteps   !  Number of snapshots analyzed
 !
+! Lifetimes calculation variables
+!
+       real(kind=8),dimension(:),allocatable           ::  avlife    !
+       integer,dimension(:),allocatable                ::  nlife     !
+!
 ! AnalysisPhenolMD variables
 !     
        real(kind=8),dimension(9,9,3)                   ::  table    !  Number of aggregates of each type
@@ -90,6 +95,7 @@
 !
        character(len=lentag)                           ::  schm     !  Calculation scheme flag
        logical                                         ::  dopim    !  PIM calculation flag
+       logical                                         ::  dolife   !  Lifetimes calculation flag
        logical                                         ::  seed     !  Random seed flag
        logical                                         ::  debug    !  Debug mode
 !
@@ -132,7 +138,7 @@
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         msize,neidis,schm,dopim,seed,debug)
+                         msize,neidis,schm,dopim,dolife,seed,debug)
 !
 ! Initializing random number generator
 !
@@ -144,13 +150,16 @@
        write(*,*)
        call line_str(6,2,'General input file name',lin,':',            &
                      trim(inp),lfin)
-       call line_str(6,2,'Trajectory file name',lin,':',               &
-                     trim(traj),lfin)
+       call line_str(6,2,'Trajectory file name',lin,':',trim(traj),lfin)
        call line_str(6,2,'Configuration file name',lin,':',            &
                      trim(conf),lfin)
-       call line_str(6,2,'Output file name',lin,':',                   &
-                     trim(outp),lfin)
+       call line_str(6,2,'Output file name',lin,':',trim(outp),lfin)
        write(*,*)
+!
+       call line_str(6,2,'Calculation scheme',lin,':',trim(schm),lfin)
+       call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
+       write(*,*)
+!
        call line_dp(6,2,'Screening distance',lin,':','F5.2',           &
                     neidis,lfin)
        call line_int(6,2,'Maximum aggregate size',lin,':','I4',        &
@@ -200,6 +209,8 @@
        allocate(ibody(sys%nat),igrps(sys%nat),isubg(sys%nat))
        allocate(body(sys%nat),grps(sys%nat),subg(sys%nat))
        allocate(grptag(sys%nat),atms(sys%nat))
+!
+       if ( dolife ) allocate(avlife(nnode),nlife(nnode))
 !
 ! Processing general input file
 !
@@ -315,19 +326,20 @@
 !
          case ('screening')
 !
-           call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,debug)
-!
-         case ('scrnlife')
-!
-           call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
-                            pim,msize,pop,conc,frac,cin,volu,nsteps,   &
-                            nbody,ngrps,nsubg,ibody,igrps,isubg,body,  &
-                            grps,subg,atms,mbody,mgrps,msubg,matms,    &
-                            nprint,minstep,maxstep,nsolv,dopim,debug)
+           if ( dolife ) then
+             call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,       &
+                              neidis,pim,msize,pop,conc,frac,cin,      &
+                              volu,nsteps,nbody,ngrps,nsubg,ibody,     &
+                              igrps,isubg,body,grps,subg,atms,mbody,   &
+                              mgrps,msubg,matms,nprint,minstep,        &
+                              maxstep,nsolv,avlife,nlife,dopim,debug)
+           else
+             call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,    &
+                          pim,msize,pop,conc,frac,cin,volu,nsteps,     &
+                          nbody,ngrps,nsubg,ibody,igrps,isubg,body,    &
+                          grps,subg,atms,mbody,mgrps,msubg,matms,      &
+                          nprint,minstep,maxstep,nsolv,dopim,debug)
+           end if
 !
        end select
 !
@@ -364,6 +376,14 @@
        cin = cin/nsteps/(Na*1.0E-24)
 !
        volu = volu/nsteps
+!
+! Averaging lifetimes
+!
+       if ( dolife ) then
+         do i = 1, nnode
+           if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
+         end do 
+      end if
 !~ !
 !~        table(:,:,:) = table(:,:,:)/nsteps
 !~ !
@@ -395,6 +415,11 @@
        write(*,'(1X,A,100(X,D12.6))') 'Global concentrations     : ',  &
                                                                  conc(:)
        write(*,*) 
+       if ( dolife ) then
+         write(*,'(1X,A,100(X,D12.6))') 'Average lifetimes        '//  &
+                                                    ' : ',avlife(:msize)
+         write(*,*) 
+       end if
 !
 !~        do i = 1, 3
 !~          write(*,'(3X,A,X,I3)') 'Populations of the aggregates belonging to type',i+1
@@ -434,6 +459,8 @@
        deallocate(pop,conc,frac)
        deallocate(pim)
 !
+       if ( dolife ) deallocate(avlife,nlife)
+!
        close(uniout+1)
        close(uniout+2)
        close(uniout+3)
@@ -460,10 +487,8 @@
        call print_time(6,1,'Total BFS time',35,tbfs)
        call print_time(6,1,'Total sorting time',35,tsort)
 !       
-       if ( trim(schm) .eq. 'scrnlife' ) then
-         call print_time(6,1,'Total lifetimes calculation time',35,    &
-                         tlife)
-       end if
+       if ( dolife ) call print_time(6,1,'Total lifetimes calculat'//  &
+                                     'ion time',35,tlife)
 !
        if ( dopim ) call print_time(6,1,'Total PIM time',35,tpim)
 !
@@ -478,8 +503,8 @@
 !======================================================================!
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
-                               maxstep,msize,neidis,schm,dopim,seed,   &
-                               debug)
+                               maxstep,msize,neidis,schm,dopim,dolife, &
+                               seed,debug)
 !
        use printings
        use utils
@@ -495,6 +520,7 @@
        character(len=lentag),intent(out)         ::  schm     !  Calculation scheme flag
        logical,intent(out)                       ::  seed     !  Random seed flag
        logical,intent(out)                       ::  dopim    !  PIM calculation flag
+       logical,intent(out)                       ::  dolife   !  Lifetimes calculation flag
        real(kind=8),intent(out)                  ::  neidis   !  Screening distance
        integer,intent(out)                       ::  msize    !  Maximum aggregate size
        integer,intent(out)                       ::  nprint   !  Populations printing steps interval
@@ -528,8 +554,10 @@
 !
        neidis  = 1.5d0
 !
-       seed    = .FALSE.
        dopim   = .TRUE.
+       dolife  = .FALSE.
+!
+       seed    = .FALSE.
        debug   = .FALSE.
 !
 ! Reading command line options
@@ -567,9 +595,11 @@
                case ('dist','distance','distances','original')
                  schm = 'original'
                case ('scrn','screen','screening')
-                 schm = 'screening'
+                 schm   = 'screening'
+                 dolife = .FALSE.
                case ('screening-lifetimes','scrnlife')
-                 schm = 'scrnlife'
+                 schm   = 'screening'
+                 dolife = .TRUE.
                case default
                  write(*,'(2X,68("="))')
                  write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
@@ -636,6 +666,13 @@
              dopim = .TRUE.
            case ('-nopim','--nopim','--no-pim')
              dopim = .FALSE.
+           case ('-life','-lifetime','-lifetimes','--lifetime',        &
+                                                          '--lifetimes')
+             dolife = .TRUE.
+           case ('-nolife','-nolifetime','-nolifetimes',               &
+                 '--nolifetime','--nolifetimes','--no-lifetime',       &
+                                                       '--no-lifetimes')
+             dolife = .FALSE.
            case ('-seed','--random-seed')
              seed = .TRUE.
            case ('-v','--debug','--verbose')
@@ -705,6 +742,7 @@
                                                          'ier algorithm'
        write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
                                                      'nteraction matrix'
+       write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,*)
        write(*,'(2X,A)') '-v,--verbose          Debug mode'
        write(*,*)
