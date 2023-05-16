@@ -6,11 +6,13 @@
 !
        use utils, only:  rndmseed
        use input_section
+       use parameters
        use datatypes
        use timings
        use printings
        use lengths
        use aggtools
+       use omp_var
 !
        use omp_lib
 !
@@ -34,7 +36,9 @@
 ! 
        real(kind=8),dimension(:,:),allocatable         ::  thr      !  Distance threshold
        real(kind=8),dimension(:,:),allocatable         ::  thr2     !  Distance threshold
+       real(kind=8),dimension(:,:),allocatable         ::  thrang   !  Angles threshold
        real(kind=8)                                    ::  neidis   !  Screening distance
+       integer,dimension(:),allocatable                ::  neiang   !  First neighbour index
 !
 ! Average properties
 !
@@ -79,8 +83,8 @@
 !
 ! Lifetimes calculation variables
 !
-       real(kind=8),dimension(:),allocatable           ::  avlife    !
-       integer,dimension(:),allocatable                ::  nlife     !
+       real(kind=8),dimension(:),allocatable           ::  avlife   !
+       integer,dimension(:),allocatable                ::  nlife    !
 !
 ! AnalysisPhenolMD variables
 !     
@@ -114,8 +118,6 @@
        integer                                         ::  lfin     ! 
        integer                                         ::  io       !  Status
        integer                                         ::  i,j,k    !  Indexes
-!
-       real(kind=8),parameter                          ::  Na = 6.022140760E+23
 !
 ! Printing header
 !
@@ -171,7 +173,8 @@
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         msize,neidis,schm,dopim,dolife,seed,debug)
+                         msize,neidis,schm,dopim,dolife,seed,chunkadj, &
+                         chunkscrn,chunklife,debug)
 !
 ! Initializing random number generator
 !
@@ -238,17 +241,26 @@
        allocate(thr(sys%nat,sys%nat))
        allocate(thr2(sys%nat,sys%nat))
 !
+       allocate(thrang(sys%nat,sys%nat))
+!
        allocate(nbody(sys%nat),ngrps(sys%nat),nsubg(sys%nat))
        allocate(ibody(sys%nat),igrps(sys%nat),isubg(sys%nat))
        allocate(body(sys%nat),grps(sys%nat),subg(sys%nat))
        allocate(grptag(sys%nat),atms(sys%nat))
+! 
+       allocate(neiang(sys%nat))
 !
        if ( dolife ) allocate(avlife(nnode),nlife(nnode))
+!
+! Setting up neiang array (first neighbour index)   TODO: Input .gro .top .xyz ...
+!
+
+
 !
 ! Processing general input file
 !
        call read_inp(inp,sys%nat,tgrp,grptag,nbody,ngrps,nsubg,atms,   &
-                     mbody,mgrps,msubg,matms,thr,thr2)
+                     mbody,mgrps,msubg,matms,thr,thr2,thrang,neiang)
 !
        natms = msubg*nnode
 !         
@@ -305,23 +317,24 @@
        end do
 !
        if ( debug ) then
-         write(*,'(A,20I3)') 'mbody',mbody
-         write(*,'(A,20I3)') 'nbody',nbody
-         write(*,'(A,20I3)') 'ibody',ibody
-         write(*,'(A,20I3)') 'body ',body
+         write(*,'(A,20I3)') 'mbody  ',mbody
+         write(*,'(A,20I3)') 'nbody  ',nbody
+         write(*,'(A,20I3)') 'ibody  ',ibody
+         write(*,'(A,20I3)') 'body   ',body
          write(*,*) 
-         write(*,'(A,20I3)') 'mgrps',mgrps
-         write(*,'(A,20I3)') 'ngrps',ngrps
-         write(*,'(A,20I3)') 'igrps',igrps
-         write(*,'(A,20I3)') 'grps ',grps
+         write(*,'(A,20I3)') 'mgrps  ',mgrps
+         write(*,'(A,20I3)') 'ngrps  ',ngrps
+         write(*,'(A,20I3)') 'igrps  ',igrps
+         write(*,'(A,20I3)') 'grps   ',grps
          write(*,*) 
-         write(*,'(A,20I3)') 'msubg',msubg
-         write(*,'(A,20I3)') 'nsubg',nsubg
-         write(*,'(A,20I3)') 'isubg',isubg
-         write(*,'(A,20I3)') 'subg ',subg
+         write(*,'(A,20I3)') 'msubg  ',msubg
+         write(*,'(A,20I3)') 'nsubg  ',nsubg
+         write(*,'(A,20I3)') 'isubg  ',isubg
+         write(*,'(A,20I3)') 'subg   ',subg
          write(*,*)       
-         write(*,'(A,20I3)') 'atms ',matms
-         write(*,'(A,20I3)') 'atms ',atms
+         write(*,'(A,20I3)') 'atms   ',matms
+         write(*,'(A,20I3)') 'atms   ',atms
+         write(*,'(A,20I3)') 'neiang ',neiang
          write(*,*)  
        end if     
 !
@@ -356,6 +369,14 @@
                         ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
                         atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
                         maxstep,nsolv,dopim,debug)
+!
+         case ('angles')
+!
+           call aggangle(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim, &
+                         msize,pop,conc,frac,cin,volu,nsteps,nbody,    &
+                         ngrps,nsubg,ibody,igrps,isubg,body,grps,subg, &
+                         atms,mbody,mgrps,msubg,matms,nprint,minstep,  &
+                         maxstep,nsolv,thrang,neiang,dopim,debug)
 !
          case ('screening')
 !
@@ -489,6 +510,11 @@
        deallocate(body,grps,subg)
        deallocate(grptag,atms)
 !
+       deallocate(neiang)
+!
+       deallocate(thr,thr2)
+       deallocate(thrang)
+!
        deallocate(pop,conc,frac)
        deallocate(pim)
 !
@@ -517,13 +543,13 @@
        call print_time(6,1,'Total reading time',35,tread)
        call print_speed(6,1,'Total building time',35,tadj,tcpuadj)
 !       
-       if ( (trim(schm).eq.'screening') .or.                           &
-                                       (trim(schm).eq.'scrnlife') ) then
+       if ( trim(schm) .eq. 'screening' ) then
          call print_speed(6,1,'Total screening time',35,tscrn,tcpuscrn)
        end if
 !
-       call print_speed(6,1,'Total BFS time',35,tbfs,tcpubfs)
-       call print_speed(6,1,'Total sorting time',35,tsort,tcpusort)
+       call print_time(6,1,'Total BFS time',35,tbfs)
+!~        call print_speed(6,1,'Total sorting time',35,tsort,tcpusort)
+       call print_time(6,1,'Total sorting time',35,tsort)
 !       
        if ( dolife ) call print_speed(6,1,'Total lifetimes calcula'//  &
                                      'tion time',35,tlife,tcpulife)
@@ -542,7 +568,7 @@
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,dopim,dolife, &
-                               seed,debug)
+                               seed,chunkadj,chunkscrn,chunklife,debug)
 !
        use printings
        use utils
@@ -551,29 +577,32 @@
 !
 ! Input/output variables
 !
-       character(len=leninp),intent(out)         ::  traj     !  Trajectory file name
-       character(len=lenout),intent(out)         ::  outp     !  Populations file name
-       character(len=leninp),intent(out)         ::  inp      !  Groups file name
-       character(len=leninp),intent(out)         ::  conf     !  Structure file name
-       character(len=lentag),intent(out)         ::  schm     !  Calculation scheme flag
-       logical,intent(out)                       ::  seed     !  Random seed flag
-       logical,intent(out)                       ::  dopim    !  PIM calculation flag
-       logical,intent(out)                       ::  dolife   !  Lifetimes calculation flag
-       real(kind=8),intent(out)                  ::  neidis   !  Screening distance
-       integer,intent(out)                       ::  msize    !  Maximum aggregate size
-       integer,intent(out)                       ::  nprint   !  Populations printing steps interval
-       integer,intent(out)                       ::  minstep  !  First step for analysis
-       integer,intent(out)                       ::  maxstep  !  Last step for analysis
-       logical,intent(out)                       ::  debug    !  Debug mode
+       character(len=leninp),intent(out)         ::  traj       !  Trajectory file name
+       character(len=lenout),intent(out)         ::  outp       !  Populations file name
+       character(len=leninp),intent(out)         ::  inp        !  Groups file name
+       character(len=leninp),intent(out)         ::  conf       !  Structure file name
+       character(len=lentag),intent(out)         ::  schm       !  Calculation scheme flag
+       logical,intent(out)                       ::  seed       !  Random seed flag
+       logical,intent(out)                       ::  dopim      !  PIM calculation flag
+       logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
+       real(kind=8),intent(out)                  ::  neidis     !  Screening distance
+       integer,intent(out)                       ::  chunkadj   !
+       integer,intent(out)                       ::  chunkscrn  !
+       integer,intent(out)                       ::  chunklife  !
+       integer,intent(out)                       ::  msize      !  Maximum aggregate size
+       integer,intent(out)                       ::  nprint     !  Populations printing steps interval
+       integer,intent(out)                       ::  minstep    !  First step for analysis
+       integer,intent(out)                       ::  maxstep    !  Last step for analysis
+       logical,intent(out)                       ::  debug      !  Debug mode
 !
 ! Local variables
 !
-       character(len=lencmd)                     ::  cmd     !  Command executed
-       character(len=lenarg)                     ::  code    !  Executable name
-       character(len=lenarg)                     ::  arg     !  Argument read
-       character(len=lenarg)                     ::  next    !  Next argument to be read
-       integer                                   ::  io      !  Status
-       integer                                   ::  i       !  Index
+       character(len=lencmd)                     ::  cmd        !  Command executed
+       character(len=lenarg)                     ::  code       !  Executable name
+       character(len=lenarg)                     ::  arg        !  Argument read
+       character(len=lenarg)                     ::  next       !  Next argument to be read
+       integer                                   ::  io         !  Status
+       integer                                   ::  i          !  Index
 !
 ! Setting defaults
 !
@@ -583,6 +612,10 @@
        outp    = ''
 !
        schm    = 'screening'
+!
+       chunkadj  = 5
+       chunkscrn = 1
+       chunklife = 1
 !
        nprint  = 1
        minstep = 0
@@ -632,6 +665,10 @@
              select case (trim(next))
                case ('dist','distance','distances','original')
                  schm = 'original'
+                 dolife = .FALSE.
+               case ('ang','angle','angles','restraint','restraints')
+                 schm = 'angles'
+                 dolife = .FALSE.
                case ('scrn','screen','screening')
                  schm   = 'screening'
                  dolife = .FALSE.
@@ -647,7 +684,8 @@
                                                               trim(next)
                  write(*,*)
                  write(*,'(3X,A)') 'Please, choose between:  "orig'//  &
-                                      'inal", "screening" or "scrnlife"'
+                                   'inal", "angles", "screening" o'//  &
+                                                          'r "scrnlife"'
                  write(*,'(2X,68("="))')
                  write(*,*)
                  call print_end()
@@ -699,6 +737,18 @@
            case ('-max','-maxstep','--maxstep','--maximum-step')
              call get_command_argument(i,next,status=io)
              read(next,*) maxstep     ! FLAG: if value not introduced print error
+             i = i + 1
+           case ('-cadj','-chunkadj','--chunkadj')
+             call get_command_argument(i,next,status=io)
+             read(next,*) chunkadj
+             i = i + 1
+           case ('-cscrn','-chunkscrn','--chunkscrn','--chunkscreening')
+             call get_command_argument(i,next,status=io)
+             read(next,*) chunkscrn
+             i = i + 1
+           case ('-clife','-chunklife','--chunklife','--chunklifetimes')
+             call get_command_argument(i,next,status=io)
+             read(next,*) chunklife
              i = i + 1
            case ('-pim','--pim','--do-pim')
              dopim = .TRUE.
@@ -782,6 +832,13 @@
                                                      'nteraction matrix'
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,*)
+       write(*,'(2X,A)') '-cadj,--chunkadj      Chunk size for the'//  &
+                                         ' adjacency matrix calculation'
+       write(*,'(2X,A)') '-cscrn,--chunkscrn    Chunk size for the'//  &
+                                                            ' screening'
+       write(*,'(2X,A)') '-clife,--chunklife    Chunk size for the'//  &
+                                                ' lifetimes calculation'
+       write(*,*)
        write(*,'(2X,A)') '-v,--verbose          Debug mode'
        write(*,*)
 !
@@ -797,6 +854,7 @@
 !
        use geometry,   only: sminimgvec,                               &
                              scenvec
+       use omp_var
 !
        use omp_lib
 !
@@ -833,7 +891,7 @@
 !$omp parallel do shared(fcoord,rcoord,nsubg,isubg,atms)               &
 !$omp             private(atcoord,svaux,iinode,innode,jnnode,iisubg,   &
 !$omp                     insubg,j)                                    &
-!$omp             schedule(dynamic,5)
+!$omp             schedule(dynamic,chunkadj)
 !
        do iinode = 1, nnode
          innode = (iinode-1)*natmol
@@ -1060,6 +1118,57 @@
 !
 !======================================================================!
 !
+! BUILDADJANG - BUILD ADJacency matrix using ANGle restrains
+!
+! This subroutine builds the adjacency matrix in the molecule-based
+!  representation ADJ(NNODE,NNODE) for a given snapshot.
+! First, positions of the particles in the physical group-based repre-
+!  sentation are obtained, and then the adjacency matrix is computed.
+!
+       subroutine buildadjang(nnode,adj,natms,posi,matms,inposi,nat,   &
+                              thr,mgrps,ngrps,igrps,msubg,nsubg,isubg, &
+                              atms,box,neidis,thrang,neiang)
+!
+       use graphtools, only: buildadjmolang
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nnode,nnode),intent(out)   ::  adj     !  Adjacency matrix
+       real(kind=4),dimension(3,natms),intent(out)  ::  posi    !  
+       real(kind=4),dimension(3,matms),intent(in)   ::  inposi  !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(nat,nat),intent(in)   ::  thr     !
+       real(kind=8),dimension(nat,nat),intent(in)   ::  thrang  !  Angle threshold
+       real(kind=4),dimension(3),intent(in)         ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),intent(in)                      ::  neidis  !
+       integer,dimension(nat),intent(in)            ::  neiang  !  First neighbour index
+       integer,dimension(nat),intent(in)            ::  ngrps   !  
+       integer,dimension(nat),intent(in)            ::  igrps   ! 
+       integer,dimension(nat),intent(in)            ::  nsubg   !  
+       integer,dimension(nat),intent(in)            ::  isubg   ! 
+       integer,dimension(nat),intent(in)            ::  atms    ! 
+       integer,intent(in)                           ::  nnode   !  Number of molecules
+       integer,intent(in)                           ::  matms   !  Number of atoms in the system
+       integer,intent(in)                           ::  natms   !  Number of subgroups in the system
+       integer,intent(in)                           ::  nat     !  Number of atoms in the monomer
+       integer,intent(in)                           ::  msubg   !
+       integer,intent(in)                           ::  mgrps   !  Number of subgroups
+!
+! Building the adjacency matrix for the current snapshot
+!
+       call setcoord(nnode,msubg,nsubg,isubg,atms,natms,posi,          & 
+                     matms,inposi,nat,box)
+!
+       call buildadjmolang(nnode,adj,neidis,msubg,mgrps,nat,thr,       &
+                           ngrps,igrps,natms,posi,matms,inposi,box,    &
+                           thrang,neiang)
+!
+       return
+       end subroutine buildadjang
+!
+!======================================================================!
+!
 ! BLOCKDIAG - BLOCK DIAGonalization
 !
 ! This subroutine block diagonalizes an input adjacency matrix 
@@ -1148,9 +1257,9 @@
 !
 ! Sorting molecules based on their aggregate identifier
 !
-!$omp parallel do shared(nagg,tag,mol,imol)                            &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,1)
+!~ !$omp parallel do shared(nagg,tag,mol,imol)                            &
+!~ !$omp             private(i)                                           &
+!~ !$omp             schedule(dynamic,1)
 !
        do i = 2, nsize-1
          if ( nagg(i) .gt. 1 ) then
@@ -1158,16 +1267,16 @@
          end if
        end do
 !
-!$omp end parallel do                   
+!~ !$omp end parallel do                   
 !
        if ( nagg(nsize) .gt. 1 )                                       &
                          call ivqsort(nnode,tag,mol,imol(nsize)+1,nnode)
 !
 ! Sorting molecules based on their canonical order
 !
-!$omp parallel do shared(nagg,mol,imol)                                &
-!$omp             private(i,j,k)                                       &
-!$omp             schedule(dynamic,1)
+!~ !$omp parallel do shared(nagg,mol,imol)                                &
+!~ !$omp             private(i,j,k)                                       &
+!~ !$omp             schedule(dynamic,1)
 !
        do i = 2, nsize
          k = imol(i)
@@ -1177,7 +1286,7 @@
          end do
        end do
 !
-!$omp end parallel do                   
+!~ !$omp end parallel do                   
 !
        call system_clock(t2sort)     
 !

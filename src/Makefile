@@ -6,7 +6,8 @@ MDIR =./mod
 SDIR =.
 #libpath=/home/users/quicuan/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
 #libpath=/home/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
-libpath= /home/jpablo/lib/xdrfile/lib/libxdrfile.so
+#libpath= /home/jpablo/lib/xdrfile/lib/libxdrfile.so
+libpath= -lxdrfile
 #libpath=/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
 
 # Compiler/Linker settings
@@ -16,7 +17,9 @@ FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate
 SRCF90  = gmx_aggregate.f90
 SRCMOD  = xdr.F90            \
+          parameters.f90     \
           datatypes.f90      \
+          omp_var.f90        \
           lengths.f90        \
           printings.f90      \
           utils.f90          \

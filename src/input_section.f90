@@ -26,8 +26,10 @@
 !
 ! Local variables
 !
+       character(len=20)                 ::  straux
+       character(len=20)                 ::  aux
        integer                           ::  io      !  Input/Output status
-       integer                           ::  i       !  Index
+       integer                           ::  i,j       !  Index
 !
 ! Reading Gromacs configuration file
 ! ----------------------------------
@@ -65,66 +67,66 @@
 !
        close(uniinp)
 !
-!~        do j = 1, sys%nat
-!~          aux    = adjustl(sys%atname(j))
-!~          straux = ''
-!~          do
-!~            select case ( aux(1:1) )
-!~              case ( 'a':'z','A':'Z')
-!~                straux = trim(straux)//aux(1:1)
-!~                aux    = aux(2:)
-!~              case default
-!~                exit
-!~            end select
-!~          end do
+       do j = 1, sys%nat
+         aux    = adjustl(sys%atname(j))
+         straux = ''
+         do
+           select case ( aux(1:1) )
+             case ( 'a':'z','A':'Z')
+               straux = trim(straux)//aux(1:1)
+               aux    = aux(2:)
+             case default
+               exit
+           end select
+         end do
+!~ !
+         sys%atname(j) = straux(:5)
+         straux = uppercase(straux)
 !
-!~          sys%atname(j) = straux(:5)
-!~          straux = uppercase(straux)
-!~ !
-!~          select case ( straux )
-!~            case ( 'H' )
-!~              sys%mass(j) = 1.007825d0
-!~            case ( 'HE' )
-!~              sys%mass(j)   = 4.002602d0  ! Not exact
-!~              sys%atname(j) = 'He'
-!~            case ( 'LI' )
-!~              sys%mass(j) = 6.941d0     ! Not exact
-!~              sys%atname(j) = 'Li'
-!~            case ( 'BE' )
-!~              sys%mass(j) = 9.012182d0  ! Not exact
-!~              sys%atname(j) = 'Be'
-!~            case ( 'B' )
-!~              sys%mass(j) = 10.811d0    ! Not exact
-!~            case ( 'C' )
-!~              sys%mass(j) = 12.0d0
-!~            case ( 'N' )
-!~              sys%mass(j) = 14.003074d0
-!~            case ( 'O' )
-!~              sys%mass(j) = 15.994915d0
-!~            case ( 'F' )
-!~              sys%mass(j) = 18.998403d0 ! Not exact
-!~            case ( 'NE' )
-!~              sys%mass(j) = 20.1797d0   ! Not exact
-!~              sys%atname(j) = 'Ne'
-!~            case ( 'CL' )
-!~              sys%mass(j) = 35.453d0    ! Not exact
-!~              sys%atname(j) = 'Cl'
-!~            case ( 'AR' )
-!~              sys%mass(j) = 39.948d0    ! Not exact
-!~              sys%atname(j) = 'Ar'
-!~            case ( 'KR' )
-!~              sys%mass(j) = 83.798d0    ! Not exact
-!~              sys%atname(j) = 'Kr'
-!~            case default
-!~              write(*,*) straux, 'Not yet!'
-!~              call exit(0)
-!~          end select
-!~        end do
-!~ !
-!~        sys%totm = 0.0d0
-!~        do i = 1, sys%nat
-!~          sys%totm = sys%totm + sys%mass(i)
-!~        end do
+         select case ( straux )
+           case ( 'H' )
+             sys%mass(j) = 1.007825d0
+           case ( 'HE' )
+             sys%mass(j)   = 4.002602d0  ! Not exact
+             sys%atname(j) = 'He'
+           case ( 'LI' )
+             sys%mass(j) = 6.941d0     ! Not exact
+             sys%atname(j) = 'Li'
+           case ( 'BE' )
+             sys%mass(j) = 9.012182d0  ! Not exact
+             sys%atname(j) = 'Be'
+           case ( 'B' )
+             sys%mass(j) = 10.811d0    ! Not exact
+           case ( 'C' )
+             sys%mass(j) = 12.0d0
+           case ( 'N' )
+             sys%mass(j) = 14.003074d0
+           case ( 'O' )
+             sys%mass(j) = 15.994915d0
+           case ( 'F' )
+             sys%mass(j) = 18.998403d0 ! Not exact
+           case ( 'NE' )
+             sys%mass(j) = 20.1797d0   ! Not exact
+             sys%atname(j) = 'Ne'
+           case ( 'CL' )
+             sys%mass(j) = 35.453d0    ! Not exact
+             sys%atname(j) = 'Cl'
+           case ( 'AR' )
+             sys%mass(j) = 39.948d0    ! Not exact
+             sys%atname(j) = 'Ar'
+           case ( 'KR' )
+             sys%mass(j) = 83.798d0    ! Not exact
+             sys%atname(j) = 'Kr'
+           case default
+             write(*,*) straux, 'Not yet!'
+             call exit(0)
+         end select
+       end do
+!
+       sys%totm = 0.0d0
+       do i = 1, sys%nat
+         sys%totm = sys%totm + sys%mass(i)
+       end do
 !
        return
        end subroutine read_gro
@@ -132,7 +134,8 @@
 !======================================================================!
 !
        subroutine read_inp(inp,nat,tgrp,grptag,body,grps,subg,atms,    &
-                           mbody,mgrps,msubg,matms,thr,thr2)
+                           mbody,mgrps,msubg,matms,thr,thr2,thrang,    &
+                           neiang)
 !
        use printings
        use utils
@@ -146,6 +149,8 @@
        character(len=lentag),dimension(nat),intent(out)  ::  grptag  !  Names of the groups
        real(kind=8),dimension(nat,nat),intent(out)       ::  thr     !  Distance threshold
        real(kind=8),dimension(nat,nat),intent(out)       ::  thr2    !  Distance threshold
+       real(kind=8),dimension(nat,nat),intent(out)       ::  thrang  !  Angle threshold
+       integer,dimension(nat),intent(out)                ::  neiang  !  First neighbour index
        integer,dimension(nat),intent(out)                ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(out)                ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(out)                ::  subg    !  Number of atoms in each subgroup
@@ -167,6 +172,10 @@
 !
        thr(:,:)  = 0.0d0
        thr2(:,:) = 0.0d0
+!
+       thrang(:,:) = 0.0d0
+!
+       neiang(:) = 0
 !
        tgrp = 'MOLREP Title'
 !
@@ -244,6 +253,16 @@
 !
              call read_interthreshold(line,'**INTERTHRESHOLD',nat,thr2,&
                                       mgrps,grptag)
+!
+           case ('**ANGLES','**THRANG','**THRANGLE','**THREANGLES')
+!~              write(*,*) 
+!~              write(*,*) 'Reading **ANGLES block'
+!~              write(*,*) 
+!
+             call findline(line,'blck','**ANGLES')
+!
+             call read_angles(line,'**ANGLES',nat,thrang,mgrps,msubg,  &
+                              grptag,neiang)
 !
            case default
              write(*,*)
@@ -677,7 +696,7 @@
 !
              thr(:,:) = daux
 !
-             call findline(key,'blck','**THRESHOLD')
+             call findline(key,'blck','**INTERTHRESHOLD')
 !
            case ('.VALUES')
 !~              write(*,*) 
@@ -738,6 +757,128 @@
 !
        return
        end subroutine read_interthreshold
+!
+!======================================================================!
+!
+       subroutine read_angles(key,blck,nat,thr,mgrps,msubg,grptag,     &
+                              neiang)
+!
+       use parameters
+       use utils
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)                         ::  blck    !
+       character(len=leninp),intent(inout)                 ::  key     !
+       real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
+       character(len=lentag),dimension(nat),intent(in)     ::  grptag  !
+       integer,dimension(nat),intent(inout)                ::  neiang  !
+       integer,intent(in)                                  ::  nat     !
+       integer,intent(in)                                  ::  mgrps   !  Number of groups
+       integer,intent(in)                                  ::  msubg   !  Number of subgroups
+
+!
+! Local variables
+!
+       character(len=lentag)                               ::  caux1   !
+       character(len=lentag)                               ::  caux2   !
+       real(kind=8)                                        ::  daux    !
+       integer                                             ::  iaux1   !
+       integer                                             ::  iaux2   !
+       integer                                             ::  posi    !
+!
+! Reading THRESHOLD block options 
+! -------------------------------
+!
+       do
+! Changing lowercase letters by uppercase letters 
+         key = uppercase(key)
+! Keeping just the first string
+         posi = index(key,' ')           
+         if ( posi .gt. 0 ) key = key(:posi-1)
+! Reading the different section options       
+         select case (key)
+           case ('.NEI','.NEIGHBOUR','.NEIGHBOURS')
+!~              write(*,*) 
+!~              write(*,*) 'Reading .NEIGHBOURS option'
+!~              write(*,*)
+!
+             read(uniinp,*) neiang(:msubg)    ! FLAG: check if a value is introduced
+!
+             call findline(key,'blck','**ANGLES')
+!
+           case ('.THR')
+!~              write(*,*) 
+!~              write(*,*) 'Reading .THR option'
+!~              write(*,*)
+!
+             read(uniinp,*) daux    ! FLAG: check if a value is introduced
+!
+             if ( daux .gt. zero ) thr(:,:) = pi - daux*pi/180.0d0
+!
+             call findline(key,'blck','**ANGLES')
+!
+           case ('.VALUES')
+!~              write(*,*) 
+!~              write(*,*) 'Reading .VALUES option'
+!~              write(*,*)
+!
+             call findline(key,'opt','.VALUES')
+!
+             do
+               posi  = scan(key,' ') 
+               if ( posi .eq. 0 ) call errkey('option','.VALUES')
+!
+               caux1 = key(:posi-1)
+               iaux1 = findcv(mgrps,grptag,caux1)  
+               if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
+!
+               key   = key(posi+1:)   
+               key   = adjustl(key)
+               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
+                                                       '.VALUES')
+!
+               posi  = scan(key,' ') 
+!
+               caux2 = key(:posi-1)
+               iaux2 = findcv(mgrps,grptag,caux2)  
+               if ( iaux1 .eq. 0 ) call errkeychar('option','.VALUES')
+!
+               key   = key(posi+1:)   
+               key   = adjustl(key)
+               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
+                                                       '.VALUES')
+!
+               posi  = scan(key,' ') 
+               if ( posi .eq. 0 ) call errkey('option','.VALUES')
+!
+               key = key(:posi-1)
+               read(key,*) daux
+!
+               thr(iaux1,iaux2) = pi - daux*pi/180.0d0
+               thr(iaux2,iaux1) = pi - daux*pi/180.0d0
+!
+               call findline(key,'opt','.VALUES')
+!
+               if ( (uppercase(key(1:1)).eq.'*') .or.                  &
+                                     (uppercase(key(1:1)).eq.'.') ) exit
+             end do
+!
+           case ('**END')
+!~              write(*,*) 
+!~              write(*,*) 'Exiting from **THRESHOLD block'
+!~              write(*,*)
+             return
+!
+           case default
+             call unksect(key,blck)
+         end select  
+       end do
+!
+       return
+       end subroutine read_angles
 !
 !======================================================================!
 !

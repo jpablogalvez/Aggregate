@@ -15,6 +15,8 @@
 !
        subroutine scrnint(nnode,oldadj,adj,newadj)
 !
+       use omp_var
+!
        use omp_lib
 !
        implicit none
@@ -34,7 +36,7 @@
 !
 !$omp parallel do shared(adj,oldadj,newadj)                            &
 !$omp             private(i,j)                                         &
-!$omp             schedule(dynamic)
+!$omp             schedule(dynamic,chunkscrn)
 !
        do i = 1, nnode-1
          do j = i+1, nnode
