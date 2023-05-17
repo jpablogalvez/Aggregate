@@ -3,12 +3,7 @@ IDIR =../include
 BDIR =../bin
 ODIR =./obj
 MDIR =./mod
-SDIR =.
-#libpath=/home/users/quicuan/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
-#libpath=/home/jpablo/lib/xdrfile-1.1b/build/lib/libxdrfile.so
-#libpath= /home/jpablo/lib/xdrfile/lib/libxdrfile.so
 libpath= -lxdrfile
-#libpath=/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.9.0
 
 # Compiler/Linker settings
 FC = gfortran -fopenmp -I$(IDIR) -J$(MDIR)  # -Wno-argument-mismatch 
@@ -17,10 +12,14 @@ FCFLAGS = -g -c -Wall -Wextra -Wconversion -Og -fcheck=bounds -fmax-errors=5
 PROGRAM = aggregate
 SRCF90  = gmx_aggregate.f90
 SRCMOD  = xdr.F90            \
-          parameters.f90     \
           datatypes.f90      \
+          systeminf.f90      \
+          thresholds.f90     \
+          properties.f90     \
+          parameters.f90     \
           omp_var.f90        \
           lengths.f90        \
+          version.f90        \
           printings.f90      \
           utils.f90          \
           timings.f90        \
@@ -51,6 +50,7 @@ $(ODIR)/%.o: %.F90
 	$(FC) $(FCFLAGS) -o $@ $^ 
 
 $(ODIR)/%.o: %.f90
+	@./get_git_version.sh
 	@mkdir -p $(MDIR)
 	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
@@ -66,12 +66,12 @@ $(ODIR)/$(PRGOBJ) : $(MODOBJ)
 debug: 
 
 	@echo "SRCF90  = $(SRCF90)"
+	@echo "SRCMOD  = $(SRCMOD)"
 	@echo "OBJ     = $(OBJ)"
-	@echo "SRCMOD  = $(MOD)"
 	@echo "MODOBJ  = $(MODOBJ)"
+	@echo "MODMOD  = $(MODMOD)"
 	@echo "PROGRAM = $(PROGRAM)"
 	@echo "PRGOBJ  = $(PRGOBJ)"
-	@echo "MODMOD  = $(MODMOD)"
 #	DEBUG=1 make clean $(BDIR)/$(PROGRAM)
 
 install:

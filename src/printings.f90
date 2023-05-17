@@ -23,6 +23,8 @@
 !
        subroutine print_start()
 !
+       use version
+!
        implicit none
 !
        character(len=lencmd)  ::  cmd  !  Command executed
@@ -31,7 +33,9 @@
                          ' on '//print_host() 
        write(*,*)  
 !
-       write(*,'(2X,A)') 'Executing version '//trim(version)
+       call print_version()
+       write(*,*)  
+!
        call get_command(cmd) 
        write(*,'(2X,A)') 'Command executed:'
        write(*,'(4X,A)') trim(cmd)
