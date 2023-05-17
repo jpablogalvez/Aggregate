@@ -243,11 +243,13 @@
 !======================================================================!
 !
 ! BUILDADJMOLANG - BUILD ADJacency matrix in the MOLecule-based 
-!                   representation using bubles and the ANGle restraints
+!                   representation using bubles and ANGle restraints
 !
        subroutine buildadjmolang(nnode,adj,neidis,msubg,mgrps,nat,     &
-                                 thr,ngrps,igrps,natms,posi,matms,     &
-                                 inposi,box,thrang,neiang)
+                                 thr,ngrps,igrps,natms,posi,box)
+!
+       use thresholds, only: thrang,neiang
+       use systeminf,  only: xtcf
 !
        use parameters
        use geometry,   only: sminimgvec
@@ -261,19 +263,15 @@
 !
        logical,dimension(nnode,nnode),intent(out)  ::  adj     !  Adjacency matrix
        real(kind=4),dimension(3,natms),intent(in)  ::  posi    !  Subgroup coordinates !FLAG: kind=8 to kind=4
-       real(kind=4),dimension(3,matms),intent(in)  ::  inposi  !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=8),dimension(nat,nat),intent(in)  ::  thr     !
-       real(kind=8),dimension(nat,nat),intent(in)  ::  thrang  !  Angle threshold
        real(kind=8),intent(in)                     ::  neidis  !
        integer,dimension(nat),intent(in)           ::  ngrps   !  
        integer,dimension(nat),intent(in)           ::  igrps   !
-       integer,dimension(nat),intent(in)           ::  neiang  !  First neighbour index 
        integer,intent(in)                          ::  msubg   !
        integer,intent(in)                          ::  mgrps   !  Number of subgroups
        integer,intent(in)                          ::  nnode   !  Number of residues
        integer,intent(in)                          ::  natms   !  Number of subgroups in the system
-       integer,intent(in)                          ::  matms   !  Number of atoms in the system
        integer,intent(in)                          ::  nat     ! 
 !
 ! Local variables
@@ -372,12 +370,12 @@
                            v21(:) = -v21(:)
 !
                            doang = chkangle(v21,dis1,posi(:,nj),       &
-                             inposi(:,jnnei+neiang(jneiang)),box,minang)
+                           xtcf%pos(:,jnnei+neiang(jneiang)),box,minang)
 !
                          else if ( neiang(ineiang) .ne. 0 ) then
 !
                            doang = chkangle(v21,dis1,posi(:,ni),       &
-                             inposi(:,innei+neiang(ineiang)),box,minang)
+                           xtcf%pos(:,innei+neiang(ineiang)),box,minang)
 !
                          end if
 !

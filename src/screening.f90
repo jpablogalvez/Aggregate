@@ -121,10 +121,6 @@
        do isize = 2, msize
          if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
 !
-!write(*,*) 'Starting aggregates of size',isize,':',tnagg(isize),rnagg(isize)
-!write(*,*) '----------------------------------------'
-!write(*,*)
-!
            qiagg = 1
 ! 
            iimol = timol(isize)
@@ -139,15 +135,11 @@
              ni = iimol + 1
              nj = jimol + 1
 !
-!write(*,'(1X,A,1X,I6,1X,A,1X,I6,1X,A,1X,I6)') 'AGGREGATE  ',iiagg,'starts at',ni,':',tmol(ni)
-!~ write(*,'(1X,A,7X,I6,1X,A,1X,4I6)') '  COMPARISON starts at',nj,':',rmol(nj),jimol,qimol,qiagg 
-!
              do jiagg = qiagg, rnagg(isize) 
 !
                nj = jimol + 1
 !
-!write(*,'(1X,A,3X,I6,1X,A,1X,I6,1X,A,I6,1X,I6)') &
-!'  COMPARING',ni,'WITH',nj,':',tmol(ni),rmol(nj)
+! Starting comparison of the indexes
 !
                if ( tmol(ni) .lt. rmol(nj) ) then
 !
@@ -156,31 +148,28 @@
 !
                else if ( tmol(ni) .eq. rmol(nj) ) then
 !
-!write(*,*) '    WE HAVE A CANDIDATE'
+! If first molecule index matches then we have a candidate
 !
                  life(tiagg(isize)+iiagg) = .TRUE.
                  jsize = 2
                  do while ( (jsize.le.isize) .and.                     &
                                               life(tiagg(isize)+iiagg) )
 !
-!write(*,'(2(1X,A,1X,I6),1X,A,I6,1X,I6)')  &
-!'    COMPARING',iimol+jsize,'WITH',jimol+jsize,':',tmol(iimol+jsize),rmol(jimol+jsize)
+! If all indexes do not match we have a fake positive
 !
                    if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )  then   !&
                      life(tiagg(isize)+iiagg) = .FALSE.
-!
-!write(*,*) '      FAKE POSITIVE'   ! FLAG: check for partial matching
-!
                    end if
+!
                    jsize = jsize + 1
+!
                  end do
+!
+! If all the indexes match we have a positive
 !
                  if ( life(tiagg(isize)+iiagg) ) then
                    imap(tiagg(isize)+iiagg) = riagg(isize)+jiagg
                    death(tiagg(isize)+iiagg) = .FALSE.
-!
-!write(*,*) '      WE HAVE A POSITIVE',tiagg(isize)+iiagg,'is',tiagg(isize)+jiagg
-!
                  end if
 !
                  qiagg = jiagg + 1
@@ -194,8 +183,6 @@
                end if 
 !
              end do
-!
-!write(*,*)
 !
              iimol = iimol + isize
              iiagg = iiagg + 1

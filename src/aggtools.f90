@@ -5,7 +5,7 @@
        implicit none
 !
        private
-       public   ::  aggdist,aggangle,aggscrn,aggscrnlife
+       public   ::  aggdist,aggscrn,aggscrnlife
 !
        contains
 !
@@ -29,11 +29,11 @@
 !  it is, i.e., one interaction can be created if it is present in the 
 !  former and the following configurations (adding oscillations).
 !
-       subroutine aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,    &
-                          pim,msize,pop,conc,frac,cin,volu,nsteps,     &
-                          nbody,ngrps,nsubg,ibody,igrps,isubg,body,    &
-                          grps,subg,atms,mbody,mgrps,msubg,matms,      &
-                          nprint,minstep,maxstep,nsolv,dopim,debug)
+       subroutine aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
+                          msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
+                          ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
+                          subg,atms,mbody,mgrps,msubg,matms,nprint,    &
+                          minstep,maxstep,nsolv,dopim,buildadjmol,debug)
 !
        use xdr, only: xtcfile
 !
@@ -117,6 +117,10 @@
        integer                                                  ::  actstep   !
        integer                                                  ::  newstep   !
 !
+! External functions
+!
+       external                                                 ::  buildadjmol
+!
 ! Declaration of time control variables
 !
        real(kind=8)                                             ::  tinadj    !  Initial CPU building time
@@ -198,7 +202,7 @@
 !
        call buildadj(nnode,oldadj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
                      thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
-                     box,neidis)
+                     box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -243,7 +247,7 @@
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
-                     box,neidis)
+                     box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -295,7 +299,7 @@
 !
            call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,       &
                          xtcf%pos,nat,thr2,mgrps,ngrps,igrps,msubg,    &
-                         nsubg,isubg,atms,newbox,neidis)
+                         nsubg,isubg,atms,newbox,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
            call system_clock(t2adj) 
@@ -428,7 +432,10 @@
 ! AGGDIST - AGGregates DISTances algorithm
 !
 ! This subroutine obtains the size and the number of aggregates present
-!  in the system according to a given distance criteria.
+!  in the system according to a given interaction criteria depending on
+!  the external subroutine BUILDADJMOL. This can be a distance criteria
+!  or a distance criteria between atoms A-B combined with a threshold 
+!  angle A-B-C where C is an atom covalently bonded to A or B
 ! The interaction between two molecules is stored in the corresponding
 !  adjacency matrix in the molecule-based representation. After block-
 !  diagonalization of this matrix, the size aggregates is obtained from
@@ -439,7 +446,7 @@
                           msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
                           ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
                           subg,atms,mbody,mgrps,msubg,matms,nprint,    &
-                          minstep,maxstep,nsolv,dopim,debug)
+                          minstep,maxstep,nsolv,dopim,buildadjmol,debug)
 !
        use xdr, only: xtcfile
 !
@@ -515,6 +522,10 @@
        integer,intent(in)                                       ::  nnode    !  Total number of molecules
        integer                                                  ::  nsize    !  Actual maximum aggregate size
        integer                                                  ::  magg     !  Actual number of chemical species
+!
+! External functions
+!
+       external                                                 ::  buildadjmol
 !
 ! Declaration of time control variables
 !
@@ -577,7 +588,8 @@
                          msize,pop,conc,frac,cin,volu,nbody,ngrps,     &
                          nsubg,ibody,igrps,isubg,body,grps,subg,atms,  &
                          mbody,mgrps,msubg,matms,nsolv,posi,box,adj,   &
-                         mol,tag,agg,nagg,iagg,nmol,imol,dopim,debug)
+                         mol,tag,agg,nagg,iagg,nmol,imol,dopim,        &
+                         buildadjmol,debug)
 !
            call system_clock(t1read)
 !
@@ -609,194 +621,6 @@
 !
 !======================================================================!
 !
-! AGGANGLE - AGGregates ANGLE algorithm
-!
-! This subroutine obtains the size and the number of aggregates present
-!  in the system according to a given distance criteria.
-! The interaction between two molecules is stored in the corresponding
-!  adjacency matrix in the molecule-based representation. After block-
-!  diagonalization of this matrix, the size aggregates is obtained from
-!  the dimension of each block and the number of aggregates of each size
-!  is obtained from the number of blocks of each size.
-!
-       subroutine aggangle(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,   &
-                           msize,pop,conc,frac,cin,volu,nsteps,nbody,  &
-                           ngrps,nsubg,ibody,igrps,isubg,body,grps,    &
-                           subg,atms,mbody,mgrps,msubg,matms,nprint,   &
-                           minstep,maxstep,nsolv,thrang,neiang,dopim,  &
-                           debug)
-!
-       use xdr, only: xtcfile
-!
-       use screening
-       use datatypes
-       use timings
-       use printings
-       use utils
-!
-       implicit none
-!
-! System information
-!
-       type(xtcfile),intent(inout)                              ::  xtcf     !  Trajectory information
-!
-! Interaction criteria information
-! 
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr      !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr2     !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thrang   !  Angle threshold
-       real(kind=8),intent(in)                                  ::  neidis   !  Screening distance
-       integer,dimension(nat),intent(in)                        ::  neiang   !  First neighbour index
-!
-! Average properties
-!
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim      !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop      !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc     !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac     !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin      !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu     !  Simulation box volume
-       integer,intent(out)                                      ::  nsteps   !  Number of snapshots analyzed
-       integer,intent(in)                                       ::  msize    !  Maximum aggregate size
-!
-! Trajectory control variables
-!     
-       integer,intent(in)                                       ::  nprint   !  Populations printing interval
-       integer,intent(in)                                       ::  minstep  !  First step for analysis
-       integer,intent(in)                                       ::  maxstep  !  Last step for analysis
-!
-! Topological representations information
-!
-       integer,dimension(nat),intent(in)                        ::  body     !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  nbody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  ibody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  grps     !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  ngrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  igrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  nsubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  isubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  atms     !  Atoms identifier
-       integer,intent(in)                                       ::  nat      !  Monomer atoms
-       integer,intent(in)                                       ::  natms    !  Total number of subgroups in the system
-       integer,intent(in)                                       ::  mbody    !  Number of bodies
-       integer,intent(in)                                       ::  mgrps    !  Number of groups
-       integer,intent(in)                                       ::  msubg    !  Number of subgroups
-       integer,intent(in)                                       ::  matms    !  Number of interacting atoms in the monomer
-!
-! Program control flags
-!
-       logical,intent(in)                                       ::  dopim    !  PIM calculation flag
-       logical,intent(in)                                       ::  debug    !  Debug mode
-!
-! Aggregates information in the molecule-based representation
-!
-       logical,dimension(:,:),allocatable                       ::  adj      !  Adjacency matrix
-       integer,dimension(:),allocatable                         ::  mol      !  Molecules identifier
-       integer,dimension(:),allocatable                         ::  tag      !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  agg      !  Aggregates size 
-       integer,dimension(:),allocatable                         ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  iagg     !  
-       integer,dimension(:),allocatable                         ::  nmol     !  
-       integer,dimension(:),allocatable                         ::  imol     !  
-       integer,intent(in)                                       ::  nnode    !  Total number of molecules
-       integer                                                  ::  nsize    !  Actual maximum aggregate size
-       integer                                                  ::  magg     !  Actual number of chemical species
-!
-! Declaration of time control variables
-!
-       integer                                                  ::  t1read   !  Initial reading time
-       integer                                                  ::  t2read   !  Final reading time
-!
-! AnalysisPhenolMD variables
-!     
-       integer,intent(in)                                       ::  nsolv    !
-!
-! Local variables
-!
-       real(kind=4),dimension(:,:),allocatable                  ::  posi     !  Auxiliary coordinates
-       real(kind=4),dimension(3)                                ::  box      !
-!
-! Initializing variables
-!
-       call system_clock(t1read)        
-!
-       nsteps  = 0
-!
-       pim(:,:,:) = 0.0d0
-!
-       pop(:)  = 0.0d0
-       conc(:) = 0.0d0
-       frac(:) = 0.0d0
-!
-       cin     = 0.0d0
-       volu    = 0.0d0
-!
-! Allocating variables depending on system size
-!
-       allocate(adj(nnode,nnode))
-!
-       allocate(mol(nnode),tag(nnode),agg(nnode))
-       allocate(nmol(nnode),imol(nnode))
-       allocate(nagg(nnode),iagg(nnode))
-!
-! Allocating variables depending on topological information 
-!
-       allocate(posi(3,natms))
-!
-! Analyzing frames in the inverval [minstep,maxstep]
-!
-       do while ( (xtcf%STAT.eq.0) .and. (xtcf%STEP.le.maxstep) )
-         if ( (mod(xtcf%STEP-minstep,nprint).eq.0) .and.               &
-                                           (xtcf%STEP.ge.minstep) ) then
-!
-           box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-! 
-           nsteps = nsteps + 1
-!
-           call system_clock(t2read)
-!
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
-!
-! Finding the aggregates present in the current configuration
-!
-           call loopangle(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
-                          msize,pop,conc,frac,cin,volu,nbody,ngrps,    &
-                          nsubg,ibody,igrps,isubg,body,grps,subg,atms, &
-                          mbody,mgrps,msubg,matms,nsolv,posi,box,adj,  &
-                          mol,tag,agg,nagg,iagg,nmol,imol,thrang,      &
-                          neiang,dopim,debug)
-!
-           call system_clock(t1read)
-!
-         end if
-!
-! Reading information of the next snapshot
-!
-         call xtcf%read
-!
-       end do
-!
-! Deallocate memory
-!
-       deallocate(posi)
-!
-       deallocate(adj)
-!
-       deallocate(mol,tag,agg)
-       deallocate(nmol,imol,nagg,iagg)
-!
-! Saving timings
-!
-       call system_clock(t2read)
-!
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
-!
-       return
-       end subroutine aggangle
-!
-!======================================================================!
-!
 ! LOOPDIST - main statements in the LOOP of the DISTances algorithm
 !
 ! This subroutine 
@@ -806,7 +630,7 @@
                            nsubg,ibody,igrps,isubg,body,grps,subg,     &
                            atms,mbody,mgrps,msubg,matms,nsolv,posi,    &
                            box,adj,mol,tag,agg,nagg,iagg,nmol,imol,    &
-                           dopim,debug)
+                           dopim,buildadjmol,debug)
 !
        use xdr, only: xtcfile
 !
@@ -823,7 +647,6 @@
        type(xtcfile),intent(inout)                                ::  xtcf     !  Trajectory information
        real(kind=4),dimension(3,natms),intent(out)                ::  posi     !  Auxiliary coordinates
        real(kind=4),dimension(3),intent(in)                       ::  box      !
-
 !
 ! Interaction criteria information
 ! 
@@ -879,8 +702,11 @@
        integer                                                    ::  nsize    !  Actual maximum aggregate size
        integer                                                    ::  magg     !  Actual number of chemical species
 !
-! Declaration of time control variables
+! External functions
 !
+       external                                                   ::  buildadjmol  
+!
+! Declaration of time control variables
 !
        real(kind=8)                                               ::  tinadj   !  Initial CPU building time
        real(kind=8)                                               ::  tfinadj  !  Final CPU building time
@@ -900,9 +726,9 @@
        call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
-       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
-                     thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
-                     box,neidis)
+       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
+                        thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms, &
+                        box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -957,168 +783,6 @@
 !
 !======================================================================!
 !
-! LOOPDIST - main statements in the LOOP of the ANGLES algorithm
-!
-! This subroutine 
-!
-       subroutine loopangle(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,  &
-                            msize,pop,conc,frac,cin,volu,nbody,ngrps,  &
-                            nsubg,ibody,igrps,isubg,body,grps,subg,    &
-                            atms,mbody,mgrps,msubg,matms,nsolv,posi,   &
-                            box,adj,mol,tag,agg,nagg,iagg,nmol,imol,   &
-                            thrang,neiang,dopim,debug)
-!
-       use xdr, only: xtcfile
-!
-       use screening
-       use datatypes
-       use timings
-       use printings
-       use utils
-!
-       implicit none
-!
-! System information
-!
-       type(xtcfile),intent(inout)                                ::  xtcf     !  Trajectory information
-       real(kind=4),dimension(3,natms),intent(out)                ::  posi     !  Auxiliary coordinates
-       real(kind=4),dimension(3),intent(in)                       ::  box      !
-
-!
-! Interaction criteria information
-! 
-       real(kind=8),dimension(nat,nat),intent(in)                 ::  thr      !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)                 ::  thr2     !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)                 ::  thrang   !  Angle threshold
-       real(kind=8),intent(in)                                    ::  neidis   !  Screening distance
-       integer,dimension(nat),intent(in)                          ::  neiang   !  First neighbour index
-!
-! Average properties
-!
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(inout)  ::  pim      !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(inout)                ::  pop      !  Populations
-       real(kind=8),dimension(msize),intent(inout)                ::  conc     !  Concentrations
-       real(kind=8),dimension(msize),intent(inout)                ::  frac     !  Molar fractions
-       real(kind=8),intent(inout)                                 ::  cin      !  Stechiometric concentration
-       real(kind=8),intent(inout)                                 ::  volu     !  Simulation box volume
-       integer,intent(in)                                         ::  msize    !  Maximum aggregate size
-!
-! Topological representations information
-!
-       integer,dimension(nat),intent(in)                          ::  body     !  Number of groups in each body
-       integer,dimension(nat),intent(in)                          ::  nbody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                          ::  ibody    !  Number of groups in each body
-       integer,dimension(nat),intent(in)                          ::  grps     !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                          ::  ngrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                          ::  igrps    !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                          ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                          ::  nsubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                          ::  isubg    !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                          ::  atms     !  Atoms identifier
-       integer,intent(in)                                         ::  nat      !  Monomer atoms
-       integer,intent(in)                                         ::  natms    !  Total number of subgroups in the system
-       integer,intent(in)                                         ::  mbody    !  Number of bodies
-       integer,intent(in)                                         ::  mgrps    !  Number of groups
-       integer,intent(in)                                         ::  msubg    !  Number of subgroups
-       integer,intent(in)                                         ::  matms    !  Number of interacting atoms in the monomer
-!
-! Program control flags
-!
-       logical,intent(in)                                         ::  dopim    !  PIM calculation flag
-       logical,intent(in)                                         ::  debug    !  Debug mode
-!
-! Aggregates information in the molecule-based representation
-!
-       logical,dimension(nnode,nnode),intent(out)                 ::  adj      !  Adjacency matrix
-       integer,dimension(nnode),intent(out)                       ::  mol      !  Molecules identifier
-       integer,dimension(nnode),intent(out)                       ::  tag      !  Aggregates identifier
-       integer,dimension(nnode),intent(out)                       ::  agg      !  Aggregates size 
-       integer,dimension(nnode),intent(out)                       ::  nagg     !  Number of aggregates of each size
-       integer,dimension(nnode),intent(out)                       ::  iagg     !  
-       integer,dimension(nnode),intent(out)                       ::  nmol     !  
-       integer,dimension(nnode),intent(out)                       ::  imol     !  
-       integer,intent(in)                                         ::  nnode    !  Total number of molecules
-       integer                                                    ::  nsize    !  Actual maximum aggregate size
-       integer                                                    ::  magg     !  Actual number of chemical species
-!
-! Declaration of time control variables
-!
-!
-       real(kind=8)                                               ::  tinadj   !  Initial CPU building time
-       real(kind=8)                                               ::  tfinadj  !  Final CPU building time
-       integer                                                    ::  t1read   !  Initial reading time
-       integer                                                    ::  t2read   !  Final reading time
-       integer                                                    ::  t1adj    !  Initial building time
-       integer                                                    ::  t2adj    !  Final building time
-       integer                                                    ::  t1pim    !  Initial PIM analysis time
-       integer                                                    ::  t2pim    !  Final PIM analysis time
-!
-! AnalysisPhenolMD variables
-!     
-       integer,intent(in)                                         ::  nsolv    !
-!
-! Building the adjacency matrix
-!
-       call cpu_time(tinadj)
-       call system_clock(t1adj) 
-!
-       call buildadjang(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
-                        thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms, &
-                        box,neidis,thrang,neiang)
-!
-       call cpu_time(tfinadj)
-       call system_clock(t2adj) 
-!
-       tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
-!
-! Block-diagonalizing the adjacency matrix
-!
-       call blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg,nmol,      &
-                      imol,magg)
-!
-! Printing the population of every aggregate
-!
-       call system_clock(t1read)
-!         
-       call printpop(xtcf%STEP,nsize,msize,pop,conc,frac,cin,volu,     &
-                     box,nnode,nagg,magg,nsolv,uniout)
-!
-       call system_clock(t2read)
-!
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
-
-!~        if ( debug ) then
-!~          call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!~        end if
-!
-! Adding up the pairwise interaction matrix of the current snapshot
-! 
-       if ( dopim ) then
-         call system_clock(t1pim)     
-!
-!~          call build_pim(ngrps,grps,nsubg,subg,nat,atms,thr,   &
-!~                         nnode,mol,agg,msize,nagg,xtcf%NATOMS,   &
-!~                         xtcf%pos,box,pim,debug)
-!
-         call system_clock(t2pim)     
-!
-         tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-       end if      
-!
-! Analyzing aggregates by their connectivity
-!
-!~        call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                         nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                         msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                         box,posi,sys%mass,          &
-!~                         sys%atname,xtcf%STEP,outp,debug)
-!
-       return
-       end subroutine loopangle
-!
-!======================================================================!
-!
 ! AGGSCRNLIFE - AGGregates SCReeNing algorithm for LIFEtimes
 !
 ! This subroutine obtains the size and the number of aggregates present
@@ -1140,11 +804,11 @@
 !  are present in the former and the previous configurations.
 !
        subroutine aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,    &
-                              pim,msize,pop,conc,frac,cin,volu,        &
-                              nsteps,nbody,ngrps,nsubg,ibody,igrps,    &
-                              isubg,body,grps,subg,atms,mbody,mgrps,   &
-                              msubg,matms,nprint,minstep,maxstep,      &
-                              nsolv,avlife,nlife,dopim,debug)
+                              pim,msize,pop,conc,frac,cin,volu,nsteps, &
+                              nbody,ngrps,nsubg,ibody,igrps,isubg,     &
+                              body,grps,subg,atms,mbody,mgrps,msubg,   &
+                              matms,nprint,minstep,maxstep,nsolv,      &
+                              avlife,nlife,dopim,buildadjmol,debug)
 !
        use xdr, only: xtcfile
 !
@@ -1264,6 +928,10 @@
        logical,dimension(:),allocatable                         ::  oldiwas   !
        logical,dimension(:),allocatable                         ::  oldiwill  !
 !
+! External functions
+!
+       external                                                 ::  buildadjmol  
+!
 ! Declaration of time control variables
 !
        real(kind=8)                                             ::  tinadj    !  Initial CPU building time
@@ -1372,7 +1040,7 @@
 !
        call buildadj(nnode,nextadj,natms,posi,xtcf%NATOMS,xtcf%pos,    &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,     &
-                     atms,nextbox,neidis)
+                     atms,nextbox,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -1422,7 +1090,7 @@
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,        &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,       &
-                     isubg,atms,box,neidis)
+                     isubg,atms,box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -1467,7 +1135,7 @@
 !
        call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,xtcf%pos,  &
                      nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,     &
-                     atms,newbox,neidis)
+                     atms,newbox,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -1555,7 +1223,7 @@
 !
            call buildadj(nnode,nextadj,natms,nextposi,xtcf%NATOMS,     &
                          xtcf%pos,nat,thr2,mgrps,ngrps,igrps,msubg,    &
-                         nsubg,isubg,atms,nextbox,neidis)
+                         nsubg,isubg,atms,nextbox,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
            call system_clock(t2adj) 
