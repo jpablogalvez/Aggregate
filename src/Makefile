@@ -3,6 +3,7 @@ IDIR =../include
 BDIR =../bin
 ODIR =./obj
 MDIR =./mod
+DIR  = ~/mis_bin
 libpath= -lxdrfile
 
 # Compiler/Linker settings
@@ -43,14 +44,21 @@ default: $(MODOBJ) $(OBJ)
 	@mkdir -p $(BDIR)
 	$(FC) $(MODOBJ) $(OBJ) -o $(BDIR)/$(PROGRAM) $(libpath)
 
+version.f90:
+	@./get_git_version.sh
+	
 # Compiler steps for all objects
 $(ODIR)/%.o: %.F90
 	@mkdir -p $(MDIR)
 	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
 
+$(ODIR)/version.o: version.f90
+	@mkdir -p $(MDIR)
+	$(dir_guard)
+	$(FC) $(FCFLAGS) -o $@ $^ 
+
 $(ODIR)/%.o: %.f90
-	@./get_git_version.sh
 	@mkdir -p $(MDIR)
 	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
@@ -75,7 +83,7 @@ debug:
 #	DEBUG=1 make clean $(BDIR)/$(PROGRAM)
 
 install:
-	cp $(BDIR)/$(PROGRAM) ~/mis_bin
+	cp $(BDIR)/$(PROGRAM) $(DIR)
 
 clean:
 	rm -f $(ODIR)/*.o $(MDIR)/*mod $(BDIR)/$(PROGRAM) $(BDIR)/debug

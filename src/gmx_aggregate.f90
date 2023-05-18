@@ -15,7 +15,7 @@
 !
        use utils,         only:  rndmseed
        use graphtools,    only:  buildadjmolbub,buildadjmolang
-       use input_section, only: read_inp,read_gro
+       use input_section, only:  read_inp,read_gro
        use printings
        use aggtools
 !
@@ -176,7 +176,7 @@
        call line_str(6,2,'Output file name',lin,':',trim(outp),lfin)
        write(*,*)
 !
-       call line_str(6,2,'Calculation scheme',lin,':',trim(schm),lfin)
+       call line_str(6,2,'Restraints scheme',lin,':',trim(schm),lfin)
        call line_log(6,2,'Screening calculation',lin,':',doscrn,lfin)
        call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
        write(*,*)
@@ -361,9 +361,12 @@
 !
          case ('distances-life')
 !
-!~            call agglife()
-           stop 'Lifetimes calculation is only implemented togethe'//  &
-                                      'r with screening of interactions'
+           call agglife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,avlife,nlife,dopim,              &
+                        buildadjmolbub,debug)
 !
          case ('distances-scrn')
 !
@@ -392,9 +395,12 @@
 !
          case ('angles-life')
 !
-!~            call agglife()
-           stop 'Lifetimes calculation is only implemented togethe'//  &
-                                      'r with screening of interactions'
+           call agglife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,avlife,nlife,dopim,              &
+                        buildadjmolang,debug)
 !
          case ('angles-scrn')
 !
