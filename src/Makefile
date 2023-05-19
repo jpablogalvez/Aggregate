@@ -1,8 +1,8 @@
 # Paths definition
-IDIR =../include
-BDIR =../bin
-ODIR =./obj
-MDIR =./mod
+IDIR = ../include
+BDIR = ../bin
+ODIR = ./obj
+MDIR = ./mod
 DIR  = ~/mis_bin
 libpath= -lxdrfile
 

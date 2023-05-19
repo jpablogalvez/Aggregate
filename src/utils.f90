@@ -13,27 +13,6 @@
 !
 !======================================================================!
 !
-       subroutine print_missinp(inp)
-!
-       implicit none
-!
-       character(len=*),intent(in)  ::  inp
-!
-       write(*,*)
-       write(*,'(2X,68("="))')
-       write(*,'(3X,A)') 'ERROR:  Missing input file'
-       write(*,*)
-       write(*,'(3X,A)') 'Input file '//trim(inp)//' not found in '//  &
-                                                 'the current directory'
-       write(*,'(2X,68("="))')
-       write(*,*)
-       call print_end()
-!
-       return
-       end subroutine print_missinp
-!
-!======================================================================!
-!
        subroutine check_arg(opt,io,arg,cmd)
 !
        implicit none
@@ -779,6 +758,8 @@
 !
        subroutine countlines(inp,uni,n)
 !
+       use printings, only: print_missinp
+!
        implicit none
 !
 ! Input/output variables
@@ -795,9 +776,7 @@
 !
        open(unit=uni,file=inp,action='read',status='old',iostat=io)
 !
-       if ( io .ne. 0 ) then
-         call print_missinp(inp)
-       end if
+       if ( io .ne. 0 ) call print_missinp(inp)
 !
        n = 0
        do

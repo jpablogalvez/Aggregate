@@ -15,6 +15,7 @@
 !
        use utils,         only:  rndmseed
        use graphtools,    only:  buildadjmolbub,buildadjmolang
+       use screening,     only:  scrnint,scrnosc,scrncol
        use input_section, only:  read_inp,read_gro
        use printings
        use aggtools
@@ -85,6 +86,7 @@
 ! Program control flags
 !
        character(len=lenschm)                          ::  schm     !  Calculation scheme flag
+       character(len=lenschm)                          ::  scrn     !  Calculation screening flag
        logical                                         ::  dopim    !  PIM calculation flag
        logical                                         ::  dolife   !  Lifetimes calculation flag
        logical                                         ::  doscrn   !  Screening calculation flag
@@ -102,6 +104,42 @@
        integer                                         ::  lfin     ! 
        integer                                         ::  io       !  Status
        integer                                         ::  i,j,k    !  Indexes
+!
+! Declaration of procedure pointers
+!
+       abstract interface
+!
+       subroutine subadj(nnode,adj,neidis,msubg,mgrps,nat,thr,ngrps,   &
+                         igrps,natms,posi,box)
+!
+       logical,dimension(nnode,nnode),intent(out)    ::  adj     !  Adjacency matrix
+       real(kind=4),dimension(3,natms),intent(in)    ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)          ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(nat,nat),intent(in)    ::  thr     !
+       real(kind=8),intent(in)                       ::  neidis  !
+       integer,dimension(nat),intent(in)             ::  ngrps   !  
+       integer,dimension(nat),intent(in)             ::  igrps   ! 
+       integer,intent(in)                            ::  msubg   !
+       integer,intent(in)                            ::  mgrps   !  Number of subgroups
+       integer,intent(in)                            ::  nnode   !  Number of residues
+       integer,intent(in)                            ::  natms   ! 
+       integer,intent(in)                            ::  nat     ! 
+!
+       end subroutine
+!
+       subroutine subscrn(nnode,oldadj,adj,newadj)
+!
+       logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
+       logical,dimension(nnode,nnode),intent(in)     ::  oldadj  !  Adjacency matrix of the previous snapshot
+       logical,dimension(nnode,nnode),intent(in)     ::  newadj  !  Adjacency matrix of the next snapshot
+       integer,intent(in)                            ::  nnode   !  Number of molecules
+!
+       end subroutine
+!
+       end interface
+!
+       procedure(subadj),pointer   :: subbuildadj => null()
+       procedure(subscrn),pointer  :: subscrnint => null()
 !
 ! Printing header
 !
@@ -157,12 +195,16 @@
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         msize,neidis,schm,dopim,dolife,doscrn,seed,   &
-                         chunkadj,chunkscrn,chunklife,debug)
+                         msize,neidis,schm,scrn,dopim,dolife,doscrn,   &
+                         seed,chunkadj,chunkscrn,chunklife,debug)
 !
 ! Initializing random number generator
 !
        call rndmseed(seed)
+!
+! Printing input data file
+!
+       call print_inp(uniinp,inp,lfin)
 !
 ! Printing summary of the input information
 !
@@ -176,7 +218,9 @@
        call line_str(6,2,'Output file name',lin,':',trim(outp),lfin)
        write(*,*)
 !
-       call line_str(6,2,'Restraints scheme',lin,':',trim(schm),lfin)
+       call line_str(6,2,'Restraints algorithm',lin,':',trim(schm),lfin)
+       if ( doscrn ) call line_str(6,2,'Screening algorithm',lin,':',  &
+                                   trim(scrn),lfin)
        call line_log(6,2,'Screening calculation',lin,':',doscrn,lfin)
        call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
        write(*,*)
@@ -343,81 +387,66 @@
        write(*,*)
        call flush()
 !
-       if ( doscrn ) schm = trim(schm)//'-scrn'   
-       if ( dolife ) schm = trim(schm)//'-life'   
+       if ( trim(scrn) .eq. 'complete' ) then
+         subscrnint => scrnint
+       else if ( trim(scrn) .eq. 'collisions' ) then
+         subscrnint => scrncol
+       else if ( trim(scrn) .eq. 'oscillations' ) then
+         subscrnint => scrnosc
+       end if
+!
+       if ( trim(schm) .eq. 'distances' ) then
+         subbuildadj => buildadjmolbub
+       else if ( trim(schm) .eq. 'angles' ) then
+         subbuildadj => buildadjmolang
+       end if
+!
+       schm = 'original'
+       if ( doscrn ) schm = 'scrn'   
+       if ( dolife ) schm = 'life'   
+       if ( doscrn .and. dolife ) schm = 'scrnlife'   
 !
        call system_clock(t2read)
 !
        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !
        select case (trim(schm))
-         case ('distances')
+         case ('original')
 !
            call aggdist(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
                         msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
                         ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
                         atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,buildadjmolbub,debug)
+                        maxstep,nsolv,dopim,subbuildadj,debug)
 !
-         case ('distances-life')
+         case ('life')
 !
            call agglife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
                         msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
                         ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
                         atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
                         maxstep,nsolv,avlife,nlife,dopim,              &
-                        buildadjmolbub,debug)
+                        subbuildadj,debug)
 !
-         case ('distances-scrn')
-!
-           call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,buildadjmolbub,debug)
-!
-         case ('distances-scrn-life')
-!
-           call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
-                            pim,msize,pop,conc,frac,cin,volu,nsteps,   &
-                            nbody,ngrps,nsubg,ibody,igrps,isubg,body,  &
-                            grps,subg,atms,mbody,mgrps,msubg,matms,    &
-                            nprint,minstep,maxstep,nsolv,avlife,nlife, &
-                            dopim,buildadjmolbub,debug)
-!
-         case ('angles')
-!
-           call aggdist(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,buildadjmolang,debug)
-!
-         case ('angles-life')
-!
-           call agglife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,avlife,nlife,dopim,              &
-                        buildadjmolang,debug)
-!
-         case ('angles-scrn')
+         case ('scrn')
+write(*,*) 'scrn'
 !
            call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
                         msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
                         ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
                         atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,buildadjmolang,debug)
+                        maxstep,nsolv,dopim,subbuildadj,subscrnint,    &
+                        debug)
 !
-         case ('angles-scrn-life')
+         case ('scrnlife')
 !
+write(*,*) 'scrnlife'
            call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
                             pim,msize,pop,conc,frac,cin,volu,nsteps,   &
                             nbody,ngrps,nsubg,ibody,igrps,isubg,body,  &
                             grps,subg,atms,mbody,mgrps,msubg,matms,    &
                             nprint,minstep,maxstep,nsolv,avlife,nlife, &
-                            dopim,buildadjmolang,debug)
+                            dopim,subbuildadj,subscrnint,debug)
 !
        end select
 !
@@ -461,7 +490,7 @@
          do i = 1, nnode
            if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
          end do 
-      end if
+       end if
 !~ !
 !~        table(:,:,:) = table(:,:,:)/nsteps
 !~ !
@@ -591,8 +620,8 @@
 !======================================================================!
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
-                               maxstep,msize,neidis,schm,dopim,dolife, &
-                               doscrn,seed,chunkadj,chunkscrn,         &
+                               maxstep,msize,neidis,schm,scrn,dopim,   &
+                               dolife,doscrn,seed,chunkadj,chunkscrn,  &
                                chunklife,debug)
 !
        use printings
@@ -607,6 +636,7 @@
        character(len=leninp),intent(out)         ::  inp        !  Groups file name
        character(len=leninp),intent(out)         ::  conf       !  Structure file name
        character(len=lenschm),intent(out)        ::  schm       !  Calculation scheme flag
+       character(len=lenschm),intent(out)        ::  scrn       !  Calculation screening flag
        logical,intent(out)                       ::  seed       !  Random seed flag
        logical,intent(out)                       ::  dopim      !  PIM calculation flag
        logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
@@ -638,6 +668,10 @@
        outp    = ''
 !
        schm    = 'angles'
+       scrn    = 'complete'
+!
+       doscrn  = .FALSE.
+       dolife  = .FALSE.
 !
        chunkadj  = 5
        chunkscrn = 1
@@ -652,8 +686,6 @@
        neidis  = 1.5d0
 !
        dopim   = .TRUE.
-       dolife  = .FALSE.
-       doscrn  = .FALSE.
 !
        seed    = .FALSE.
        debug   = .FALSE.
@@ -684,7 +716,7 @@
          if ( len_trim(arg) == 0 ) exit
          i = i+1
          select case ( arg )
-           case ('-s','-schm','--schm','--scheme') 
+           case ('-schm','--schm','--scheme') 
              call get_command_argument(i,next,status=io)
              call check_arg(next,io,arg,cmd)
              next = lowercase(next)
@@ -784,6 +816,35 @@
 !
              i = i + 1
 !
+           case ('-s','--screen-scheme','--screening-scheme') 
+             call get_command_argument(i,next,status=io)
+             call check_arg(next,io,arg,cmd)
+             next = lowercase(next)
+!
+             select case (trim(next))
+               case ('scrnint','int','complete')
+                 scrn = 'complete'
+               case ('scrncol','col','collision','collisions')
+                 scrn = 'collisions'
+               case ('scrnosc','osc','oscillation','oscillations')
+                 scrn = 'oscillations'
+               case default
+                 write(*,'(2X,68("="))')
+                 write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
+                                            'ed for --restraints option'
+                 write(*,*)
+                 write(*,'(3X,A)') 'Unrecognised value     : '//       &
+                                                              trim(next)
+                 write(*,*)
+                 write(*,'(3X,A)') 'Please, choose between:  "comp'//  &
+                                 'lete", "collisions" or "oscillations"'
+                 write(*,'(2X,68("="))')
+                 write(*,*)
+                 call print_end()
+             end select
+!
+             i = i + 1
+!
            case ('-f','-file','--file','-i','-inp','--inp','--input') 
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
@@ -853,6 +914,7 @@
                                                        '--no-lifetimes')
              dolife = .FALSE.
            case ('-scrn','-screen','--screen','--screening')
+             scrn   = 'complete'
              doscrn = .TRUE.
            case ('-noscrn','-noscreen','--noscreen','--noscreening')
              doscrn = .FALSE.
@@ -921,11 +983,14 @@
        write(*,'(2X,A)') '-m,--msize            Maximum aggregate size'
        write(*,'(2X,A)') '-d,--neidis           Neighbour list cutoff'
        write(*,*)
-       write(*,'(2X,A)') '-s,--scheme           Aggregates identif'//  &
+       write(*,'(2X,A)') '-schm,--scheme        Aggregates identif'//  &
                                                          'ier algorithm'
        write(*,*)
        write(*,'(2X,A)') '-r,--restraints       Interaction criter'//  &
-                                                          'ia algorithm'
+                                       'ia algorithm [distances,angles]'
+       write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
+                                   'm [complete,collisions,oscillations'
+       write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
        write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &

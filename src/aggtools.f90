@@ -20,20 +20,21 @@
 !  diagonalization of this matrix, the size aggregates is obtained from
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
-! The subroutine SCRNINT is employed to screen the interactions between
-!  the molecules. To do so a three-steps procedure is carried out with
-!  the following phylosophy: When an interaction exists, if I was or I 
-!  will then I am, i.e., each interaction is anhilated if it is not pre-
-!  sent in two consequtive configurations (removing collisions), and 
-!  when an interaction does not exist, then if it was and it will then 
-!  it is, i.e., one interaction can be created if it is present in the 
-!  former and the following configurations (adding oscillations).
+! The subroutine SCREENING is employed to screen the interactions 
+!  between the molecules. To do so a three-steps procedure is carried 
+!  out with the following phylosophy: When an interaction exists, if I 
+!  was or I will then I am, i.e., each interaction is anhilated if it is
+!  not present in two consequtive configurations (removing collisions), 
+!  and when an interaction does not exist, then if it was and it will 
+!  then it is, i.e., one interaction can be created if it is present in 
+!  the former and the following configurations (adding oscillations).
 !
        subroutine aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
                           msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
                           ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
                           subg,atms,mbody,mgrps,msubg,matms,nprint,    &
-                          minstep,maxstep,nsolv,dopim,buildadjmol,debug)
+                          minstep,maxstep,nsolv,dopim,buildadjmol,     &
+                          screen,debug)
 !
        use xdr, only: xtcfile
 !
@@ -120,6 +121,7 @@
 ! External functions
 !
        external                                                 ::  buildadjmol
+       external                                                 ::  screen
 !
 ! Declaration of time control variables
 !
@@ -312,7 +314,7 @@
            call cpu_time(tinscrn)
            call system_clock(t1scrn)
 !
-           call scrnint(nnode,oldadj,adj,newadj)
+           call screen(nnode,oldadj,adj,newadj)
 !
            call cpu_time(tfinscrn)
            call system_clock(t2scrn)
@@ -792,14 +794,14 @@
 !  diagonalization of this matrix, the size aggregates is obtained from
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
-! The subroutine SCRNINT is employed to screen the interactions between
-!  the molecules. To do so a three-steps procedure is carried out with
-!  the following phylosophy: When an interaction exists, if I was or I 
-!  will then I am, i.e., each interaction is anhilated if it is not pre-
-!  sent in two consequtive configurations (removing collisions), and 
-!  when an interaction does not exist, then if it was and it will then 
-!  it is, i.e., one interaction can be created if it is present in the 
-!  former and the following configurations (adding oscillations).
+! The subroutine SCREENING is employed to screen the interactions 
+!  between the molecules. To do so a three-steps procedure is carried 
+!  out with the following phylosophy: When an interaction exists, if I 
+!  was or I will then I am, i.e., each interaction is anhilated if it is
+!  not present in two consequtive configurations (removing collisions), 
+!  and when an interaction does not exist, then if it was and it will 
+!  then it is, i.e., one interaction can be created if it is present in 
+!  the former and the following configurations (adding oscillations).
 ! The lifetimes are calculated keeping track of the aggregates which
 !  are present in the former and the previous configurations.
 !
@@ -808,7 +810,8 @@
                               nbody,ngrps,nsubg,ibody,igrps,isubg,     &
                               body,grps,subg,atms,mbody,mgrps,msubg,   &
                               matms,nprint,minstep,maxstep,nsolv,      &
-                              avlife,nlife,dopim,buildadjmol,debug)
+                              avlife,nlife,dopim,buildadjmol,          &
+                              screen,debug)
 !
        use xdr, only: xtcfile
 !
@@ -931,6 +934,7 @@
 ! External functions
 !
        external                                                 ::  buildadjmol  
+       external                                                 ::  screen
 !
 ! Declaration of time control variables
 !
@@ -1148,7 +1152,7 @@
        call cpu_time(tinscrn)
        call system_clock(t1scrn)
 !
-       call scrnint(nnode,nextadj,adj,newadj)
+       call screen(nnode,nextadj,adj,newadj)
 !
        call cpu_time(tfinscrn)
        call system_clock(t2scrn)
@@ -1236,7 +1240,7 @@
            call cpu_time(tinscrn)
            call system_clock(t1scrn)
 !
-           call scrnint(nnode,adj,newadj,nextadj)
+           call screen(nnode,adj,newadj,nextadj)
 !
            call cpu_time(tfinscrn)
            call system_clock(t2scrn)

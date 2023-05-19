@@ -163,8 +163,8 @@
 !
 ! Local variables
 !
-       character(len=leninp)                             ::  line    !
-       character(len=leninp)                             ::  key     !
+       character(len=lenline)                            ::  line    !
+       character(len=lenline)                            ::  key     !
        integer                                           ::  io      !  Input/Output status
        integer                                           ::  i       !  Indexes
 !
@@ -198,16 +198,10 @@
 !
        open(unit=uniinp,file=trim(inp),action='read',                  &
             status='old',iostat=io)
-       if ( io .ne. 0 ) then
-         write(*,'(2X,68("="))')
-         write(*,'(3X,A)')    'ERROR:  Missing input file'
-         write(*,*)
-         write(*,'(3X,A)')    'Input file '//trim(inp)//' not foun'//  &
-                                            'd in the current directory'
-         write(*,'(2X,68("="))')
-         call print_end()
-       end if
-! Reading input file block    
+       if ( io .ne. 0 ) call print_missinp(inp)
+!
+! Reading input file block 
+!   
        do
 ! Reading input file line
          read(uniinp,'(A)',iostat=io) line 
@@ -293,7 +287,7 @@
 ! Input/output variables
 !
        character(len=*),intent(in)                         ::  blck    !  Block name
-       character(len=leninp),intent(inout)                 ::  key     !
+       character(len=lenline),intent(inout)                ::  key     !
        character(len=leninp),intent(inout)                 ::  tgrp    !  Groups file title
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
@@ -379,7 +373,7 @@
 !
        character(len=*),intent(in)                         ::  sect    !  Section name
        character(len=*),intent(in)                         ::  blck    !  Block name
-       character(len=leninp),intent(inout)                 ::  key     !  
+       character(len=lenline),intent(inout)                ::  key     !  
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
        integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
@@ -462,8 +456,8 @@
 !
 ! Local variables
 !
-       character(len=leninp)                               ::  line    ! 
-       character(len=leninp)                               ::  key     ! 
+       character(len=lenline)                              ::  line    ! 
+       character(len=lenline)                              ::  key     ! 
        character(len=leninp)                               ::  arg     !  
        integer                                             ::  natgrp  !
        integer                                             ::  posi    ! 
@@ -551,7 +545,7 @@
 ! Input/output variables
 !
        character(len=*),intent(in)                      ::  blck    !
-       character(len=leninp),intent(inout)              ::  key     !
+       character(len=lenline),intent(inout)             ::  key     !
        real(kind=8),dimension(nat,nat),intent(inout)    ::  thr     !
        character(len=lentag),dimension(nat),intent(in)  ::  grptag  !
        integer,intent(in)                               ::  nat     !
@@ -660,7 +654,7 @@
 ! Input/output variables
 !
        character(len=*),intent(in)                         ::  blck    !
-       character(len=leninp),intent(inout)                 ::  key     !
+       character(len=lenline),intent(inout)                ::  key     !
        real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
        character(len=lentag),dimension(nat),intent(in)     ::  grptag  !
        integer,intent(in)                                  ::  nat     !
@@ -771,7 +765,7 @@
 ! Input/output variables
 !
        character(len=*),intent(in)                         ::  blck    !
-       character(len=leninp),intent(inout)                 ::  key     !
+       character(len=lenline),intent(inout)                ::  key     !
        real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
        character(len=lentag),dimension(nat),intent(in)     ::  grptag  !
        integer,dimension(nat),intent(inout)                ::  neiang  !

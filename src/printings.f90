@@ -145,6 +145,75 @@
 !
 !======================================================================!
 !
+       subroutine print_missinp(inp)
+!
+       implicit none
+!
+       character(len=*),intent(in)  ::  inp
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)') 'ERROR:  Missing input file'
+       write(*,*)
+       write(*,'(3X,A)') 'Input file '//trim(inp)//' not found in '//  &
+                                                 'the current directory'
+       write(*,'(2X,68("="))')
+       write(*,*)
+       call print_end()
+!
+       return
+       end subroutine print_missinp
+!
+!======================================================================!
+!
+       subroutine print_inp(uni,inp,lfin)
+!
+       use lengths, only: lenline
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)  ::  inp
+       integer,intent(in)           ::  uni
+       integer,intent(in)           ::  lfin
+!
+! Local variables
+!
+       character(len=16)            ::  aux
+       character(len=lenline)       ::  line
+       integer                      ::  io
+!
+! Printing input data file
+!
+       write(aux,*) lfin
+       aux = adjustl(aux)
+       aux = '('//trim(aux)//'("."))'
+!
+       open(unit=uni,file=trim(inp),action='read',status='old',        &
+            iostat=io)
+       if ( io .ne. 0 ) call print_missinp(inp)
+!
+       write(6,'(2X,A)') 'Dump of input data file'
+       write(*,*)
+       write(*,aux)
+!
+       do
+         read(uni,'(A)',iostat=io) line 
+         if ( io /= 0 ) exit
+         write(*,'(A)') trim(line)
+       end do
+!
+       write(*,aux)
+       write(*,*)
+!
+       close(uni)
+!
+       return
+       end subroutine print_inp
+!
+!======================================================================!
+!
        subroutine line_dp(uni,blnk,key,lenin,sep,sizedp,dval,lenfin)
 !
        implicit none
