@@ -163,6 +163,8 @@
                             rnmol,rimol,tnagg,tiagg,timol,life,death,  &
                             imap)
 !
+       use omp_var
+!
        use omp_lib
 !
        implicit none
@@ -200,9 +202,17 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
-       life(:)  = .FALSE.
-       death(:) = .TRUE.
-       imap(:)  = 0
+!$omp parallel do shared(life,death,imap)                              &
+!$omp             private(ni)                                          &
+!$omp             schedule(dynamic,chunklife)
+!
+       do ni = 1, nnode
+         life(ni)  = .FALSE.
+         death(ni) = .TRUE.
+         imap(ni)  = 0
+       end do
+!
+!$omp end parallel do                   
 ! 
        msize = tsize
        if ( rsize .lt. tsize ) msize = rsize

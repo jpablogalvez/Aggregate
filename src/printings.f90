@@ -250,26 +250,26 @@
 !
        io = scan(sizedp,'.')
        if ( io .eq. 0 ) then 
-           write(*,*)
-           write(*,'(2X,68("="))')
-           write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DP called in'//  &
-                                                             'correctly'
-           write(*,*) 
-           write(*,'(3X,A)') 'Error while printing information'
-           write(*,'(2X,68("="))')
-           write(*,*) 
-           call print_end() 
-      end if
+          write(*,*)
+          write(*,'(2X,68("="))')
+          write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DP called inc'//  &
+                                                              'orrectly'
+          write(*,*) 
+          write(*,'(3X,A)') 'Error while printing information'
+          write(*,'(2X,68("="))')
+          write(*,*) 
+          call print_end() 
+       end if
 !
-      iaux = io - 2
-      write(straux,*) iaux
-      straux = adjustl(straux)
-      straux = '(I'//trim(straux)//')'
+       iaux = io - 2
+       write(straux,*) iaux
+       straux = adjustl(straux)
+       straux = '(I'//trim(straux)//')'
 !
-      read(sizedp(2:io-1),straux) iaux
-      iaux = lenfin - lenin - iaux - len(sep)  ! FLAG: check if iaux is negative
-      write(straux,*) iaux
-      straux = adjustl(straux)
+       read(sizedp(2:io-1),straux) iaux
+       iaux = lenfin - lenin - iaux - len(sep)  ! FLAG: check if iaux is negative
+       write(straux,*) iaux
+       straux = adjustl(straux)
 !
        fmt1 = trim(fmt1)//trim(straux)//'X,'//sizedp//')'
 !

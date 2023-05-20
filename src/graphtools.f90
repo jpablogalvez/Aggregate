@@ -187,8 +187,6 @@
 !
 !$omp end parallel do                   
 !
-!~ !$omp parallel do shared(adj,posi)                                     &
-!~ !$omp parallel do shared(adj,posi,box,thr,neidis)                      &
 !$omp parallel do shared(adj,posi,box,thr,neidis,igrps,ngrps)          &
 !$omp             private(r,dis,mindis,iinode,innode,jinode,jnnode,    &
 !$omp                     iigrps,ingrps,jigrps,jngrps,ni,i,j)          &
@@ -210,7 +208,6 @@
                    j = jnnode + igrps(jngrps)
 !
                    do jigrps = 1, ngrps(jngrps)
-!                     nj = j + jigrps                    
 !
                      r   = sminimgvec(posi(:,ni),posi(:,j+jigrps),box)
                      dis = dot_product(r,r)
@@ -312,8 +309,6 @@
 !
 !$omp end parallel do                   
 !
-!~ !$omp parallel do shared(adj,posi)                                     &
-!~ !$omp parallel do shared(adj,posi,box,thr,neidis)                      &
 !$omp parallel do shared(adj,posi,box,thr,thrang,neiang,neidis,igrps,  &
 !$omp                    ngrps)                                        &
 !$omp             private(v21,v23,dis1,dis2,angle,minang,mindis,       &

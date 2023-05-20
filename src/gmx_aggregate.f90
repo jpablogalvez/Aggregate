@@ -13,12 +13,10 @@
        use lengths
        use omp_var
 !
-       use utils,         only:  rndmseed
-       use graphtools,    only:  buildadjmolbub,buildadjmolang
-       use screening,     only:  scrnint,scrnosc,scrncol
-       use input_section, only:  read_inp,read_gro
+       use aggtools,      only:  driver
        use printings
-       use aggtools
+       use utils,         only:  rndmseed
+       use input_section, only:  read_inp,read_gro
 !
        use omp_lib
 !
@@ -87,9 +85,9 @@
 !
        character(len=lenschm)                          ::  schm     !  Calculation scheme flag
        character(len=lenschm)                          ::  scrn     !  Calculation screening flag
-       logical                                         ::  dopim    !  PIM calculation flag
-       logical                                         ::  dolife   !  Lifetimes calculation flag
        logical                                         ::  doscrn   !  Screening calculation flag
+       logical                                         ::  dolife   !  Lifetimes calculation flag
+       logical                                         ::  dopim    !  PIM calculation flag
        logical                                         ::  seed     !  Random seed flag
        logical                                         ::  debug    !  Debug mode
 !
@@ -104,42 +102,6 @@
        integer                                         ::  lfin     ! 
        integer                                         ::  io       !  Status
        integer                                         ::  i,j,k    !  Indexes
-!
-! Declaration of procedure pointers
-!
-       abstract interface
-!
-       subroutine subadj(nnode,adj,neidis,msubg,mgrps,nat,thr,ngrps,   &
-                         igrps,natms,posi,box)
-!
-       logical,dimension(nnode,nnode),intent(out)    ::  adj     !  Adjacency matrix
-       real(kind=4),dimension(3,natms),intent(in)    ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
-       real(kind=4),dimension(3),intent(in)          ::  box     !  Simulation box !FLAG: kind=8 to kind=4
-       real(kind=8),dimension(nat,nat),intent(in)    ::  thr     !
-       real(kind=8),intent(in)                       ::  neidis  !
-       integer,dimension(nat),intent(in)             ::  ngrps   !  
-       integer,dimension(nat),intent(in)             ::  igrps   ! 
-       integer,intent(in)                            ::  msubg   !
-       integer,intent(in)                            ::  mgrps   !  Number of subgroups
-       integer,intent(in)                            ::  nnode   !  Number of residues
-       integer,intent(in)                            ::  natms   ! 
-       integer,intent(in)                            ::  nat     ! 
-!
-       end subroutine
-!
-       subroutine subscrn(nnode,oldadj,adj,newadj)
-!
-       logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
-       logical,dimension(nnode,nnode),intent(in)     ::  oldadj  !  Adjacency matrix of the previous snapshot
-       logical,dimension(nnode,nnode),intent(in)     ::  newadj  !  Adjacency matrix of the next snapshot
-       integer,intent(in)                            ::  nnode   !  Number of molecules
-!
-       end subroutine
-!
-       end interface
-!
-       procedure(subadj),pointer   :: subbuildadj => null()
-       procedure(subscrn),pointer  :: subscrnint => null()
 !
 ! Printing header
 !
@@ -377,7 +339,11 @@
        neidis = neidis**2
 !
        thr(:,:)  = thr(:,:)**2
-       thr2(:,:) = thr2(:,:)**2        
+       thr2(:,:) = thr2(:,:)**2   
+!
+       call system_clock(t2read)
+!
+       tread = tread + dble(t2read-t1read)/dble(count_rate)      
 !
 ! Computing the populations of the aggregates
 !
@@ -387,68 +353,11 @@
        write(*,*)
        call flush()
 !
-       if ( trim(scrn) .eq. 'complete' ) then
-         subscrnint => scrnint
-       else if ( trim(scrn) .eq. 'collisions' ) then
-         subscrnint => scrncol
-       else if ( trim(scrn) .eq. 'oscillations' ) then
-         subscrnint => scrnosc
-       end if
-!
-       if ( trim(schm) .eq. 'distances' ) then
-         subbuildadj => buildadjmolbub
-       else if ( trim(schm) .eq. 'angles' ) then
-         subbuildadj => buildadjmolang
-       end if
-!
-       schm = 'original'
-       if ( doscrn ) schm = 'scrn'   
-       if ( dolife ) schm = 'life'   
-       if ( doscrn .and. dolife ) schm = 'scrnlife'   
-!
-       call system_clock(t2read)
-!
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
-!
-       select case (trim(schm))
-         case ('original')
-!
-           call aggdist(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,subbuildadj,debug)
-!
-         case ('life')
-!
-           call agglife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,avlife,nlife,dopim,              &
-                        subbuildadj,debug)
-!
-         case ('scrn')
-write(*,*) 'scrn'
-!
-           call aggscrn(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,  &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,subbuildadj,subscrnint,    &
-                        debug)
-!
-         case ('scrnlife')
-!
-write(*,*) 'scrnlife'
-           call aggscrnlife(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,  &
-                            pim,msize,pop,conc,frac,cin,volu,nsteps,   &
-                            nbody,ngrps,nsubg,ibody,igrps,isubg,body,  &
-                            grps,subg,atms,mbody,mgrps,msubg,matms,    &
-                            nprint,minstep,maxstep,nsolv,avlife,nlife, &
-                            dopim,subbuildadj,subscrnint,debug)
-!
-       end select
+       call driver(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,msize, &
+                   pop,conc,frac,cin,volu,nsteps,nbody,ngrps,nsubg,    &
+                   ibody,igrps,isubg,body,grps,subg,atms,mbody,mgrps,  &
+                   msubg,matms,nprint,minstep,maxstep,nsolv,avlife,    &
+                   nlife,dopim,schm,scrn,doscrn,dolife,debug)
 !
        call system_clock(t1read)        
 !
@@ -580,13 +489,13 @@ write(*,*) 'scrnlife'
 ! Printing timings
 !
        call cpu_time(tfin)
-!
        call system_clock(t2)
+!
        call system_clock(t2read)
 !
-       tcpu = tfin - tin
-!
+       tcpu  = tfin - tin
        twall = dble(t2-t1)/dble(count_rate)
+!
        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !
        call print_time(6,1,'Total CPU time',35,tcpu) 
@@ -596,9 +505,8 @@ write(*,*) 'scrnlife'
        call print_time(6,1,'Total reading time',35,tread)
        call print_speed(6,1,'Total building time',35,tadj,tcpuadj)
 !       
-       if ( trim(schm) .eq. 'screening' ) then
-         call print_speed(6,1,'Total screening time',35,tscrn,tcpuscrn)
-       end if
+       if ( doscrn ) call print_speed(6,1,'Total screening time',35,   &
+                                      tscrn,tcpuscrn)
 !
        call print_time(6,1,'Total BFS time',35,tbfs)
 !~        call print_speed(6,1,'Total sorting time',35,tsort,tcpusort)

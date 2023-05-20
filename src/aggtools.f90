@@ -5,9 +5,195 @@
        implicit none
 !
        private
-       public   ::  aggdist,aggscrn,agglife,aggscrnlife
+       public   ::  driver
 !
        contains
+!
+!======================================================================!
+!
+! DRIVER - DRIVER selection algorithm
+!
+!  This subroutine defines the execution architecture of the algorithm
+!
+       subroutine driver(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,     &
+                         msize,pop,conc,frac,cin,volu,nsteps,nbody,    &
+                         ngrps,nsubg,ibody,igrps,isubg,body,grps,      &
+                         subg,atms,mbody,mgrps,msubg,matms,nprint,     &
+                         minstep,maxstep,nsolv,avlife,nlife,dopim,     &
+                         schm,scrn,doscrn,dolife,debug)
+!
+       use xdr, only: xtcfile
+!
+       use lengths,     only:  lenschm
+!
+       use graphtools,  only:  buildadjmolbub,buildadjmolang
+       use screening,   only:  scrnint,scrnosc,scrncol
+!
+       implicit none
+!
+! System information
+!
+       type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
+!
+! Interaction criteria information
+! 
+       real(kind=8),dimension(nat,nat),intent(in)               ::  thr       !  Distance threshold
+       real(kind=8),dimension(nat,nat),intent(in)               ::  thr2      !  Distance threshold
+       real(kind=8),intent(in)                                  ::  neidis    !  Screening distance
+!
+! Average properties
+!
+       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
+       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
+       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
+       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
+       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
+       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
+       integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
+       integer,intent(in)                                       ::  msize     !  Maximum aggregate size
+!
+! Lifetimes calculation variables
+!
+       real(kind=8),dimension(nnode),intent(out)                ::  avlife    !
+       integer,dimension(nnode),intent(out)                     ::  nlife     !
+       integer,intent(in)                                       ::  nnode     !
+!
+! Trajectory control variables
+!     
+       integer,intent(in)                                       ::  nprint    !  Populations printing interval
+       integer,intent(in)                                       ::  minstep   !  First step for analysis
+       integer,intent(in)                                       ::  maxstep   !  Last step for analysis
+!
+! Topological representations information
+!
+       integer,dimension(nat),intent(in)                        ::  body      !  Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  nbody     !  Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  ibody     !   Number of groups in each body
+       integer,dimension(nat),intent(in)                        ::  grps      !   Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  ngrps     !  Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  igrps     !  Number of subgroups in each group
+       integer,dimension(nat),intent(in)                        ::  subg      !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  nsubg     !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  isubg     !  Number of atoms in each subgroup
+       integer,dimension(nat),intent(in)                        ::  atms      !  Atoms identifier
+       integer,intent(in)                                       ::  nat       !  Monomer atoms
+       integer,intent(in)                                       ::  natms     !  Total number of subgroups in the system
+       integer,intent(in)                                       ::  mbody     !  Number of bodies
+       integer,intent(in)                                       ::  mgrps     !  Number of groups
+       integer,intent(in)                                       ::  msubg     !  Number of subgroups
+       integer,intent(in)                                       ::  matms     !  Number of interacting atoms in the monomer
+!
+! Program control flags
+!
+       character(len=lenschm),intent(inout)                     ::  schm      !  Calculation scheme flag
+       character(len=lenschm),intent(in)                        ::  scrn      !  Calculation screening flag
+       logical,intent(in)                                       ::  doscrn    !  Screening calculation flag
+       logical,intent(in)                                       ::  dolife    !  Lifetimes calculation flag
+       logical,intent(in)                                       ::  dopim     !  PIM calculation flag
+       logical,intent(in)                                       ::  debug     !  Debug mode
+!
+! AnalysisPhenolMD variables
+!     
+       integer,intent(in)                                       ::  nsolv     !
+!
+! Declaration of procedure pointers
+!
+       abstract interface
+!
+       subroutine subadj(nnode,adj,neidis,msubg,mgrps,nat,thr,ngrps,   &
+                         igrps,natms,posi,box)
+!
+       logical,dimension(nnode,nnode),intent(out)    ::  adj     !  Adjacency matrix
+       real(kind=4),dimension(3,natms),intent(in)    ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)          ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=8),dimension(nat,nat),intent(in)    ::  thr     !
+       real(kind=8),intent(in)                       ::  neidis  !
+       integer,dimension(nat),intent(in)             ::  ngrps   !  
+       integer,dimension(nat),intent(in)             ::  igrps   ! 
+       integer,intent(in)                            ::  msubg   !
+       integer,intent(in)                            ::  mgrps   !  Number of subgroups
+       integer,intent(in)                            ::  nnode   !  Number of residues
+       integer,intent(in)                            ::  natms   ! 
+       integer,intent(in)                            ::  nat     ! 
+!
+       end subroutine
+!
+       subroutine subscrn(nnode,oldadj,adj,newadj)
+!
+       logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
+       logical,dimension(nnode,nnode),intent(in)     ::  oldadj  !  Adjacency matrix of the previous snapshot
+       logical,dimension(nnode,nnode),intent(in)     ::  newadj  !  Adjacency matrix of the next snapshot
+       integer,intent(in)                            ::  nnode   !  Number of molecules
+!
+       end subroutine
+!
+       end interface
+!
+       procedure(subadj),pointer   ::  subbuildadj => null()
+       procedure(subscrn),pointer  ::  subscrnint  => null()
+!
+! Selection of the aggregation algorithm
+! --------------------------------------
+!
+       if ( trim(scrn) .eq. 'complete' ) then
+         subscrnint => scrnint
+       else if ( trim(scrn) .eq. 'collisions' ) then
+         subscrnint => scrncol
+       else if ( trim(scrn) .eq. 'oscillations' ) then
+         subscrnint => scrnosc
+       end if
+!
+       if ( trim(schm) .eq. 'distances' ) then
+         subbuildadj => buildadjmolbub
+       else if ( trim(schm) .eq. 'angles' ) then
+         subbuildadj => buildadjmolang
+       end if
+!
+       schm = 'original'
+       if ( doscrn ) schm = 'scrn'   
+       if ( dolife ) schm = 'life'   
+       if ( doscrn .and. dolife ) schm = 'scrnlife'   
+!
+       select case (trim(schm))
+         case ('original')
+!
+           call aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,dopim,subbuildadj,debug)
+!
+         case ('life')
+!
+           call agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,avlife,nlife,dopim,subbuildadj,  &
+                        debug)
+!
+         case ('scrn')
+!
+           call aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
+                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
+                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
+                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
+                        maxstep,nsolv,dopim,subbuildadj,subscrnint,    &
+                         debug)
+!
+         case ('scrnlife')
+!
+           call aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,  &
+                            msize,pop,conc,frac,cin,volu,nsteps,nbody, &
+                            ngrps,nsubg,ibody,igrps,isubg,body,grps,   &
+                            subg,atms,mbody,mgrps,msubg,matms,nprint,  &
+                            minstep,maxstep,nsolv,avlife,nlife,dopim,  &
+                            subbuildadj,subscrnint,debug)
+!
+       end select             
+!
+       return
+       end subroutine driver
 !
 !======================================================================!
 !
@@ -100,6 +286,11 @@
        logical,intent(in)                                       ::  dopim     !  PIM calculation flag
        logical,intent(in)                                       ::  debug     !  Debug mode
 !
+! External functions
+!
+       external                                                 ::  buildadjmol
+       external                                                 ::  screen
+!
 ! Aggregates information in the molecule-based representation
 !
        logical,dimension(:,:),allocatable                       ::  adj       !  Adjacency matrix
@@ -117,11 +308,6 @@
        integer                                                  ::  magg      !  Actual number of chemical species
        integer                                                  ::  actstep   !
        integer                                                  ::  newstep   !
-!
-! External functions
-!
-       external                                                 ::  buildadjmol
-       external                                                 ::  screen
 !
 ! Declaration of time control variables
 !
@@ -270,15 +456,15 @@
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
-         call xtcf%read
-         if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
-           write(*,*)
-           write(*,*) 'ERROR:: Not enough steps'
-           write(*,*) 
-           call print_end()
-         end if
-       end do
+!~        do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) ! TODO: check if this is necessary
+!~          call xtcf%read
+!~          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
+!~            write(*,*)
+!~            write(*,*) 'ERROR:: Not enough steps'
+!~            write(*,*) 
+!~            call print_end()
+!~          end if
+!~        end do
 !
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
@@ -359,12 +545,11 @@
 !
 ! Analyzing aggregates by their connectivity
 !
-!~            call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                             nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                             msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                             (/xtcf%box(1,1),xtcf%box(2,2),             &
-!~                               xtcf%box(3,3)/),posi,sys%mass,          &
-!~                             sys%atname,xtcf%STEP,outp,debug)
+
+
+
+!
+! Keeping track the adjacency matrix information
 !
            call cpu_time(tinscrn)        ! TODO: parallelize this region
            call system_clock(t1scrn)
@@ -419,8 +604,6 @@
 !
        deallocate(mol,tag,agg)
        deallocate(nmol,imol,nagg,iagg)
-!
-! Saving timings
 !
        call system_clock(t2read)
 !
@@ -511,6 +694,10 @@
        logical,intent(in)                                       ::  dopim    !  PIM calculation flag
        logical,intent(in)                                       ::  debug    !  Debug mode
 !
+! External functions
+!
+       external                                                 ::  buildadjmol
+!
 ! Aggregates information in the molecule-based representation
 !
        logical,dimension(:,:),allocatable                       ::  adj      !  Adjacency matrix
@@ -524,10 +711,6 @@
        integer,intent(in)                                       ::  nnode    !  Total number of molecules
        integer                                                  ::  nsize    !  Actual maximum aggregate size
        integer                                                  ::  magg     !  Actual number of chemical species
-!
-! External functions
-!
-       external                                                 ::  buildadjmol
 !
 ! Declaration of time control variables
 !
@@ -690,6 +873,10 @@
        logical,intent(in)                                         ::  dopim    !  PIM calculation flag
        logical,intent(in)                                         ::  debug    !  Debug mode
 !
+! External functions
+!
+       external                                                   ::  buildadjmol  
+!
 ! Aggregates information in the molecule-based representation
 !
        logical,dimension(nnode,nnode),intent(out)                 ::  adj      !  Adjacency matrix
@@ -703,10 +890,6 @@
        integer,intent(in)                                         ::  nnode    !  Total number of molecules
        integer                                                    ::  nsize    !  Actual maximum aggregate size
        integer                                                    ::  magg     !  Actual number of chemical species
-!
-! External functions
-!
-       external                                                   ::  buildadjmol  
 !
 ! Declaration of time control variables
 !
@@ -885,6 +1068,11 @@
        logical,intent(in)                                       ::  dopim     !  PIM calculation flag
        logical,intent(in)                                       ::  debug     !  Debug mode
 !
+! External functions
+!
+       external                                                 ::  buildadjmol  
+       external                                                 ::  screen
+!
 ! Aggregates information in the molecule-based representation
 !
        logical,dimension(:,:),allocatable                       ::  adj       !  Adjacency matrix
@@ -930,11 +1118,6 @@
        logical,dimension(:),allocatable                         ::  iwont     !
        logical,dimension(:),allocatable                         ::  oldiwas   !
        logical,dimension(:),allocatable                         ::  oldiwill  !
-!
-! External functions
-!
-       external                                                 ::  buildadjmol  
-       external                                                 ::  screen
 !
 ! Declaration of time control variables
 !
@@ -1092,9 +1275,9 @@
        call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
-       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,        &
-                     nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,       &
-                     isubg,atms,box,neidis,buildadjmol)
+       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
+                     thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
+                     box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -1158,7 +1341,7 @@
        call system_clock(t2scrn)
 !
        tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-       tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+       tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate) 
 !
 ! Block-diagonalizing the first interaction-corrected adjacency matrix
 ! 
@@ -1169,15 +1352,37 @@
 !
        call cpu_time(tinlife)
        call system_clock(t1life)
+!
+!$omp parallel do shared(life,avlife,nlife)                            &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = 1, nnode
+         life(i)   = 0
+         avlife(i) = 0.0d0
+         nlife(i)  = 0
+       end do
 ! 
+!$omp end parallel do 
+!
        call scrnblock(nnode,oldsize,oldmol,nsize,mol,oldnagg,oldiagg,  &
                       oldnmol,oldimol,nagg,iagg,imol,iwas,iwasnt,wasmap)
+!
+!$omp parallel do shared(life,iwas,nagg)                               &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = nagg(1)+1, magg
+         if ( iwas(i) ) life(i) = 1      
+       end do
+!
+!$omp end parallel do 
 !
        call cpu_time(tfinlife)
        call system_clock(t2life)
 !
        tcpulife = tcpulife + tfinlife - tinlife
-       tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+       tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
 !
 ! Reading the first next-configuration
 !
@@ -1192,19 +1397,15 @@
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
-         call xtcf%read
-         if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
-           write(*,*)
-           write(*,*) 'ERROR:: Not enough steps'
-           write(*,*) 
-           call print_end()
-         end if
-       end do
-!
-       life(:)   = 0
-       avlife(:) = 0.0d0
-       nlife(:)  = 0
+!~        do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )  ! TODO: check if this is necessary
+!~          call xtcf%read
+!~          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
+!~            write(*,*)
+!~            write(*,*) 'ERROR:: Not enough steps'
+!~            write(*,*) 
+!~            call print_end()
+!~          end if
+!~        end do
 !
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
@@ -1233,7 +1434,7 @@
            call system_clock(t2adj) 
 !
            tcpuadj = tcpuadj + tfinadj - tinadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj    = tadj    + dble(t2adj-t1adj)/dble(count_rate) 
 !
 ! Screening interactions between the molecules
 !
@@ -1246,8 +1447,8 @@
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
-!
+           tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate) 
+! 
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
            call blockdiag(nnode,newadj,newmol,newtag,newagg,newsize,   &
@@ -1262,124 +1463,11 @@
                           newiagg,newnmol,newimol,nagg,iagg,imol,      &
                           iwill,iwont,willmap)
 ! 
-!$omp parallel do shared(life,iwas,nagg)                               &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic)
-!
-           do i = nagg(1)+1, magg
-             if ( iwas(i) ) then
-               life(i) = life(i) + 1
-             else
-               life(i) = 0
-             end if
-           end do
-!
-!$omp end parallel do                   
-!
            call cpu_time(tfinlife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
-           tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
-!
-!
-           if ( debug ) then
-             write(*,'(1X,A)') 'FIRST SCREENING'
-             write(*,'(1X,15("."))') 
-             write(*,*)
-             write(*,'(2X,A,X,I9)')      'Old step',oldstep
-             write(*,'(2X,21("="))') 
-             write(*,*)
-             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
-                                                                 oldmagg
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', &
-                                                        oldnagg(oldsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
-                                                        oldiagg(oldsize)
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
-                                                        oldnmol(oldsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
-                                                        oldimol(oldsize)
-             write(*,*)
-!
-             call print_info(oldnagg(1),nnode-oldnagg(1),              &
-                             oldmol(oldnagg(1)+1:),                    &
-                             oldtag(oldnagg(1)+1:),                    &    
-                             oldagg(oldnagg(1)+1:),'mol','tag','agg')
-!
-             write(*,'(2X,A,X,I9)')      'Step number',actstep
-             write(*,'(2X,21("="))') 
-             write(*,*)
-             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
-                                                                    magg
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', & 
-                                                             nagg(nsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
-                                                             iagg(nsize)
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
-                                                             nmol(nsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', & 
-                                                             imol(nsize)
-             write(*,*)
-!
-             call print_info(nagg(1),nnode-nagg(1),                  &
-                             mol(nagg(1)+1:),                        &
-                             tag(nagg(1)+1:),                        &  
-                             agg(nagg(1)+1:),'mol','tag','agg')
-!
-             write(*,'(2X,A,X,I9)')      'New step',newstep
-             write(*,'(2X,21("="))') 
-             write(*,*)
-             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
-                                                                 newmagg
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', &
-                                                        newnagg(newsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
-                                                        newiagg(newsize)
-             write(*,*)
-             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
-                                                        newnmol(newsize)
-             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
-                                                        newimol(newsize)
-             write(*,*)
-!
-             call print_info(newnagg(1),nnode-newnagg(1),              &
-                             newmol(newnagg(1)+1:),                    &
-                             newtag(newnagg(1)+1:),                    &  
-                             newagg(newnagg(1)+1:),'mol','tag','agg')
-!
-             write(*,'(4X,A)') 'I was'
-             do i = 2, nsize
-               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
-               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
-               'to',iagg(i)+nagg(i),':',iwas(iagg(i)+1:iagg(i)+nagg(i))
-               write(*,'(25X,20(1X,I5))') (wasmap(iagg(i)+1:iagg(i)+nagg(i))-oldnagg(1))
-             end do
-             write(*,*)
-!
-             write(*,'(4X,A)') 'I am'
-             do i = 2, nsize
-               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
-!~                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
-!                 'to',iagg(i)+nagg(i),':',iam(iagg(i)+1:iagg(i)+nagg(i))
-               write(*,'(25X,20(1X,I5))') life(iagg(i)+1:iagg(i)+nagg(i))
-             end do
-             write(*,*)
-!
-             write(*,'(4X,A)') 'I will'
-             do i = 2, nsize
-               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
-               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
-              'to',iagg(i)+nagg(i),':',iwill(iagg(i)+1:iagg(i)+nagg(i))
-               write(*,'(25X,20(1X,I5))') (willmap(iagg(i)+1:iagg(i)+nagg(i))-newnagg(1))
-             end do
-             write(*,*)
-           end if
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
 !
 ! Printing the population of every aggregate
 !
@@ -1413,27 +1501,117 @@
 !
 ! Analyzing aggregates by their connectivity
 !
-!~            call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                             sys%nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                             msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                             (/xtcf%box(1,1),xtcf%box(2,2),             &
-!~                               xtcf%box(3,3)/),posi,sys%mass,          &
-!~                             sys%atname,xtcf%STEP,outp,debug)
+
+
+
+!
+! Adding up lifetimes of the aggregates
 !
            call cpu_time(tinlife)
-           call system_clock(t1life)
-! 
+           call system_clock(t1life)                  
+!
+           if ( debug ) then
+             write(*,'(1X,A)') 'FIRST SCREENING'
+             write(*,'(1X,15("."))') 
+             write(*,*)
+             write(*,'(2X,A,X,I9)')      'Old step',oldstep
+             write(*,'(2X,21("="))') 
+             write(*,*)
+             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
+                                                                 oldmagg
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', &
+                                                        oldnagg(:oldsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
+                                                        oldiagg(:oldsize)
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
+                                                        oldnmol(:oldsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
+                                                        oldimol(:oldsize)
+             write(*,*)
+!
+             call print_info(oldnagg(1),nnode-oldnagg(1),              &
+                             oldmol(oldnagg(1)+1:),                    &
+                             oldtag(oldnagg(1)+1:),                    &    
+                             oldagg(oldnagg(1)+1:),'mol','tag','agg')
+!
+             write(*,'(2X,A,X,I9)')      'Step number',actstep
+             write(*,'(2X,21("="))') 
+             write(*,*)
+             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
+                                                                    magg
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', & 
+                                                             nagg(:nsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
+                                                             iagg(:nsize)
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
+                                                             nmol(:nsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', & 
+                                                             imol(:nsize)
+             write(*,*)
+!
+             call print_info(nagg(1),nnode-nagg(1),                  &
+                             mol(nagg(1)+1:),                        &
+                             tag(nagg(1)+1:),                        &  
+                             agg(nagg(1)+1:),'mol','tag','agg')
+!
+             write(*,'(2X,A,X,I9)')      'New step',newstep
+             write(*,'(2X,21("="))') 
+             write(*,*)
+             write(*,'(2X,A,X,I6)')     'Total number of entities : ', &
+                                                                 newmagg
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Aggregates of each type  : ', &
+                                                        newnagg(:newsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
+                                                        newiagg(:newsize)
+             write(*,*)
+             write(*,'(2X,A,20(X,I6))') 'Molecules of each type   : ', &
+                                                        newnmol(:newsize)
+             write(*,'(2X,A,20(X,I6))') '  Accumulation           : ', &
+                                                        newimol(:newsize)
+             write(*,*)
+!
+             call print_info(newnagg(1),nnode-newnagg(1),              &
+                             newmol(newnagg(1)+1:),                    &
+                             newtag(newnagg(1)+1:),                    &  
+                             newagg(newnagg(1)+1:),'mol','tag','agg')
+!
+             write(*,'(4X,A)') 'I was'
+             do i = 2, nsize
+               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
+               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
+               'to',iagg(i)+nagg(i),':',iwas(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') (wasmap(iagg(i)+1:iagg(i)+nagg(i))-oldnagg(1))
+             end do
+             write(*,*)
+!
+             write(*,'(4X,A)') 'life'
+             do i = 2, nsize
+               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
+!~                write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
+!                 'to',iagg(i)+nagg(i),':',iam(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') life(iagg(i)+1:iagg(i)+nagg(i))
+             end do
+             write(*,*)
+!
+             write(*,'(4X,A)') 'I will'
+             do i = 2, nsize
+               if ( (iagg(i)+nagg(i)) .lt. (iagg(i)+1) ) exit
+               write(*,'(I3,2(1X,A,1X,I5),1X,A,20(5X,L1))') i,'from',iagg(i)+1,   &
+              'to',iagg(i)+nagg(i),':',iwill(iagg(i)+1:iagg(i)+nagg(i))
+               write(*,'(25X,20(1X,I5))') (willmap(iagg(i)+1:iagg(i)+nagg(i))-newnagg(1))
+             end do
+             write(*,*)
+           end if
+!
            call lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
-                          willmap,iwont)
+                          magg,iwont)
 !
-           call cpu_time(tfinlife)
-           call system_clock(t2life)
-!
-           tcpulife = tcpulife + tfinlife - tinlife
-           tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
-!
-           call cpu_time(tinscrn)
-           call system_clock(t1scrn)     ! TODO: parallelize this region
+! Keeping track the adjacency matrix information
 !
            box(:)    = newbox(:)
            newbox(:) = nextbox(:)
@@ -1441,9 +1619,12 @@
            oldmagg = magg
            oldsize = nsize
 !
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(adj,newadj,nextadj,mol,agg,tag,nagg,iagg,     &
+!$omp                    nmol,imol,iwas,iwill,life,wasmap,iwasnt,      &
+!$omp                    oldmol,oldagg,oldtag,oldnagg,oldiagg,oldnmol, &
+!$omp                    oldimol,oldiwas,oldiwill,oldlife,auxlife)     &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, nnode
              adj(:,i)    = newadj(:,i)
@@ -1459,30 +1640,22 @@
              oldnmol(i) = nmol(i)
              oldimol(i) = imol(i)
 !
-             oldiwas(i) = iwas(i)
+             oldiwas(i)  = iwas(i)
              oldiwill(i) = iwill(i)
-             oldlife(i) = life(i)
+             oldlife(i)  = life(i)
 !
              wasmap(i) = 0
              iwas(i)   = .FALSE.
              iwasnt(i) = .TRUE.
 !
-!~            do i = nagg(1)+1, magg
-!~              if ( willmap(i) .ne. 0 ) then
-!~                wasmap(willmap(i)) = i
-!~                iwas(willmap(i))   = .TRUE.
-!~                iwasnt(willmap(i)) = .FALSE.
-!~              end if
-!~            end do
-!~ !
              auxlife(i) = 0
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do 
 !
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(nagg,willmap,wasmap,life,auxlife,iwas,iwasnt) &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = nagg(1)+1, magg
              if ( willmap(i) .ne. 0 ) then
@@ -1493,21 +1666,16 @@
              end if
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do 
 !
-             magg    = newmagg
-             nsize   = newsize
-!
-             oldstep = actstep
-             actstep = newstep
-             newstep = nextstep
-!
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(life,auxlife,mol,agg,tag,nagg,iagg,nmol,imol, &
+!$omp                    newmol,newagg,newtag,newnagg,newiagg,newnmol, &
+!$omp                    newimol)                                      &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, nnode
-             life(:) = auxlife(i)
+             life(i) = auxlife(i)
 !
              mol(i) = newmol(i)
              agg(i) = newagg(i)
@@ -1520,24 +1688,31 @@
              imol(i) = newimol(i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do                 
+!
+           magg    = newmagg
+           nsize   = newsize
+!
+           oldstep = actstep
+           actstep = newstep
+           newstep = nextstep
 !
 !$omp parallel do shared(posi,newposi,nextposi)                        &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, natms
-             posi(:,i) = newposi(:,i)
+             posi(:,i)    = newposi(:,i)
              newposi(:,i) = nextposi(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do       
 !
-           call cpu_time(tfinscrn)
-           call system_clock(t2scrn)
+           call cpu_time(tfinlife)
+           call system_clock(t2life)
 !
-           tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+           tcpulife = tcpulife + tfinlife - tinlife
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
 !
            call system_clock(t1read)
 !
@@ -1548,15 +1723,16 @@
          call xtcf%read
 !
        end do
-!
-! Averaging lifetimes of the last snapshot
-!
+
 !~        call system_clock(t2read)
 !~ !
 !~        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !~ !
+!~ ! Averaging lifetimes of the last snapshot
+!~ !
+!~        call cpu_time(tinlife)
 !~        call system_clock(t1life)
-!
+!~ !
 !~        do isize = 2, oldsize
 !~          do inagg = 1, oldnagg(isize)
 !~ !
@@ -1569,17 +1745,16 @@
 !~ !
 !~          end do
 !~        end do
-!
-!write(*,*) avlife(:3)
-!write(*,*) nlife(:3)
-!
+!~ !
+!~        call cpu_time(tfinlife)
 !~        call system_clock(t2life)
 !~ !
-!~        tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
-!
+!~        tcpulife = tcpulife + tfinlife - tinlife
+!~        tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+!~ !
+!~ ! Deallocate memory
+!~ !
 !~        call system_clock(t1read)
-!
-! Deallocate memory
 !
        deallocate(life,auxlife,oldlife)
 !
@@ -1602,8 +1777,6 @@
        deallocate(oldiwas,oldiwill)
 !
        deallocate(wasmap,willmap)
-!
-! Saving timings
 !
        call system_clock(t2read)
 !
@@ -1705,6 +1878,10 @@
        logical,intent(in)                                       ::  dopim     !  PIM calculation flag
        logical,intent(in)                                       ::  debug     !  Debug mode
 !
+! External functions
+!
+       external                                                 ::  buildadjmol  
+!
 ! Aggregates information in the molecule-based representation
 !
        logical,dimension(:,:),allocatable                       ::  adj       !  Adjacency matrix
@@ -1747,10 +1924,6 @@
        logical,dimension(:),allocatable                         ::  iwont     !
        logical,dimension(:),allocatable                         ::  oldiwas   !
        logical,dimension(:),allocatable                         ::  oldiwill  !
-!
-! External functions
-!
-       external                                                 ::  buildadjmol  
 !
 ! Declaration of time control variables
 !
@@ -1851,9 +2024,9 @@
        call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
-       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,        &
-                     nat,thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,     &
-                     atms,oldbox,neidis,buildadjmol)
+       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
+                     thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
+                     oldbox,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -1920,15 +2093,60 @@
 !
        call cpu_time(tinlife)
        call system_clock(t1life)
+!
+!$omp parallel do shared(life,avlife,nlife)                            &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = 1, nnode
+         life(i)   = 0
+         avlife(i) = 0.0d0
+         nlife(i)  = 0
+       end do
 ! 
+!$omp end parallel do 
+!
        call scrnblock(nnode,oldsize,oldmol,nsize,mol,oldnagg,oldiagg,  &
                       oldnmol,oldimol,nagg,iagg,imol,iwas,iwasnt,wasmap)
+!
+!$omp parallel do shared(life,iwas,nagg)                               &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = nagg(1)+1, magg
+         if ( iwas(i) ) life(i) = 1      
+       end do
+!
+!$omp end parallel do 
 !
        call cpu_time(tfinlife)
        call system_clock(t2life)
 !
        tcpulife = tcpulife + tfinlife - tinlife
        tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+!
+! Reading the first new-configuration
+!
+       call system_clock(t1read)
+!
+       call xtcf%read
+!
+       if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
+         write(*,*)
+         write(*,*) 'ERROR:: Not enough steps'
+         write(*,*) 
+         call print_end()
+       end if
+!
+!~        do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )  ! TODO: check if this is necessary
+!~          call xtcf%read
+!~          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
+!~            write(*,*)
+!~            write(*,*) 'ERROR:: Not enough steps'
+!~            write(*,*) 
+!~            call print_end()
+!~          end if
+!~        end do
 !
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
@@ -1972,26 +2190,47 @@
            call scrnblock(nnode,newsize,newmol,nsize,mol,newnagg,      &
                           newiagg,newnmol,newimol,nagg,iagg,imol,      &
                           iwill,iwont,willmap)
-! 
-!$omp parallel do shared(life,iwas,nagg)                               &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic)
-!
-           do i = nagg(1)+1, magg
-             if ( iwas(i) ) then
-               life(i) = life(i) + 1
-             else
-               life(i) = 0
-             end if
-           end do
-!
-!$omp end parallel do                   
 !
            call cpu_time(tfinlife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
            tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+!
+! Printing the population of every aggregate
+!
+           call system_clock(t1read)
+!
+           call printpop(actstep,nsize,msize,pop,conc,frac,cin,volu,   &
+                         box,nnode,nagg,magg,nsolv,uniout)
+!
+           call system_clock(t2read)
+!
+           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+
+!~            if ( debug ) then
+!~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
+!~            end if
+!
+! Adding up the pairwise interaction matrix of the current snapshot
+! 
+           if ( dopim ) then
+             call system_clock(t1pim)     
+!
+!~              call build_pim(ngrps,grps,nsubg,subg,sys%nat,atms,thr,   &
+!~                             nnode,mol,agg,msize,nagg,xtcf%NATOMS,   &
+!~                             xtcf%pos,(/xtcf%box(1,1),xtcf%box(2,2),    &
+!~                             xtcf%box(3,3)/),pim,debug)
+!
+             call system_clock(t2pim)     
+!
+             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
+           end if      
+!
+! Adding up lifetimes of the aggregates
+!
+           call cpu_time(tinlife)
+           call system_clock(t1life)
 !
            if ( debug ) then
              write(*,'(1X,A)') 'FIRST SCREENING'
@@ -2090,61 +2329,29 @@
              end do
              write(*,*)
            end if
-!
-! Printing the population of every aggregate
-!
-           call system_clock(t1read)
-!
-           call printpop(actstep,nsize,msize,pop,conc,frac,cin,volu,   &
-                         box,nnode,nagg,magg,nsolv,uniout)
-!
-           call system_clock(t2read)
-!
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
-
-!~            if ( debug ) then
-!~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!~            end if
-!
-! Adding up the pairwise interaction matrix of the current snapshot
 ! 
-           if ( dopim ) then
-             call system_clock(t1pim)     
-!
-!~              call build_pim(ngrps,grps,nsubg,subg,sys%nat,atms,thr,   &
-!~                             nnode,mol,agg,msize,nagg,xtcf%NATOMS,   &
-!~                             xtcf%pos,(/xtcf%box(1,1),xtcf%box(2,2),    &
-!~                             xtcf%box(3,3)/),pim,debug)
-!
-             call system_clock(t2pim)     
-!
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
+           call lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
+                          magg,iwont)
 !
 ! Analyzing aggregates by their connectivity
 !
-!~            call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                             sys%nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                             msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                             (/xtcf%box(1,1),xtcf%box(2,2),             &
-!~                               xtcf%box(3,3)/),posi,sys%mass,          &
-!~                             sys%atname,xtcf%STEP,outp,debug)
+
+
+
 !
-           call cpu_time(tinlife)
-           call system_clock(t1life)
-! 
-           call lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
-                          willmap,iwont)
+! Keeping track the adjacency matrix information
 !
-           oldbox(:) = box(:)
            box(:)    = newbox(:)
 !
            oldmagg = magg
            oldsize = nsize
 !
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(mol,agg,tag,nagg,iagg,nmol,imol,iwas,iwill,   &
+!$omp                    life,wasmap,iwasnt,oldmol,oldagg,oldtag,      &
+!$omp                    oldnagg,oldiagg,oldnmol,oldimol,oldiwas,      &
+!$omp                    oldiwill,oldlife,auxlife)                     &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, nnode
              oldmol(i) = mol(i)
@@ -2165,46 +2372,34 @@
              iwas(i)   = .FALSE.
              iwasnt(i) = .TRUE.
 !
-!~            do i = nagg(1)+1, magg
-!~              if ( willmap(i) .ne. 0 ) then
-!~                wasmap(willmap(i)) = i
-!~                iwas(willmap(i))   = .TRUE.
-!~                iwasnt(willmap(i)) = .FALSE.
-!~              end if
-!~            end do
-!~ !
              auxlife(i) = 0
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do 
 !
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(nagg,willmap,wasmap,life,auxlife,iwas,iwasnt) &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = nagg(1)+1, magg
              if ( willmap(i) .ne. 0 ) then
-               wasmap(willmap(i))  = i
+               wasmap(willmap(i)) = i
                auxlife(willmap(i)) = life(i)
-               iwas(willmap(i))    = .TRUE.
-               iwasnt(willmap(i))  = .FALSE.
+               iwas(willmap(i))   = .TRUE.
+               iwasnt(willmap(i)) = .FALSE.
              end if
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do 
 !
-             magg    = newmagg
-             nsize   = newsize
-!
-             oldstep = actstep
-             actstep = newstep
-!
-!$omp parallel do default(shared)                                      &
+!$omp parallel do shared(life,auxlife,mol,agg,tag,nagg,iagg,nmol,imol, &
+!$omp                    newmol,newagg,newtag,newnagg,newiagg,newnmol, &
+!$omp                    newimol)                                      &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, nnode
-             life(:) = auxlife(i)
+             life(i) = auxlife(i)
 !
              mol(i) = newmol(i)
              agg(i) = newagg(i)
@@ -2217,17 +2412,23 @@
              imol(i) = newimol(i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do                 
+!
+           magg    = newmagg
+           nsize   = newsize
+!
+           oldstep = actstep
+           actstep = newstep
 !
 !$omp parallel do shared(posi,newposi)                                 &
 !$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+!$omp             schedule(dynamic,chunklife)
 !
            do i = 1, natms
              posi(:,i) = newposi(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do                      
 !
            call cpu_time(tfinlife)
            call system_clock(t2life)
@@ -2245,14 +2446,15 @@
 !
        end do
 !
-! Averaging lifetimes of the last snapshot
-!
 !~        call system_clock(t2read)
 !~ !
 !~        tread = tread + dble(t2read-t1read)/dble(count_rate) 
 !~ !
+!~ ! Averaging lifetimes of the last snapshot
+!~ !
+!~        call cpu_time(tinlife)
 !~        call system_clock(t1life)
-!
+!~ !
 !~        do isize = 2, oldsize
 !~          do inagg = 1, oldnagg(isize)
 !~ !
@@ -2265,17 +2467,16 @@
 !~ !
 !~          end do
 !~        end do
-!
-!write(*,*) avlife(:3)
-!write(*,*) nlife(:3)
-!
+!~ !
+!~        call cpu_time(tfinlife)
 !~        call system_clock(t2life)
 !~ !
-!~        tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
-!
+!~        tcpulife = tcpulife + tfinlife - tinlife
+!~        tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+!~ !
+!~ ! Deallocate memory
+!~ !
 !~        call system_clock(t1read)
-!
-! Deallocate memory
 !
        deallocate(life,auxlife,oldlife)
 !
@@ -2298,8 +2499,6 @@
        deallocate(oldiwas,oldiwill)
 !
        deallocate(wasmap,willmap)
-!
-! Saving timings
 !
        call system_clock(t2read)
 !
@@ -2387,7 +2586,7 @@
 !~          conc(i) = conc(i) + real(nagg(i))/box(1)**3 
 !~        end do     
 !~ !
-!~        if ( nsize .gt. msize ) then ! FLAG: maybe here is a bug
+!~        if ( nsize .gt. msize ) then
 !~          do i = msize+1, nsize
 !~            pop(msize)  = pop(msize)  + real(nagg(i))/magg*100
 !~            frac(msize) = frac(msize) + real(nagg(i))/(magg+nsolv)
@@ -2410,7 +2609,7 @@
 !~ !
        return
        end subroutine printpop
-       !
+!
 !======================================================================!
 !
 ! LIFETIMES - LIFETIMES calculation
@@ -2418,7 +2617,9 @@
 ! This subroutine 
 !
        subroutine lifetimes(avlife,nlife,nnode,life,nsize,nagg,iagg,   &
-                            willmap,iwont)
+                            magg,iwont)
+!
+       use omp_var
 !
        use omp_lib
 !
@@ -2429,11 +2630,11 @@
        real(kind=8),dimension(nnode),intent(inout)  ::  avlife   !  Average lifetimes
        integer,dimension(nnode),intent(inout)       ::  nlife    !  
        integer,dimension(nnode),intent(inout)       ::  life     !
-       integer,dimension(nnode),intent(in)          ::  willmap  !
        integer,dimension(nnode),intent(in)          ::  nagg     !
        integer,dimension(nnode),intent(in)          ::  iagg     !
        integer,intent(in)                           ::  nnode    !  Total number of molecules
        integer,intent(in)                           ::  nsize    ! 
+       integer,intent(in)                           ::  magg     ! 
        logical,dimension(nnode),intent(in)          ::  iwont    !
 !
 ! Local variables
@@ -2445,7 +2646,21 @@
 !
 ! Averaging lifetimes
 !
-!~        auxlife(:) = 0
+!$omp parallel do shared(life,nagg)                                    &
+!$omp             private(iiagg)                                       &
+!$omp             schedule(dynamic,chunklife)
+!
+           do iiagg = nagg(1)+1, magg
+!             if ( iwas(iiagg) ) then
+               life(iiagg) = life(iiagg) + 1
+!             else
+!               life(iiagg) = 0
+!             end if
+           end do
+!
+!$omp end parallel do 
+!
+!       auxlife(:) = 0
 !
 !$omp parallel do shared(iwont,life,iagg,avlife,nlife,nagg)            &
 !$omp             private(isize,inagg,iiagg)                           &
@@ -2459,17 +2674,15 @@
            if ( iwont(iiagg) ) then
              avlife(isize) = avlife(isize) + life(iiagg)
              nlife(isize)  = nlife(isize) + 1
-!~            else
-!~              auxlife(willmap(iiagg)) = life(iiagg)
+             life(iiagg)   = 0
+!           else
+!             auxlife(willmap(iiagg)) = life(iiagg)
            end if
 !
          end do
        end do
 !
 !$omp end parallel do                   
-!
-!~ write(*,*) avlife(:3)
-!~ write(*,*) nlife(:3)
 !
 !~        life(:) = auxlife(:)
 !

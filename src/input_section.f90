@@ -207,7 +207,6 @@
          read(uniinp,'(A)',iostat=io) line 
 ! If the end of the input file is reached exit
          if ( io /= 0 ) exit
-!~          write(*,'(A)') trim(line)  ! FLAG: dump of input data file
 ! If reads a white line then reads the next line
          if ( len_trim(line) == 0 ) cycle
 ! Processing the line read 
@@ -471,7 +470,6 @@
          read(uniinp,'(A)',iostat=io) line  
 !
          if ( io /= 0 ) call endopt(opt)
-!~          write(*,'(A)') trim(line)   ! FLAG: dump of input data file
 ! If reads a white line then reads the next line
          if ( len_trim(line) == 0 ) cycle
 ! Processing the line read 
