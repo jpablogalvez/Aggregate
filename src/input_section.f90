@@ -15,6 +15,7 @@
        subroutine read_gro(conf,sys)
 !
        use datatypes
+       use printings
        use utils
 !
        implicit none
@@ -37,16 +38,7 @@
        open(unit=uniinp,file=trim(conf),action='read',                 &
             status='old',iostat=io)
 !
-       if ( io .ne. 0 ) then
-         write(*,'(2X,68("="))')
-         write(*,'(3X,A)')      'ERROR:  Missing input file'
-         write(*,*)
-         write(*,'(3X,A)')   'Input file '//trim(conf)//               &
-                                   ' not found in the current directory'
-         write(*,'(2X,68("="))')
-         write(*,*)
-         call print_end()
-       end if
+       if ( io .ne. 0 ) call print_missinp(conf)
 !
        read(uniinp,'(A)') sys%title
        read(uniinp,*)     sys%nat

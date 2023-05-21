@@ -50,11 +50,11 @@
        integer,dimension(:),allocatable                ::  nsubg    !  Number of atoms in each subgroup
        integer,dimension(:),allocatable                ::  isubg    !  Number of atoms in each subgroup
        integer,dimension(:),allocatable                ::  atms     !  Atoms identifier
-       integer                                         ::  natms    !  Total number of subgroups in the system
        integer                                         ::  mbody    !  Number of bodies
        integer                                         ::  mgrps    !  Number of groups
        integer                                         ::  msubg    !  Number of subgroups
        integer                                         ::  matms    !  Number of interacting atoms in the monomer
+       integer                                         ::  natms    !  Total number of subgroups in the system
 !
 ! Trajectory control variables
 !     
