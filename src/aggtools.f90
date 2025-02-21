@@ -15,16 +15,17 @@
 !
 !  This subroutine defines the execution architecture of the algorithm
 !
-       subroutine driver(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,     &
-                         msize,pop,conc,frac,cin,volu,nsteps,nbody,    &
-                         ngrps,nsubg,ibody,igrps,isubg,body,grps,      &
-                         subg,atms,mbody,mgrps,msubg,matms,nprint,     &
-                         minstep,maxstep,nsolv,avlife,nlife,dopim,     &
-                         schm,scrn,doscrn,dolife,debug)
+       subroutine driver(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,   &
+                         nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,   &
+                         body,grps,subg,atms,mbody,mgrps,msubg,matms,  &
+                         nprint,minstep,maxstep,nsolv,avlife,nlife,    &
+                         dopim,schm,scrn,doscrn,dolife,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,         only:  xtcfile
 !
        use lengths,     only:  lenschm
+!
+       use properties
 !
        use graphtools,  only:  buildadjmolbub,buildadjmolang
        use screening,   only:  scrnint,scrnosc,scrncol
@@ -34,6 +35,7 @@
 ! System information
 !
        type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
+       integer,intent(in)                                       ::  nnode     !
 !
 ! Interaction criteria information
 ! 
@@ -43,12 +45,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
@@ -56,7 +52,6 @@
 !
        real(kind=8),dimension(nnode),intent(out)                ::  avlife    !
        integer,dimension(nnode),intent(out)                     ::  nlife     !
-       integer,intent(in)                                       ::  nnode     !
 !
 ! Trajectory control variables
 !     
@@ -157,38 +152,36 @@
        select case (trim(schm))
          case ('original')
 !
-           call aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,subbuildadj,debug)
+           call aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+                        nprint,minstep,maxstep,nsolv,dopim,            &
+                        subbuildadj,debug)
 !
          case ('life')
 !
-           call agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,avlife,nlife,dopim,subbuildadj,  &
-                        debug)
+           call agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+                        nprint,minstep,maxstep,nsolv,avlife,nlife,     &
+                        dopim,subbuildadj,debug)
 !
          case ('scrn')
 !
-           call aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,      &
-                        msize,pop,conc,frac,cin,volu,nsteps,nbody,     &
-                        ngrps,nsubg,ibody,igrps,isubg,body,grps,subg,  &
-                        atms,mbody,mgrps,msubg,matms,nprint,minstep,   &
-                        maxstep,nsolv,dopim,subbuildadj,subscrnint,    &
-                         debug)
+           call aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+                        nprint,minstep,maxstep,nsolv,dopim,            &
+                        subbuildadj,subscrnint,debug)
 !
          case ('scrnlife')
 !
-           call aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,  &
-                            msize,pop,conc,frac,cin,volu,nsteps,nbody, &
-                            ngrps,nsubg,ibody,igrps,isubg,body,grps,   &
-                            subg,atms,mbody,mgrps,msubg,matms,nprint,  &
-                            minstep,maxstep,nsolv,avlife,nlife,dopim,  &
-                            subbuildadj,subscrnint,debug)
+           call aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,      &
+                            msize,nsteps,nbody,ngrps,nsubg,ibody,      &
+                            igrps,isubg,body,grps,subg,atms,mbody,     &
+                            mgrps,msubg,matms,nprint,minstep,maxstep,  &
+                            nsolv,avlife,nlife,dopim,subbuildadj,      &
+                            subscrnint,debug)
 !
        end select             
 !
@@ -215,14 +208,15 @@
 !  then it is, i.e., one interaction can be created if it is present in 
 !  the former and the following configurations (adding oscillations).
 !
-       subroutine aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
-                          msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
-                          ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
-                          subg,atms,mbody,mgrps,msubg,matms,nprint,    &
-                          minstep,maxstep,nsolv,dopim,buildadjmol,     &
-                          screen,debug)
+       subroutine aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,  &
+                          nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,  &
+                          body,grps,subg,atms,mbody,mgrps,msubg,matms, &
+                          nprint,minstep,maxstep,nsolv,dopim,          &
+                          buildadjmol,screen,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,        only:  xtcfile
+!
+       use properties
 !
        use omp_var
        use datatypes
@@ -249,12 +243,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
@@ -349,6 +337,8 @@
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
+       prob(:) = 0.0d0
+       num(:)  = 0
 !
        cin     = 0.0d0
        volu    = 0.0d0
@@ -509,8 +499,8 @@
 !
            call system_clock(t1read)
 !
-           call printpop(actstep,nsize,msize,pop,conc,frac,cin,volu,   &
-                         box,nnode,nagg,magg,nsolv,uniout)
+           call printpop(actstep,nsize,msize,box,nnode,nagg,magg,      &
+                         nsolv,uniout)
 !
            call system_clock(t2read)
 !
@@ -535,7 +525,7 @@
              tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
            end if      
 !
-! Analyzing aggregates by their connectivity
+! Analyzing aggregates by their connectivity ! TODO: needs corrected adjacency matrix of aggs
 !
 
 
@@ -619,14 +609,17 @@
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
 !
-       subroutine aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
-                          msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
-                          ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
-                          subg,atms,mbody,mgrps,msubg,matms,nprint,    &
-                          minstep,maxstep,nsolv,dopim,buildadjmol,debug)
+       subroutine aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,  &
+                          nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,  &
+                          body,grps,subg,atms,mbody,mgrps,msubg,matms, &
+                          nprint,minstep,maxstep,nsolv,dopim,          &
+                          buildadjmol,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,       only:  xtcfile
 !
+       use properties
+!
+       use filenames, only:  outp,weight
        use datatypes
        use timings
 !
@@ -647,12 +640,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim      !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop      !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc     !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac     !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin      !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu     !  Simulation box volume
        integer,intent(out)                                      ::  nsteps   !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize    !  Maximum aggregate size
 !
@@ -729,6 +716,8 @@
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
+       prob(:) = 0.0d0
+       num(:)  = 0.0d0
 !
        cin     = 0.0d0
        volu    = 0.0d0
@@ -761,12 +750,11 @@
 !
 ! Finding the aggregates present in the current configuration
 !
-           call loopdist(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,     &
-                         msize,pop,conc,frac,cin,volu,nbody,ngrps,     &
-                         nsubg,ibody,igrps,isubg,body,grps,subg,atms,  &
-                         mbody,mgrps,msubg,matms,nsolv,posi,box,adj,   &
-                         mol,tag,agg,nagg,iagg,nmol,imol,dopim,        &
-                         buildadjmol,debug)
+           call loopdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,   &
+                         nbody,ngrps,nsubg,ibody,igrps,isubg,body,     &
+                         grps,subg,atms,mbody,mgrps,msubg,matms,nsolv, &
+                         posi,box,adj,mol,tag,agg,nagg,iagg,nmol,imol, &
+                         dopim,buildadjmol,debug)
 !
            call system_clock(t1read)
 !
@@ -802,20 +790,28 @@
 !
 ! This subroutine 
 !
-       subroutine loopdist(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,   &
-                           msize,pop,conc,frac,cin,volu,nbody,ngrps,   &
-                           nsubg,ibody,igrps,isubg,body,grps,subg,     &
-                           atms,mbody,mgrps,msubg,matms,nsolv,posi,    &
-                           box,adj,mol,tag,agg,nagg,iagg,nmol,imol,    &
-                           dopim,buildadjmol,debug)
+       subroutine loopdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize, &
+                           nbody,ngrps,nsubg,ibody,igrps,isubg,body,   &
+                           grps,subg,atms,mbody,mgrps,msubg,matms,     &
+                           nsolv,posi,box,adj,mol,tag,agg,nagg,iagg,   &
+                           nmol,imol,dopim,buildadjmol,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,        only:  xtcfile
+!
+       use systeminf,  only:  sys
+       use filenames,  only:  outp
 !
        use datatypes
        use timings
 !
        use printings
        use utils
+!
+       use thresholds,  only:  thrang,neiang
+       use parameters,  only:  zero
+!
+       use geometry,    only:  sminimgvec
+       use graphtools,  only:  chkangle
 !
        implicit none
 !
@@ -833,12 +829,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(inout)  ::  pim      !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(inout)                ::  pop      !  Populations
-       real(kind=8),dimension(msize),intent(inout)                ::  conc     !  Concentrations
-       real(kind=8),dimension(msize),intent(inout)                ::  frac     !  Molar fractions
-       real(kind=8),intent(inout)                                 ::  cin      !  Stechiometric concentration
-       real(kind=8),intent(inout)                                 ::  volu     !  Simulation box volume
        integer,intent(in)                                         ::  msize    !  Maximum aggregate size
 !
 ! Topological representations information
@@ -903,9 +893,9 @@
        call cpu_time(tinadj)
        call system_clock(t1adj) 
 !
-       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
-                        thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms, &
-                        box,neidis,buildadjmol)
+       call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
+                     thr2,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,    &
+                     box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
        call system_clock(t2adj) 
@@ -922,8 +912,8 @@
 !
        call system_clock(t1read)
 !         
-       call printpop(xtcf%STEP,nsize,msize,pop,conc,frac,cin,volu,     &
-                     box,nnode,nagg,magg,nsolv,uniout)
+       call printpop(xtcf%STEP,nsize,msize,box,nnode,nagg,magg,nsolv,  &
+                     uniout)
 !
        call system_clock(t2read)
 !
@@ -949,11 +939,7 @@
 !
 ! Analyzing aggregates by their connectivity
 !
-!~        call analyze_agg(table,nbody,body,ngrps,grps,nsubg,subg,    &
-!~                         nat,atms,thr,nnode,adj,mol,agg,     & 
-!~                         msize,nagg,xtcf%NATOMS,xtcf%pos,          &
-!~                         box,posi,sys%mass,          &
-!~                         sys%atname,xtcf%STEP,outp,debug)
+
 !
        return
        end subroutine loopdist
@@ -981,14 +967,15 @@
 !  are present in the former and the previous configurations.
 !
        subroutine aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,    &
-                              pim,msize,pop,conc,frac,cin,volu,nsteps, &
-                              nbody,ngrps,nsubg,ibody,igrps,isubg,     &
-                              body,grps,subg,atms,mbody,mgrps,msubg,   &
-                              matms,nprint,minstep,maxstep,nsolv,      &
-                              avlife,nlife,dopim,buildadjmol,          &
-                              screen,debug)
+                              msize,nsteps,nbody,ngrps,nsubg,ibody,    &
+                              igrps,isubg,body,grps,subg,atms,mbody,   &
+                              mgrps,msubg,matms,nprint,minstep,        &
+                              maxstep,nsolv,avlife,nlife,dopim,        &
+                              buildadjmol,screen,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,  only:  xtcfile
+!
+       use properties
 !
        use omp_var
        use datatypes
@@ -1016,12 +1003,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
@@ -1437,8 +1418,8 @@
 !
            call system_clock(t1read)
 !
-           call printpop(actstep,nsize,msize,pop,conc,frac,cin,volu,   &
-                         box,nnode,nagg,magg,nsolv,uniout)
+           call printpop(actstep,nsize,msize,box,nnode,nagg,magg,      &
+                         nsolv,uniout)
 !
            call system_clock(t2read)
 !
@@ -1600,15 +1581,16 @@
 ! The lifetimes are calculated keeping track of the aggregates which
 !  are present in the former and the previous configurations.
 !
-       subroutine agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,pim,    &
-                          msize,pop,conc,frac,cin,volu,nsteps,nbody,   &
-                          ngrps,nsubg,ibody,igrps,isubg,body,grps,     &
-                          subg,atms,mbody,mgrps,msubg,matms,nprint,    &
-                          minstep,maxstep,nsolv,avlife,nlife,dopim,    &
-                          buildadjmol,debug)
+       subroutine agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,  &
+                          nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,  &
+                          body,grps,subg,atms,mbody,mgrps,msubg,matms, &
+                          nprint,minstep,maxstep,nsolv,avlife,nlife,   &
+                          dopim,buildadjmol,debug)
 !
-       use xdr, only: xtcfile
+       use xdr,  only:  xtcfile
 !
+       use properties
+! 
        use omp_var
        use datatypes
        use timings
@@ -1634,12 +1616,6 @@
 !
 ! Average properties
 !
-       real(kind=8),dimension(mgrps,mgrps,msize-1),intent(out)  ::  pim       !  Pairwise interaction matrix
-       real(kind=8),dimension(msize),intent(out)                ::  pop       !  Populations
-       real(kind=8),dimension(msize),intent(out)                ::  conc      !  Concentrations
-       real(kind=8),dimension(msize),intent(out)                ::  frac      !  Molar fractions
-       real(kind=8),intent(out)                                 ::  cin       !  Stechiometric concentration
-       real(kind=8),intent(out)                                 ::  volu      !  Simulation box volume
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
@@ -1897,8 +1873,8 @@
 !
            call system_clock(t1read)
 !
-           call printpop(actstep,nsize,msize,pop,conc,frac,cin,volu,   &
-                         box,nnode,nagg,magg,nsolv,uniout)
+           call printpop(actstep,nsize,msize,box,nnode,nagg,magg,      &
+                         nsolv,uniout)
 !
            call system_clock(t2read)
 !
@@ -2046,21 +2022,17 @@
 !
 ! This subroutine 
 !
-       subroutine printpop(step,nsize,msize,pop,conc,frac,cin,volu,    &
-                           box,nnode,nagg,magg,nsolv,iuni)
+       subroutine printpop(step,nsize,msize,box,nnode,nagg,magg,       &
+                           nsolv,iuni)
 !
        use parameters
+       use properties
 !
        implicit none
 !
 ! Input/Output variables
 !
        real(kind=4),dimension(3),intent(in)         ::  box    !  Simulation box dimensions
-       real(kind=8),dimension(msize),intent(inout)  ::  pop    !  Populations
-       real(kind=8),dimension(msize),intent(inout)  ::  conc   !  Concentrations
-       real(kind=8),dimension(msize),intent(inout)  ::  frac   !  Molar fractions
-       real(kind=8),intent(inout)                   ::  cin    !  Stechiometric concentration
-       real(kind=8),intent(inout)                   ::  volu   !  Simulation box volume
        integer,dimension(nnode),intent(in)          ::  nagg   !
        integer,intent(in)                           ::  magg   !
        integer,intent(in)                           ::  nsolv  !
@@ -2074,29 +2046,31 @@
 !
        real(kind=8)                                 ::  dp1    !
        real(kind=8)                                 ::  dp2    !
-       real(kind=8)                                 ::  dp3    !
        integer                                      ::  i      !  Index 
 !
 ! Accumulating properties
 !
        do i = 1, msize-1
+         num(i)  = num(i)  + nagg(i)
          pop(i)  = pop(i)  + real(nagg(i))/magg*100
          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
          conc(i) = conc(i) + real(nagg(i))/box(1)**3 
+         prob(i) = prob(i) + real(i*nagg(i))/nnode*100 
        end do     
 !
        dp1 = 0.0d0
        dp2 = 0.0d0
-       dp3 = 0.0d0
+!
        if ( nsize .ge. msize ) then
          do i = msize, nsize
            dp1 = dp1 + real(nagg(i))
-           dp2 = dp2 + real(nagg(i))
-           dp3 = dp3 + real(nagg(i))
+           dp2 = dp2 + real(i*nagg(i))
          end do
+         num(msize)  = num(msize)  + int(dp1)
          pop(msize)  = pop(msize)  + dp1/magg*100
-         frac(msize) = frac(msize) + dp2/(magg+nsolv)
-         conc(msize) = conc(msize) + dp3/box(1)**3             
+         frac(msize) = frac(msize) + dp1/(magg+nsolv)
+         conc(msize) = conc(msize) + dp1/box(1)**3             
+         prob(msize) = prob(msize) + dp2/nnode*100             
        end if                   
 !
        cin = cin + real(nnode)/box(1)**3
@@ -2108,38 +2082,14 @@
        write(iuni+1,'(I10,100(X,F10.6))') step,                        &
                               real(nagg(:msize-1))/magg*100,dp1/magg*100
        write(iuni+2,'(I10,100(X,F10.6))') step,                       &
-                      real(nagg(:msize-1))/(magg+nsolv),dp2/(magg+nsolv)
-       write(iuni+3,'(I10,100(X,F10.6))') step,                       &
+                      real(nagg(:msize-1))/(magg+nsolv),dp1/(magg+nsolv)
+       write(iuni+3,'(I10,100(X,F10.6))') step,                        &
                       real(nagg(:msize-1))/box(1)**3/(Na*1.0E-24),     &
-                                              dp3/box(1)**3/(Na*1.0E-24)  
+                                              dp1/box(1)**3/(Na*1.0E-24)  
+       write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
+                            real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
+       write(iuni+5,'(I10,100(X,I10))') step,nagg(:msize-1),int(dp1)  
 !
-!~        do i = 1, msize
-!~          pop(i)  = pop(i)  + real(nagg(i))/magg*100
-!~          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
-!~          conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-!~        end do     
-!~ !
-!~        if ( nsize .gt. msize ) then
-!~          do i = msize+1, nsize
-!~            pop(msize)  = pop(msize)  + real(nagg(i))/magg*100
-!~            frac(msize) = frac(msize) + real(nagg(i))/(magg+nsolv)
-!~            conc(msize) = conc(msize) + real(nagg(i))/box(1)**3  
-!~          end do
-!~        end if                   
-!~ !
-!~        cin = cin + real(nnode)/box(1)**3
-!~ !
-!~        volu = volu + box(1)**3
-!~ !
-!~ ! Printing populations of the current configuration
-!~ !
-!~        write(iuni+1,'(I10,100(X,F10.6))') step,                        &
-!~                                              real(nagg(:msize))/magg*100
-!~        write(iuni+2,'(I10,100(X,F12.8))') step,                       &
-!~                                          real(nagg(:msize))/(magg+nsolv)
-!~        write(iuni+3,'(I10,100(X,F12.8))') step,                       &
-!~                                real(nagg(:msize))/box(1)**3/(Na*1.0E-24)                            
-!~ !
        return
        end subroutine printpop
 !

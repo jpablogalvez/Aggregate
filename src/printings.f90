@@ -2,8 +2,6 @@
 !
        module printings
 !
-       use lengths
-!
        implicit none
 !
        contains
@@ -23,6 +21,7 @@
 !
        subroutine print_start()
 !
+       use lengths,  only:  lencmd
        use version
 !
        implicit none

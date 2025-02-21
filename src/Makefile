@@ -20,6 +20,7 @@ SRCMOD  = xdr.F90            \
           parameters.f90     \
           omp_var.f90        \
           lengths.f90        \
+          filenames.f90      \
           version.f90        \
           printings.f90      \
           utils.f90          \

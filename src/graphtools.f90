@@ -14,7 +14,7 @@
                                   igrps,grps,natms,posi,list,nhead,    &
                                   head,cell,ncell,box)
 !
-       use geometry,   only: sminimgvec
+       use geometry,  only:  sminimgvec
 !
        implicit none
 !
@@ -136,7 +136,9 @@
        subroutine buildadjmolbub(nnode,adj,neidis,msubg,mgrps,nat,     &
                                  thr,ngrps,igrps,natms,posi,box)
 !
-       use geometry,   only: sminimgvec
+       use systeminf,  only:  xtcf,sys
+!
+       use geometry,   only:  sminimgvec
        use omp_var
 !
        use omp_lib
@@ -245,11 +247,11 @@
        subroutine buildadjmolang(nnode,adj,neidis,msubg,mgrps,nat,     &
                                  thr,ngrps,igrps,natms,posi,box)
 !
-       use thresholds, only: thrang,neiang
-       use systeminf,  only: xtcf
+       use thresholds, only:  thrang,neiang
+       use systeminf,  only:  xtcf,sys
 !
-       use parameters
-       use geometry,   only: sminimgvec
+       use parameters, only:  zero
+       use geometry,   only:  sminimgvec
        use omp_var
 !
        use omp_lib
@@ -304,7 +306,7 @@
 !$omp             schedule(dynamic,chunkadj)
 !
        do i = 1, nnode
-           adj(:,i) = .FALSE. 
+         adj(:,i) = .FALSE. 
        end do
 !
 !$omp end parallel do                   
@@ -680,7 +682,7 @@
        logical function chkangle(v21,dis1,r2,r3,box,minang)
 !
        use parameters
-       use geometry,   only: sminimgvec
+       use geometry,  only:  sminimgvec
 !
        implicit none
 !

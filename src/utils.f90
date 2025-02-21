@@ -2,7 +2,6 @@
 !
        module utils
 !
-       use lengths
        use printings
 !
        implicit none
@@ -43,6 +42,8 @@
 !
        subroutine read_string(i,lenstr,inp,nfile,arg,cmd)
 !
+       use lengths,  only: lenarg
+!
        implicit none
 !
 ! Input/output variables
@@ -78,6 +79,8 @@
 !
        subroutine read_realvec(i,n,box)
 !
+       use lengths,  only: lenarg
+!
        implicit none
 !
 ! Input/output variables
@@ -101,6 +104,8 @@
 !======================================================================!
 !
        subroutine read_intvec(i,n,ivec)
+!
+       use lengths,  only: lenarg
 !
        implicit none
 !
@@ -181,6 +186,8 @@
 !======================================================================!
 !
        subroutine chklineopt(line,key,arg)
+!
+       use lengths,  only: lenarg,lenline
 !
        implicit none
 !
@@ -517,6 +524,8 @@
 !======================================================================!
 !
        subroutine findline(key,sel,flag)
+!
+       use lengths,  only: lenline
 !
        implicit none
 !

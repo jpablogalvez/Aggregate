@@ -15,6 +15,7 @@
        subroutine read_gro(conf,sys)
 !
        use datatypes
+       use lengths, only: leninp
        use printings
        use utils
 !
@@ -129,6 +130,7 @@
                            mbody,mgrps,msubg,matms,thr,thr2,thrang,    &
                            neiang)
 !
+       use lengths, only: leninp,lentag,lenline
        use printings
        use utils
 !
@@ -271,6 +273,7 @@
        subroutine read_molrep(key,blck,nat,tgrp,grptag,body,grps,subg, &
                               atms,mbody,mgrps,msubg,matms)
 !
+       use lengths, only: leninp,lentag,lenline
        use utils
 !
        implicit none
@@ -356,6 +359,7 @@
        subroutine read_body(key,sect,blck,nat,grptag,body,grps,subg,   &
                             atms,mbody,mgrps,msubg,matms)
 !
+       use lengths, only: lentag,lenline
        use utils
 !
        implicit none
@@ -429,6 +433,7 @@
        subroutine read_grps(opt,nat,grptag,grps,subg,atms,mgrps,       &
                             msubg,matms)
 !
+       use lengths, only: leninp,lentag,lenline
        use utils
 !
        implicit none
@@ -528,6 +533,7 @@
 !
        subroutine read_threshold(key,blck,nat,thr,mgrps,grptag)
 !
+       use lengths, only: lentag,lenline
        use utils
 !
        implicit none
@@ -637,6 +643,7 @@
 !
        subroutine read_interthreshold(key,blck,nat,thr,mgrps,grptag)
 !
+       use lengths, only: lentag,lenline
        use utils
 !
        implicit none
@@ -748,6 +755,7 @@
                               neiang)
 !
        use parameters
+       use lengths, only: lentag,lenline
        use utils
 !
        implicit none
@@ -840,9 +848,11 @@
 !
                key = key(:posi-1)
                read(key,*) daux
+!~ write(*,*) 'INPUT VALUE',daux
 !
                thr(iaux1,iaux2) = pi - daux*pi/180.0d0
                thr(iaux2,iaux1) = pi - daux*pi/180.0d0
+!~ write(*,*) 'THRE VALUE',thr(iaux2,iaux1)*180.0d0/pi
 !
                call findline(key,'opt','.VALUES')
 !

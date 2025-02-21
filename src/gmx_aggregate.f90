@@ -2,15 +2,16 @@
 !
        program aggregate
 !
-       use xdr, only: xtcfile
+       use xdr,      only:  xtcfile
 !
        use systeminf
-       use thresholds
        use properties
+       use filenames
+       use thresholds
 !
        use parameters
        use timings
-       use lengths
+       use lengths,       only:  leninp,lentag,lenschm
        use omp_var
 !
        use aggtools,      only:  driver
@@ -23,13 +24,6 @@
        implicit none
 !
        include 'inout.h'
-!
-! Input/output files
-!
-       character(len=leninp)                           ::  traj     !  Trajectory file name
-       character(len=leninp)                           ::  conf     !  Configuration file name
-       character(len=leninp)                           ::  inp      !  General input file name
-       character(len=lenout)                           ::  outp     !  Output file name
 !
 ! Aggregates information in the molecule-based representation
 !
@@ -70,7 +64,6 @@
 !
 ! AnalysisPhenolMD variables
 !     
-       real(kind=8),dimension(9,9,3)                   ::  table    !  Number of aggregates of each type
        integer                                         ::  nsolv    !
 !
 ! Declaration of time control variables
@@ -108,21 +101,6 @@
        write(*,*)
        call print_start()
 !
-! Printing the number of threads available
-!
-!$omp parallel
-!
-      myid  = OMP_GET_THREAD_NUM()
-      nproc = OMP_GET_NUM_THREADS()
-!
-      if ( myid .eq. 0 ) then
-        write(*,'(2X,A,1X,I2,1X,A)') 'Running over',nproc,             &
-                                                        'OpenMP threads'
-        write(*,*)
-      end if
-!
-!$omp end parallel
-!
 ! Initializing line lengths
 !
        lin  = 45
@@ -158,7 +136,22 @@
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
                          msize,neidis,schm,scrn,dopim,dolife,doscrn,   &
-                         seed,chunkadj,chunkscrn,chunklife,debug)
+                         seed,chunkadj,chunkscrn,chunklife,weight,debug)
+!
+! Printing the number of threads available
+!
+!$omp parallel
+!
+      myid  = OMP_GET_THREAD_NUM()
+      nproc = OMP_GET_NUM_THREADS()
+!
+      if ( myid .eq. 0 ) then
+        write(*,'(2X,A,1X,I2,1X,A)') 'Running over',nproc,             &
+                                                        'OpenMP threads'
+        write(*,*)
+      end if
+!
+!$omp end parallel
 !
 ! Initializing random number generator
 !
@@ -213,6 +206,8 @@
        open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
        open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
        open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
+       open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
+       open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
 !
 ! Opening trajectory file
 !
@@ -243,7 +238,7 @@
 !
        if ( dolife ) allocate(avlife(nnode),nlife(nnode))
 !
-! Setting up neiang array (first neighbour index)   TODO: Input .gro .top .xyz ...
+! Setting up neiang array (first neighbour index)   TODO: find nei of H atoms with degree 1
 !
 
 
@@ -308,24 +303,24 @@
        end do
 !
        if ( debug ) then
-         write(*,'(A,20I3)') 'mbody  ',mbody
-         write(*,'(A,20I3)') 'nbody  ',nbody
-         write(*,'(A,20I3)') 'ibody  ',ibody
-         write(*,'(A,20I3)') 'body   ',body
+         write(*,'(A,20I4)') 'mbody  ',mbody
+         write(*,'(A,20I4)') 'nbody  ',nbody
+         write(*,'(A,20I4)') 'ibody  ',ibody
+         write(*,'(A,20I4)') 'body   ',body
          write(*,*) 
-         write(*,'(A,20I3)') 'mgrps  ',mgrps
-         write(*,'(A,20I3)') 'ngrps  ',ngrps
-         write(*,'(A,20I3)') 'igrps  ',igrps
-         write(*,'(A,20I3)') 'grps   ',grps
+         write(*,'(A,20I4)') 'mgrps  ',mgrps
+         write(*,'(A,20I4)') 'ngrps  ',ngrps
+         write(*,'(A,20I4)') 'igrps  ',igrps
+         write(*,'(A,20I4)') 'grps   ',grps
          write(*,*) 
-         write(*,'(A,20I3)') 'msubg  ',msubg
-         write(*,'(A,20I3)') 'nsubg  ',nsubg
-         write(*,'(A,20I3)') 'isubg  ',isubg
-         write(*,'(A,20I3)') 'subg   ',subg
+         write(*,'(A,20I4)') 'msubg  ',msubg
+         write(*,'(A,20I4)') 'nsubg  ',nsubg
+         write(*,'(A,20I4)') 'isubg  ',isubg
+         write(*,'(A,20I4)') 'subg   ',subg
          write(*,*)       
-         write(*,'(A,20I3)') 'atms   ',matms
-         write(*,'(A,20I3)') 'atms   ',atms
-         write(*,'(A,20I3)') 'neiang ',neiang
+         write(*,'(A,20I4)') 'atms   ',matms
+         write(*,'(A,20I4)') 'atms   ',atms
+         write(*,'(A,20I4)') 'neiang ',neiang
          write(*,*)  
        end if     
 !
@@ -333,6 +328,7 @@
 !
        allocate(pim(mgrps,mgrps,msize-1))
        allocate(pop(msize),conc(msize),frac(msize))
+       allocate(prob(msize),num(msize))
 !
 ! Setting distance variables
 !
@@ -347,17 +343,17 @@
 !
 ! Computing the populations of the aggregates
 !
-       write(*,'(4X,A)') 'Computing the populations of the aggrega'//  & 
+       write(*,'(1X,A)') 'Computing the populations of the aggrega'//  & 
                                               'tes along the trajectory'
-       write(*,'(4X,A)') 'Please wait, this may take a while...'
+       write(*,'(1X,A)') 'Please wait, this may take a while...'
        write(*,*)
-       call flush()
+       CALL FLUSH()
 !
-       call driver(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,pim,msize, &
-                   pop,conc,frac,cin,volu,nsteps,nbody,ngrps,nsubg,    &
-                   ibody,igrps,isubg,body,grps,subg,atms,mbody,mgrps,  &
-                   msubg,matms,nprint,minstep,maxstep,nsolv,avlife,    &
-                   nlife,dopim,schm,scrn,doscrn,dolife,debug)
+       call driver(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,msize,     &
+                   nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,body,    &
+                   grps,subg,atms,mbody,mgrps,msubg,matms,nprint,      &
+                   minstep,maxstep,nsolv,avlife,nlife,dopim,schm,      &
+                   scrn,doscrn,dolife,debug)
 !
        call system_clock(t1read)        
 !
@@ -385,6 +381,8 @@
 !
        pop(:) = pop(:)/nsteps
 !
+       prob(:) = prob(:)/nsteps
+!
        frac(:) = frac(:)/nsteps
 !
        conc(:) = conc(:)/nsteps/(Na*1.0E-24)
@@ -400,18 +398,6 @@
            if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
          end do 
        end if
-!~ !
-!~        table(:,:,:) = table(:,:,:)/nsteps
-!~ !
-!~        do i = 1, 3
-!~          dpaux = 0.0d0
-!~          do j = 1, 9
-!~            do k = 1, 9
-!~              dpaux = dpaux + table(k,j,i)
-!~            end do
-!~          end do
-!~          table(:,:,i) = table(:,:,i)/dpaux*100
-!~        end do
 !
 ! Printing summary of the results
 !
@@ -426,30 +412,20 @@
        write(*,*)
        write(*,'(1X,A,100(X,F6.2))')  'Global populations        : ',  &
                                                                   pop(:)
+       write(*,'(1X,A,100(X,F6.2))')  'Global probabilities      : ',  &
+                                                                 prob(:)
        write(*,'(1X,A,100(X,D12.6))') 'Global fractions          : ',  &
                                                                  frac(:)
        write(*,'(1X,A,100(X,D12.6))') 'Global concentrations     : ',  &
                                                                  conc(:)
+       write(*,'(1X,A,100(X,D12.6))') 'Number of samples         : ',  &
+                                                                  num(:)
        write(*,*) 
        if ( dolife ) then
          write(*,'(1X,A,100(X,D12.6))') 'Average lifetimes        '//  &
                                                     ' : ',avlife(:msize)
          write(*,*) 
        end if
-!
-!~        do i = 1, 3
-!~          write(*,'(3X,A,X,I3)') 'Populations of the aggregates belonging to type',i+1
-!~          write(*,'(3X,51("-"))') 
-!~          write(*,'(8X,3(1X,A))') 'IDXOH','IDXPh','Population'
-!~          do j = 1, 9
-!~            do k = 1, 9
-!~              if ( table(k,j,i) .gt. 1e-3 ) then
-!~                write(*,'(8X,2(1X,I4),1X,F6.2)') k,j,table(k,j,i)
-!~              end if
-!~            end do
-!~          end do
-!~          write(*,*)
-!~        end do
 !
 !~        if ( dopim ) then
 !~          do i = 1, msize-1
@@ -478,6 +454,7 @@
        deallocate(thrang)
 !
        deallocate(pop,conc,frac)
+       deallocate(prob,num)
        deallocate(pim)
 !
        if ( dolife ) deallocate(avlife,nlife)
@@ -485,6 +462,8 @@
        close(uniout+1)
        close(uniout+2)
        close(uniout+3)
+       close(uniout+4)
+       close(uniout+5)
 !
 ! Printing timings
 !
@@ -509,13 +488,13 @@
                                       tscrn,tcpuscrn)
 !
        call print_time(6,1,'Total BFS time',35,tbfs)
-!~        call print_speed(6,1,'Total sorting time',35,tsort,tcpusort)
        call print_time(6,1,'Total sorting time',35,tsort)
 !       
        if ( dolife ) call print_speed(6,1,'Total lifetimes calcula'//  &
                                      'tion time',35,tlife,tcpulife)
 !
-       if ( dopim ) call print_time(6,1,'Total PIM time',35,tpim)
+       if ( dopim ) call print_speed(6,1,'Total PIM time',35,tpim,     &
+                                     tcpupim)
 !
        write(*,*)
 !
@@ -530,7 +509,9 @@
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,scrn,dopim,   &
                                dolife,doscrn,seed,chunkadj,chunkscrn,  &
-                               chunklife,debug)
+                               chunklife,weight,debug)
+!
+       use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
        use printings
        use utils
@@ -545,6 +526,7 @@
        character(len=leninp),intent(out)         ::  conf       !  Structure file name
        character(len=lenschm),intent(out)        ::  schm       !  Calculation scheme flag
        character(len=lenschm),intent(out)        ::  scrn       !  Calculation screening flag
+       character(len=leninp),intent(out)         ::  weight     !  Weights file name
        logical,intent(out)                       ::  seed       !  Random seed flag
        logical,intent(out)                       ::  dopim      !  PIM calculation flag
        logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
@@ -573,6 +555,7 @@
        inp     = 'aggregate.inp'
        traj    = 'md.xtc'
        conf    = 'conf.gro'
+       weight  = '[none]'
        outp    = ''
 !
        schm    = 'angles'
@@ -757,6 +740,10 @@
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
              i = i + 1
+           case ('-w','-lw','--log-weights','--log-weight','--weight','--weights') 
+             call get_command_argument(i,weight,status=io)
+             call check_arg(weight,io,arg,cmd)
+             i = i + 1
            case ('-t','-traj','--traj','--trajectory') 
              call get_command_argument(i,traj,status=io)
              call check_arg(traj,io,arg,cmd)
@@ -881,6 +868,7 @@
        write(*,'(2X,A)') '-t,--trajectory       Trajectory file name'
        write(*,'(2X,A)') '-c,--configuration    Configuration file name'
        write(*,'(2X,A)') '-p,--populations      Populations file name'
+       write(*,'(2X,A)') '-lw,--log-weights     Weights file name'
        write(*,*)
        write(*,'(2X,A)') '-n,--nprint           Printing steps interval'
        write(*,'(2X,A)') '-min,--minimum-step   First step to be a'//  &
@@ -924,8 +912,7 @@
        subroutine setcoord(nnode,msubg,nsubg,isubg,atms,natms,fcoord,  &
                            natsys,rcoord,natmol,box)
 !
-       use geometry,   only: sminimgvec,                               &
-                             scenvec
+       use geometry,   only: sminimgvec,scenvec
        use omp_var
 !
        use omp_lib
@@ -934,8 +921,8 @@
 !
 ! Input/output variables
 !
-       real(kind=4),dimension(3,natsys),intent(in)  ::  rcoord   !  Atomic coordinates !FLAG: kind=8 to kind=4
-       real(kind=4),dimension(3,natms),intent(out)  ::  fcoord   !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3,natsys),intent(in)  ::  rcoord   !  Input coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3,natms),intent(out)  ::  fcoord   !  Output coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)         ::  box      !  Simulation box !FLAG: kind=8 to kind=4
        integer,dimension(natmol),intent(in)         ::  nsubg    !  
        integer,dimension(natmol),intent(in)         ::  isubg    !   
@@ -981,164 +968,24 @@
                                                                     box)
                atcoord(:,iisubg) = svaux(:) + atcoord(:,iisubg)
 !
-!~ write(*,*) iinode,innode,innode+atms(isubg(insubg)+iisubg)
              end do
 !
              fcoord(:,j) = scenvec(3,nsubg(insubg),                    &
                                    atcoord(:,:nsubg(insubg)))
 !           
-!
            else
 !
              fcoord(:,j) = rcoord(:,innode+atms(isubg(insubg)+1))
 !
-!~ write(*,*) iinode,innode,innode+atms(isubg(insubg)+1)
            end if    
          end do
-!~ write(*,*)
+!
        end do
 !
 !$omp end parallel do                   
 !
        return
        end subroutine setcoord
-!
-!======================================================================!
-!
-!~        subroutine print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!~ !
-!~        use xdr,       only: xtcfile
-!~        use geometry,  only: sminimgvec
-!~        use datatypes
-!~ !
-!~        implicit none
-!~ !
-!~        include 'inout.h'
-!~ !
-!~ ! Input/output variables
-!~ !
-!~        type(xtcfile),intent(inout)           ::  xtcf    !  xtc file informacion   
-!~        type(groinp),intent(in)               ::  sys     !  System information
-!~        character(len=lenout),intent(in)      ::  outp    !  Output file name
-!~        integer,dimension(msize),intent(in)  ::  nagg    !  Number of aggregates of each size
-!~        integer,dimension(nnode),intent(in)   ::  mol    !  Molecule identifier
-!~        integer,dimension(nnode),intent(in)   ::  agg    !  Aggregates size
-!~        integer,intent(in)                    ::  msize  !  Maximum aggregate size
-!~        integer,intent(in)                    ::  nnode   !  Number of residues
-!~ !
-!~ ! Local variables
-!~ !
-!~        type(xtcfile)                         ::  xtco    !  xtc file informacion
-!~        character(len=lenout)                 ::  straux  !  Auxiliary string
-!~        character(len=lenout)                 ::  aux     !  Auxiliary string
-!~        real(kind=4),dimension(3)             ::  svaux   !  Auxiliary single precision vector
-!~        real(kind=8),dimension(3)             ::  cofm    !  Center of mass vector
-!~        real(kind=8)                          ::  mass    !  Total mass of the aggregate
-!~        integer                               ::  nsize   !  Size of the previous printed aggregate
-!~        integer                               ::  i,j     !  Indexes
-!~        integer                               ::  m,n     !  Indexes
-!~        integer                               ::  p,q,r,s !  Indexes
-!~ !
-!~ ! Priting coordinates of the aggregates
-!~ ! -------------------------------------
-!~ !
-!~        write(aux,*) xtcf%STEP
-!~        aux = adjustl(aux)
-!~ !
-!~        straux = trim(outp)//'_'//trim(aux)//'.xtc'
-!~        aux    = trim(outp)//'_'//trim(aux)//'.xyz'
-!~ ! Printing global coordinates in xtc format
-!~        call xtco%init(straux,'w')
-!~        call xtco%write(xtcf%natoms,xtcf%step,xtcf%time,xtcf%box,       &
-!~                                                      xtcf%pos,xtcf%prec)
-!~        call xtco%close
-!~ ! Printing global coordinates in xyz format
-!~        open(unit=uniinp,file=trim(aux),action='write')
-!~ !
-!~        write(uniinp,*) xtcf%NATOMS
-!~        write(uniinp,*) sys%title
-!~ !
-!~        do i = 1, xtcf%NATOMS
-!~          write(uniinp,*) sys%atname(modulo(i-1,sys%nat)+1),            &
-!~                                                         xtcf%pos(:,i)*10
-!~        end do
-!~ !
-!~        close(uniinp)
-!~ ! Printing coordinates of the complexes by size
-!~        n     = nagg(1)
-!~        nsize = 0
-!~ !
-!~        do i = 2, msize
-!~          do j = 1, nagg(i)
-!~            n = n + agg(n)
-!~            if ( nsize .ne. agg(n) ) then
-!~              write(straux,*) agg(n)
-!~              straux = adjustl(straux)
-!~ ! 
-!~              write(aux,*) xtcf%STEP
-!~              aux = adjustl(aux)
-!~ !
-!~              straux = trim(outp)//'_'//trim(aux)//'_'//trim(straux)//  &
-!~                                                                   '.xyz'
-!~              open(unit=uniinp,file=trim(straux),action='write')
-!~ !
-!~              nsize = agg(n)
-!~            end if
-!~ !
-!~            cofm(:)  = 0.0d0
-!~            mass     = 0.0d0
-!~            svaux(:) = xtcf%pos(:,(mol(n)-1)*sys%nat+1) 
-!~ !
-!~            m = n - 1
-!~            do p = 1, agg(n)
-!~              mass = mass + sys%totm
-!~              m = m + 1
-!~              r = (mol(m)-1)*sys%nat
-!~              do q = 1, sys%nat
-!~                r = r + 1 
-!~                xtcf%pos(:,r) = sminimgvec(svaux(:),xtcf%pos(:,r),      &
-!~                                           (/ xtcf%box(1,1),            &
-!~                                              xtcf%box(2,2),            &
-!~                                              xtcf%box(3,3) /) )
-!~                xtcf%pos(:,r) = svaux(:) + xtcf%pos(:,r)
-!~                do s = 1, 3
-!~                  cofm(s) = cofm(s) + sys%mass(q)*xtcf%pos(s,r)
-!~                end do
-!~              end do
-!~            end do
-!~            cofm(:) = cofm(:)/mass
-!~ !
-!~            write(uniinp,*) sys%nat*agg(n)
-!~            write(uniinp,'(20(X,I5))') mol(n:n+agg(n)-1)
-!~ !
-!~            m = n - 1
-!~            do p = 1, agg(n)
-!~              m = m + 1
-!~              r = (mol(m)-1)*sys%nat
-!~              do q = 1, sys%nat
-!~                r = r + 1
-!~                write(uniinp,'(A5,3(1X,F12.8))') sys%atname(q),         &
-!~                                             (xtcf%pos(:,r) - cofm(:))*10
-!~              end do
-!~            end do
-!~ !
-!~            if ( nsize .ne. agg(n+1) ) close(uniinp)
-!~ !
-!~          end do
-!~        end do
-!~ !
-!~        close(uniinp)
-!~ !
-!~ ! r  -> i
-!~ ! q  -> iat
-!~ ! p  -> irenum
-!~ ! n  -> iitag
-!~ ! m  -> iimol
-!~ ! i  -> itype
-!~ ! j  -> inagg
-!~ !
-!~        return
-!~        end subroutine print_coord
 !
 !======================================================================!
 !
@@ -1207,11 +1054,11 @@
        subroutine blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg, &
                             nmol,imol,magg)
 !
-       use timings,    only: tbfs,tcpubfs,tsort,tcpusort,count_rate
-       use graphtools, only: findcompundir
-       use sorting,    only: ivvqsort,                                 &
-                             ivqsort,                                  &
-                             iqsort
+       use timings,     only: tbfs,tcpubfs,tsort,tcpusort,count_rate
+       use graphtools,  only: findcompundir
+       use sorting,     only: ivvqsort,ivqsort,iqsort
+!
+       use utils,       only: print_info
 !
        use omp_lib
 !

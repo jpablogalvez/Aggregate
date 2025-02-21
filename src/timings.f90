@@ -24,6 +24,8 @@
        real(kind=8)  ::  tcpusort  !  Total CPU sorting time
        real(kind=8)  ::  tcpuscrn  !  Total CPU screening time
        real(kind=8)  ::  tcpulife  !  Total CPU lifetimes time
+       real(kind=8)  ::  tcpupim   !  Total CPU PIM analysis time
+       real(kind=8)  ::  tcpuconf  !  Total CPU conformational analysis time
 !
 ! Declaration of system_clock variables 
 !
