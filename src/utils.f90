@@ -42,7 +42,7 @@
 !
        subroutine read_string(i,lenstr,inp,nfile,arg,cmd)
 !
-       use lengths,  only: lenarg
+       use lengths,  only:  lenarg
 !
        implicit none
 !
@@ -79,7 +79,7 @@
 !
        subroutine read_realvec(i,n,box)
 !
-       use lengths,  only: lenarg
+       use lengths,  only:  lenarg
 !
        implicit none
 !
@@ -105,7 +105,7 @@
 !
        subroutine read_intvec(i,n,ivec)
 !
-       use lengths,  only: lenarg
+       use lengths,  only:  lenarg
 !
        implicit none
 !
@@ -187,7 +187,7 @@
 !
        subroutine chklineopt(line,key,arg)
 !
-       use lengths,  only: lenarg,lenline
+       use lengths,  only:  lenarg,lenline
 !
        implicit none
 !
@@ -525,7 +525,7 @@
 !
        subroutine findline(key,sel,flag)
 !
-       use lengths,  only: lenline
+       use lengths,  only:  lenline
 !
        implicit none
 !

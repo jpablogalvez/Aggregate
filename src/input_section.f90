@@ -848,11 +848,9 @@
 !
                key = key(:posi-1)
                read(key,*) daux
-!~ write(*,*) 'INPUT VALUE',daux
 !
                thr(iaux1,iaux2) = pi - daux*pi/180.0d0
                thr(iaux2,iaux1) = pi - daux*pi/180.0d0
-!~ write(*,*) 'THRE VALUE',thr(iaux2,iaux1)*180.0d0/pi
 !
                call findline(key,'opt','.VALUES')
 !
