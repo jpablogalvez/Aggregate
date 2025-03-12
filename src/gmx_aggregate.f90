@@ -2,7 +2,7 @@
 !
        program aggregate
 !
-       use xdr,      only:  xtcfile
+       use xdr,           only:  xtcfile
 !
        use systeminf
        use properties
@@ -15,9 +15,11 @@
        use omp_var
 !
        use aggtools,      only:  driver
+       use graphtools,    only:  bonds2adj
        use printings
        use utils,         only:  rndmseed
-       use input_section, only:  read_inp,read_gro
+       use input_section, only:  read_inp
+       use gmx_files,     only:  read_gro,top_parser,count_moltype
 !
        use omp_lib
 !
@@ -27,28 +29,21 @@
 !
 ! Aggregates information in the molecule-based representation
 !
-       integer                                         ::  nnode    !  Total number of molecules
+       integer,dimension(:),allocatable                ::  nnode    !  Total number of molecules of each size
+       integer,dimension(:),allocatable                ::  inode    !  Initial molecule of each size
+       integer,dimension(:),allocatable                ::  nat      !  Number of atoms in each molecule type
+       integer,dimension(:),allocatable                ::  iat      !  Initial atoms of each molecule type
+       integer,dimension(:),allocatable                ::  natms    !
+       integer,dimension(:),allocatable                ::  iatms    !
+       integer,dimension(:),allocatable                ::  ngrps    !  Number of active atoms in each representation type
+       integer,dimension(:),allocatable                ::  igrps    !  Initial active atom of each representation type
+       integer                                         ::  ntype    !  Number of molecules types
+       integer                                         ::  mnode    !  Total number of molecules
+       integer                                         ::  maxat    !  Total number of atoms in the system
+       integer                                         ::  mat      !  Total number of atoms in the molecules
+       integer                                         ::  matms    !  Total number of subgroups in the molecules
+       integer                                         ::  mgrps    !  
        integer                                         ::  msize    !  Maximum aggregate size
-!
-! Topological representations information
-!
-       character(len=leninp)                           ::  tgrp     !  Groups file title
-       character(len=lentag),dimension(:),allocatable  ::  grptag   !  Names of the groups
-       integer,dimension(:),allocatable                ::  body     !  Number of groups in each body
-       integer,dimension(:),allocatable                ::  nbody    !  Number of groups in each body
-       integer,dimension(:),allocatable                ::  ibody    !  Number of groups in each body
-       integer,dimension(:),allocatable                ::  grps     !  Number of subgroups in each group
-       integer,dimension(:),allocatable                ::  ngrps    !  Number of subgroups in each group
-       integer,dimension(:),allocatable                ::  igrps    !  Number of subgroups in each group
-       integer,dimension(:),allocatable                ::  subg     !  Number of atoms in each subgroup
-       integer,dimension(:),allocatable                ::  nsubg    !  Number of atoms in each subgroup
-       integer,dimension(:),allocatable                ::  isubg    !  Number of atoms in each subgroup
-       integer,dimension(:),allocatable                ::  atms     !  Atoms identifier
-       integer                                         ::  mbody    !  Number of bodies
-       integer                                         ::  mgrps    !  Number of groups
-       integer                                         ::  msubg    !  Number of subgroups
-       integer                                         ::  matms    !  Number of interacting atoms in the monomer
-       integer                                         ::  natms    !  Total number of subgroups in the system
 !
 ! Trajectory control variables
 !     
@@ -95,6 +90,7 @@
        integer                                         ::  lfin     ! 
        integer                                         ::  io       !  Status
        integer                                         ::  i,j,k    !  Indexes
+       integer                                         ::  itype    !  Indexes
 !
 ! Printing header
 !
@@ -137,6 +133,10 @@
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
                          msize,neidis,schm,scrn,dopim,dolife,doscrn,   &
                          seed,chunkadj,chunkscrn,chunklife,weight,debug)
+!
+!
+! 
+       if ( trim(outp) .eq. '[none]' ) outp = inp(:len_trim(inp)-4)//'.dat'
 !
 ! Printing the number of threads available
 !
@@ -197,18 +197,6 @@
        end if
        write(*,*)
 !
-! Processing Gromacs input file
-!
-       call read_gro(conf,sys)               !  TODO: Input .gro .top .xyz ...
-!
-! Opening output files
-!
-       open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
-       open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
-       open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
-       open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
-       open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
-!
 ! Opening trajectory file
 !
        if ( traj(len_trim(traj)-3:) .eq. '.xtc' ) then 
@@ -220,115 +208,311 @@
          call print_end()
        end if
 !
+! Processing monomer configuration input file
+!
+       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  
+!
+         allocate(sys(1),rep(1))
+         allocate(nnode(1))        ! TODO: only reads 1 gro file, only one molecule type
+!                                  !        input # gro files and # number of molecules
+         call read_gro(uniinp,conf,sys(1))  
+!
+         nnode(1) = xtcf%natoms/sys(1)%nat
+!
+       else if ( conf(len_trim(conf)-3:) .eq. '.top' ) then
+!
+         call count_moltype(uniinp,conf,ntype)
+!
+         allocate(sys(ntype),rep(ntype))
+!
+         allocate(nnode(ntype),inode(ntype))
+         allocate(nat(ntype),iat(ntype))
+         allocate(natms(ntype),iatms(ntype))
+         allocate(ngrps(ntype),igrps(ntype))
+!
+         call top_parser(uniinp,conf,ntype,nnode)  
+!
+       else
+         write(*,*) 'Incorrect extension!' !  TODO: Input .gro .top .xyz ...
+         write(*,*)
+         call print_end()
+       end if
+!
+! Building adjacency matrix of the monomer
+!
+       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  ! TODO: guess adj from atomic radii, etc.
+!
+         stop 'Adjacency matrix from gro file is not yet implemented!'
+!
+!~          do i = 1, ntype
+!~            allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+!~            call radii2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
+!~                           sys(i)%adj)
+!~          end do
+!
+       else if ( conf(len_trim(conf)-3:) .eq. '.top' ) then
+!
+         do i = 1, ntype
+!
+           allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+!
+           call bonds2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
+                          sys(i)%adj)
+!
+         end do
+!
+       end if
+!
+! Opening output files
+!
+       if ( outp(len_trim(outp)-3:) .eq. '.dat' ) then 
+         outp = outp(:len_trim(outp)-4)
+       end if
+!
+       open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
+       open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
+       open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
+       open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
+       open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
+!
+! Setting up system size information
+!
+       mnode = 0
+       mat   = 0
+       maxat = 0
+!
+       do itype = 1, ntype
+!
+         mnode = mnode + nnode(itype)
+         mat   = mat   + sys(itype)%nat
+!
+         nat(itype) = sys(itype)%nat*nnode(itype)
+         maxat      = maxat + sys(itype)%nat*nnode(itype)
+!
+         rep(itype)%nat = sys(itype)%nat
+         rep(itype)%iat = 0 
+!
+       end do
+!
+       inode(:) = 0
+       iat(:)   = 0
+!
+       do itype = 2, ntype
+!
+         inode(itype)   = inode(itype-1)   + nnode(itype-1)
+         iat(itype)     = iat(itype-1)     + nat(itype-1)
+         rep(itype)%iat = rep(itype-1)%iat + rep(itype-1)%nat
+!
+       end do
+!
 ! Allocating variables depending on system size
 !
-       nnode  = xtcf%NATOMS/sys%nat
+       allocate(thr(mat,mat))
+       allocate(thr2(mat,mat))
 !
-       allocate(thr(sys%nat,sys%nat))
-       allocate(thr2(sys%nat,sys%nat))
+       allocate(thrang(mat,mat))
 !
-       allocate(thrang(sys%nat,sys%nat))
+       do i = 1, ntype
 !
-       allocate(nbody(sys%nat),ngrps(sys%nat),nsubg(sys%nat))
-       allocate(ibody(sys%nat),igrps(sys%nat),isubg(sys%nat))
-       allocate(body(sys%nat),grps(sys%nat),subg(sys%nat))
-       allocate(grptag(sys%nat),atms(sys%nat))
+         allocate(rep(i)%nbody(sys(i)%nat))
+         allocate(rep(i)%ngrps(sys(i)%nat))
+         allocate(rep(i)%nsubg(sys(i)%nat))
+!
+         allocate(rep(i)%ibody(sys(i)%nat))
+         allocate(rep(i)%igrps(sys(i)%nat))
+         allocate(rep(i)%isubg(sys(i)%nat))
+!
+         allocate(rep(i)%body(sys(i)%nat))
+         allocate(rep(i)%grps(sys(i)%nat))
+         allocate(rep(i)%subg(sys(i)%nat))
+!
+         allocate(rep(i)%grptag(sys(i)%nat))
+         allocate(rep(i)%atms(sys(i)%nat))
 ! 
-       allocate(neiang(sys%nat))
+         allocate(rep(i)%neiang(sys(i)%nat))
 !
-       if ( dolife ) allocate(avlife(nnode),nlife(nnode))
+       end do
+!
+!~        if ( dolife ) allocate(avlife(ntot),nlife(ntot))
 !
 ! Setting up neiang array (first neighbour index)   TODO: find nei of H atoms with degree 1
 !
-
-
+!~        call setneiang
 !
 ! Processing general input file
 !
-       call read_inp(inp,sys%nat,tgrp,grptag,nbody,ngrps,nsubg,atms,   &
-                     mbody,mgrps,msubg,matms,thr,thr2,thrang,neiang)
+       call read_inp(inp,ntype,rep,mat,thr,thr2,thrang)
 !
-       natms = msubg*nnode
+! Initializing topological information
 !         
-       ibody(:) = 0
-       igrps(:) = 0
-       isubg(:) = 0
+       ngrps(:) = 0
 !
-       body(:) = 0
-       grps(:) = 0
-       subg(:) = 0
+       matms = 0
+       mgrps = 0
+!
+       do itype = 1, ntype
+!
+         natms(itype) = rep(itype)%msubg*nnode(itype)
+         ngrps(itype) = rep(itype)%mgrps
+!
+         matms = matms + natms(itype)
+         mgrps = mgrps + ngrps(itype)
+!
+         rep(itype)%ibody(:) = 0
+         rep(itype)%igrps(:) = 0
+         rep(itype)%isubg(:) = 0
+!
+         rep(itype)%body(:) = 0
+         rep(itype)%grps(:) = 0
+         rep(itype)%subg(:) = 0
 !
 ! Setting up igrps and ngrps arrays
 !
-       k = 1
-       do i = 1, mgrps
-         if ( i .lt. mgrps ) then
-           igrps(i+1) = igrps(i) + ngrps(i)
-         end if
+         k = 1
+         do i = 1, rep(itype)%mgrps
+           if ( i .lt. rep(itype)%mgrps ) then
+             rep(itype)%igrps(i+1) = rep(itype)%igrps(i) + rep(itype)%ngrps(i)
+           end if
 !
-         do j = 1, ngrps(i)
-           grps(k) = i
-           k = k + 1
+           do j = 1, rep(itype)%ngrps(i)
+             rep(itype)%grps(k) = i
+             k = k + 1
+           end do
          end do
-       end do
 !
 ! Setting up isubg and nsubg arrays
 !
-       do i = 1, msubg-1
-         isubg(i+1) = isubg(i) + nsubg(i)
-       end do
+         do i = 1, rep(itype)%msubg-1
+           rep(itype)%isubg(i+1) = rep(itype)%isubg(i) + rep(itype)%nsubg(i)
+         end do
 !
-       do i = 1, mgrps
-         do j = 1, ngrps(i)
-           io = igrps(i) + j
-           do k = 1, nsubg(io)
-             subg(isubg(io)+k) = i 
+         do i = 1, rep(itype)%mgrps
+           do j = 1, rep(itype)%ngrps(i)
+             io = rep(itype)%igrps(i) + j
+             do k = 1, rep(itype)%nsubg(io)
+               rep(itype)%subg(rep(itype)%isubg(io)+k) = i 
+             end do
            end do
          end do
-       end do
 !
 ! Setting up ibody and nbody arrays
 !
-       do i = 1, mbody-1
-         ibody(i+1) = ibody(i) + nbody(i)
+         do i = 1, rep(itype)%mbody-1
+           rep(itype)%ibody(i+1) = rep(itype)%ibody(i) + rep(itype)%nbody(i)
+         end do
+!
+         do i = 1, rep(itype)%mbody
+           do j = 1, rep(itype)%nbody(i)
+             io = rep(itype)%ibody(i) + j
+             do k = 1, rep(itype)%ngrps(io)
+               rep(itype)%body(rep(itype)%igrps(io)+k) = i
+              end do
+           end do
+         end do
+!
        end do
 !
-       do i = 1, mbody
-         do j = 1, nbody(i)
-           io = ibody(i) + j
-           do k = 1, ngrps(io)
-             body(igrps(io)+k) = i
-            end do
-         end do
+! Setting up global iatms and igrps 
+!
+       igrps(:) = 0
+       iatms(:) = 0
+       do itype = 2, ntype
+         iatms(itype) = iatms(itype-1) + natms(itype-1)
+         igrps(itype) = igrps(itype-1) + ngrps(itype-1)
        end do
+!
+! Fatal error checking
+!
+       if ( maxat .ne. xtcf%natoms ) then
+         write(*,*)
+         write(*,'(2X,68("="))')
+         write(*,'(3X,A)') 'ERROR:  Total number of atoms does not match'
+         write(*,*) 
+         write(*,'(3X,A,I6)') 'Number of atoms in the topology file:   ',maxat
+         write(*,'(3X,A,I6)') 'Number of atoms in the trajectory file: ',xtcf%natoms
+         write(*,'(3X,A)')    'Please, check your topology file, '//trim(conf)
+         write(*,'(2X,68("="))')
+         write(*,*) 
+         call print_end()
+       end if
+!
+! Printing information
 !
        if ( debug ) then
-         write(*,'(A,20I4)') 'mbody  ',mbody
-         write(*,'(A,20I4)') 'nbody  ',nbody
-         write(*,'(A,20I4)') 'ibody  ',ibody
-         write(*,'(A,20I4)') 'body   ',body
-         write(*,*) 
-         write(*,'(A,20I4)') 'mgrps  ',mgrps
-         write(*,'(A,20I4)') 'ngrps  ',ngrps
-         write(*,'(A,20I4)') 'igrps  ',igrps
-         write(*,'(A,20I4)') 'grps   ',grps
-         write(*,*) 
-         write(*,'(A,20I4)') 'msubg  ',msubg
-         write(*,'(A,20I4)') 'nsubg  ',nsubg
-         write(*,'(A,20I4)') 'isubg  ',isubg
-         write(*,'(A,20I4)') 'subg   ',subg
-         write(*,*)       
-         write(*,'(A,20I4)') 'atms   ',matms
-         write(*,'(A,20I4)') 'atms   ',atms
-         write(*,'(A,20I4)') 'neiang ',neiang
-         write(*,*)  
-       end if     
+!
+         write(*,'(A)') 'System size information'
+         write(*,'(A)') '-----------------------'
+         write(*,*)
+         write(*,'(A,20I5)') 'mnode  ',mnode
+         write(*,'(A,20I5)') 'mat    ',mat
+         write(*,'(A,20I5)') 'nnode  ',nnode(:)
+         write(*,'(A,20I5)') 'inode  ',inode(:)
+         write(*,*)
+         write(*,'(A,20I5)') 'mgrps  ',mgrps
+         write(*,'(A,20I5)') 'ngrps  ',ngrps(:)
+         write(*,'(A,20I5)') 'igrps  ',igrps(:)
+         write(*,*)
+         write(*,'(A,20I5)') 'nat    ',nat(:)
+         write(*,'(A,20I5)') 'iat    ',iat(:)
+         write(*,*)
+         write(*,'(A,20I5)') 'matms  ',matms
+         write(*,'(A,20I5)') 'natms  ',natms(:)
+         write(*,'(A,20I5)') 'iatms  ',iatms(:)
+         write(*,*)
+!
+         do itype = 1, ntype
+           write(*,'(A,I4)') 'Molecular system:',itype
+           write(*,'(A)')    '.....................'
+           write(*,*)
+           write(*,'(A,20I4)') 'mbody  ',rep(itype)%mbody
+           write(*,'(A,20I4)') 'nbody  ',rep(itype)%nbody
+           write(*,'(A,20I4)') 'ibody  ',rep(itype)%ibody
+           write(*,'(A,20I4)') 'body   ',rep(itype)%body
+           write(*,*) 
+           write(*,'(A,20I4)') 'mgrps  ',rep(itype)%mgrps
+           write(*,'(A,20I4)') 'ngrps  ',rep(itype)%ngrps
+           write(*,'(A,20I4)') 'igrps  ',rep(itype)%igrps
+           write(*,'(A,20I4)') 'grps   ',rep(itype)%grps
+           write(*,*) 
+           write(*,'(A,20I4)') 'msubg  ',rep(itype)%msubg
+           write(*,'(A,20I4)') 'nsubg  ',rep(itype)%nsubg
+           write(*,'(A,20I4)') 'isubg  ',rep(itype)%isubg
+           write(*,'(A,20I4)') 'subg   ',rep(itype)%subg
+           write(*,*)       
+           write(*,'(A,20I4)') 'matms  ',rep(itype)%matms
+           write(*,'(A,20I4)') 'atms   ',rep(itype)%atms
+           write(*,'(A,20I4)') 'neiang ',rep(itype)%neiang
+           write(*,*)  
+           write(*,'(A,20I4)') 'nat    ',rep(itype)%nat
+           write(*,'(A,20I4)') 'iat    ',rep(itype)%iat
+           write(*,*)
+         end do
+!
+         write(*,'(A)') 'Distance thresholds'
+         write(*,'(A)') '-------------------'
+         write(*,*)
+         write(*,'(25(2X,A5))') (rep(i)%grptag(:rep(i)%mgrps),i=1,ntype)
+         do i = 1, mgrps
+           write(*,'(25(F6.2,1X))') (thr(i,j),j=1,mgrps)
+         end do
+         write(*,*)
+!
+         write(*,'(A)') 'Angles thresholds'
+         write(*,'(A)') '-----------------'
+         write(*,*)
+         write(*,'(25(2X,A5))') (rep(i)%grptag(:rep(i)%mgrps),i=1,ntype)
+         do i = 1, mgrps
+           write(*,'(25(F6.2,1X))') (thrang(i,j)*180.0/pi,j=1,mgrps)
+         end do
+         write(*,*)
+!
+       end if 
 !
 ! Allocating variables depending on topological information 
 !
        allocate(pim(mgrps,mgrps,msize-1))
-       allocate(pop(msize),conc(msize),frac(msize))
-       allocate(prob(msize),num(msize))
+!~        allocate(pop(msize),conc(msize),frac(msize))
+!~        allocate(prob(msize),num(msize))
 !
 ! Setting distance variables
 !
@@ -349,11 +533,10 @@
        write(*,*)
        CALL FLUSH()
 !
-       call driver(xtcf,sys%nat,nnode,natms,thr,thr2,neidis,msize,     &
-                   nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,body,    &
-                   grps,subg,atms,mbody,mgrps,msubg,matms,nprint,      &
-                   minstep,maxstep,nsolv,avlife,nlife,dopim,schm,      &
-                   scrn,doscrn,dolife,debug)
+!~        call driver(xtcf,sys%nat,nnode,thr,thr2,neidis,msize,     &
+!~                    nsteps,rep,nprint,      &
+!~                    minstep,maxstep,nsolv,avlife,nlife,dopim,schm,      &
+!~                    scrn,doscrn,dolife,debug)
 !
        call system_clock(t1read)        
 !
@@ -363,101 +546,97 @@
 !
 ! Averaging pairwise interaction matrix
 !  
-!~        if ( dopim ) then
-!~          pim(:,:,:) = pim(:,:,:)/nsteps ! FLAG: not need this operation
-!~ !
-!~          do i = 1, msize-1
-!~            dpaux = 0.0d0
-!~            do j = 1, mgrps
-!~              do k = j, mgrps
-!~                dpaux = dpaux + pim(k,j,i)
-!~              end do
-!~            end do
-!~            pim(:,:,i) = pim(:,:,i)/dpaux*100
-!~          end do
-!~        end if
+!       if ( dopim ) then
+!         pim(:,:,:) = pim(:,:,:)/nsteps ! FLAG: not need this operation
+!
+!         do i = 1, msize-1
+!           dpaux = 0.0d0
+!           do j = 1, mgrps
+!             do k = j, mgrps
+!               dpaux = dpaux + pim(k,j,i)
+!             end do
+!           end do
+!           pim(:,:,i) = pim(:,:,i)/dpaux*100
+!         end do
+!       end if
 !
 ! Averaging populations
 !
-       pop(:) = pop(:)/nsteps
-!
-       prob(:) = prob(:)/nsteps
-!
-       frac(:) = frac(:)/nsteps
-!
-       conc(:) = conc(:)/nsteps/(Na*1.0E-24)
-!
-       cin = cin/nsteps/(Na*1.0E-24)
-!
-       volu = volu/nsteps
+!~        pop(:) = pop(:)/nsteps
+!~ !
+!~        prob(:) = prob(:)/nsteps
+!~ !
+!~        frac(:) = frac(:)/nsteps
+!~ !
+!~        conc(:) = conc(:)/nsteps/(Na*1.0E-24)
+!~ !
+!~        cin = cin/nsteps/(Na*1.0E-24)
+!~ !
+!~        volu = volu/nsteps
 !
 ! Averaging lifetimes
 !
-       if ( dolife ) then
-         do i = 1, nnode
-           if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
-         end do 
-       end if
+!~        if ( dolife ) then
+!~          do i = 1, nnode
+!~            if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
+!~          end do 
+!~        end if
 !
 ! Printing summary of the results
 !
-       call print_title(6,1,'Output information','-')
-       write(*,*)
-       call line_int(6,2,'Number of frames analyzed',lin,':','I12',    &
-                     nsteps,lfin)
-       write(*,*)
-       call line_dp(6,2,'Initial concentration',lin,':','F12.8',       &
-                    cin,lfin)
-       call line_dp(6,2,'Average volume',lin,':','F12.6',volu,lfin)
-       write(*,*)
-       write(*,'(1X,A,100(X,F6.2))')  'Global populations        : ',  &
-                                                                  pop(:)
-       write(*,'(1X,A,100(X,F6.2))')  'Global probabilities      : ',  &
-                                                                 prob(:)
-       write(*,'(1X,A,100(X,D12.6))') 'Global fractions          : ',  &
-                                                                 frac(:)
-       write(*,'(1X,A,100(X,D12.6))') 'Global concentrations     : ',  &
-                                                                 conc(:)
-       write(*,'(1X,A,100(X,D12.6))') 'Number of samples         : ',  &
-                                                                  num(:)
-       write(*,*) 
-       if ( dolife ) then
-         write(*,'(1X,A,100(X,D12.6))') 'Average lifetimes        '//  &
-                                                    ' : ',avlife(:msize)
-         write(*,*) 
-       end if
-!
-!~        if ( dopim ) then
-!~          do i = 1, msize-1
-!~            write(*,'(3X,A,X,I3)') 'Printing PIM for aggregates bel'//  &
-!~                                                     'onging to type',i+1
-!~            write(*,'(3X,50("-"))') 
-!~            write(*,'(8X,20(X,A8))') (adjustr(grptag(j)),j=1,mgrps)
-!~            do j = 1, mgrps
-!~              write(*,'(A8,20(X,F8.2))') adjustr(grptag(j)),            &
-!~                                                       (pim(k,j,i),k=1,j)
-!~            end do
-!~            write(*,*)
-!~          end do
+!~        call print_title(6,1,'Output information','-')
+!~        write(*,*)
+!~        call line_int(6,2,'Number of frames analyzed',lin,':','I12',    &
+!~                      nsteps,lfin)
+!~        write(*,*)
+!~        call line_dp(6,2,'Initial concentration',lin,':','F12.8',       &
+!~                     cin,lfin)
+!~        call line_dp(6,2,'Average volume',lin,':','F12.6',volu,lfin)
+!~        write(*,*)
+!~        write(*,'(1X,A,100(X,F6.2))')  'Global populations        : ',  &
+!~                                                                   pop(:)
+!~        write(*,'(1X,A,100(X,F6.2))')  'Global probabilities      : ',  &
+!~                                                                  prob(:)
+!~        write(*,'(1X,A,100(X,D12.6))') 'Global fractions          : ',  &
+!~                                                                  frac(:)
+!~        write(*,'(1X,A,100(X,D12.6))') 'Global concentrations     : ',  &
+!~                                                                  conc(:)
+!~        write(*,'(1X,A,100(X,D12.6))') 'Number of samples         : ',  &
+!~                                                                   num(:)
+!~        write(*,*) 
+!~        if ( dolife ) then
+!~          write(*,'(1X,A,100(X,D12.6))') 'Average lifetimes        '//  &
+!~                                                     ' : ',avlife(:msize)
+!~          write(*,*) 
 !~        end if
+!
+!       if ( dopim ) then
+!         do i = 1, msize-1
+!           write(*,'(3X,A,X,I3)') 'Printing PIM for aggregates bel'//  &
+!                                                    'onging to type',i+1
+!           write(*,'(3X,50("-"))') 
+!           write(*,'(8X,20(X,A8))') (adjustr(grptag(j)),j=1,mgrps)
+!           do j = 1, mgrps
+!             write(*,'(A8,20(X,F8.2))') adjustr(grptag(j)),            &
+!                                                      (pim(k,j,i),k=1,j)
+!           end do
+!           write(*,*)
+!         end do
+!       end if
 !
 ! Deallocate memory
 !
-       deallocate(nbody,ngrps,nsubg)
-       deallocate(ibody,igrps,isubg)
-       deallocate(body,grps,subg)
-       deallocate(grptag,atms)
-!
-       deallocate(neiang)
+       deallocate(sys,rep)
+       deallocate(nnode,inode,nat,iat,natms,iatms,ngrps,igrps)
 !
        deallocate(thr,thr2)
        deallocate(thrang)
 !
-       deallocate(pop,conc,frac)
-       deallocate(prob,num)
-       deallocate(pim)
+!~        deallocate(pop,conc,frac)
+!~        deallocate(prob,num)
+!~        deallocate(pim)
 !
-       if ( dolife ) deallocate(avlife,nlife)
+!~        if ( dolife ) deallocate(avlife,nlife)
 !
        close(uniout+1)
        close(uniout+2)
@@ -556,7 +735,7 @@
        traj    = 'md.xtc'
        conf    = 'conf.gro'
        weight  = '[none]'
-       outp    = ''
+       outp    = '[none]'
 !
        schm    = 'angles'
        scrn    = 'complete'

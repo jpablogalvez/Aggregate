@@ -9,8 +9,9 @@
 !
 ! System information
 !
-       type(groinp)   ::  sys   !  Monomer information
-       type(xtcfile)  ::  xtcf  !  Trajectory information
+       type(groinp),dimension(:),allocatable  ::  sys   !  Monomer information
+       type(repre),dimension(:),allocatable   ::  rep   !  Topological representations
+       type(xtcfile)                          ::  xtcf  !  Trajectory information
 !
        end module systeminf
 !

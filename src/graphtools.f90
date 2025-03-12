@@ -560,6 +560,39 @@
 !
 !======================================================================!
 !
+! BONDS2ADJ - BOND termS TO ADJacency matrix
+!
+! This subroutine 
+!
+       subroutine bonds2adj(nbond,ibond,nat,adj)
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nat,nat),intent(out)  ::  adj    !  Adjacency matrix
+       integer,dimension(2,nbond),intent(in)   ::  ibond  !  Atom indexes
+       integer,intent(in)                      ::  nbond  !  Number of edges
+       integer,intent(in)                      ::  nat    !  Number of nodes
+!
+! Local variables
+!
+       integer                                     ::  i  !  Index
+!
+! Building adjacency matrix according to Wiberg bond indexes
+!
+       adj(:,:) = .FALSE.
+!
+       do i = 1, nbond
+         adj(ibond(1,i),ibond(2,i)) = .TRUE.
+         adj(ibond(2,i),ibond(1,i)) = .TRUE.
+       end do
+!
+       return
+       end subroutine bonds2adj
+!
+!======================================================================!
+!
 ! CHKTREE - CHecK TREE
 !
 ! This function identifies wether an undirected unweighted graph of

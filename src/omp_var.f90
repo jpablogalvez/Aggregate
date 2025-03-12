@@ -4,8 +4,9 @@
 !
        implicit none
 !
-! Declaration of time control variables
+! Declaration of 
 !
+       integer  ::  np         !
        integer  ::  chunkadj   !
        integer  ::  chunkscrn  !
        integer  ::  chunklife  !

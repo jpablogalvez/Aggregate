@@ -332,19 +332,20 @@
 !
 !======================================================================!
 !
-       subroutine errkeychar(aux,sect)
+       subroutine errkeychar(aux,ch,sect)
 !
        implicit none
 !
        character(len=*),intent(in)  ::  sect
        character(len=*),intent(in)  ::  aux
+       character(len=*),intent(in)  ::  ch
 !
        write(*,*)
        write(*,'(2X,68("="))')
        write(*,'(3X,A)') 'ERROR:  Keyword badly introduced'
        write(*,*) 
        write(*,'(3X,A)') 'Group name specified not defined in **MO'//  &
-                                                            'LREP block'
+                                                'LREP block: '//trim(ch)
        write(*,'(3X,A)') 'Please, check '//aux//' '//trim(sect)//      &
                                                     ' in the input file'
        write(*,'(2X,68("="))')
@@ -876,6 +877,155 @@
 !
        return
        end subroutine print_test
+!
+!======================================================================!
+!
+       subroutine find_key(uni,key,line,iost)
+!
+       use lengths, only: lenline
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)         ::  key     !  
+       character(len=lenline),intent(out)  ::  line    !  Line read
+       integer,intent(out)                 ::  iost    !  Reading status
+       integer,intent(in)                  ::  uni     !  Reading status
+!
+! Local variables
+!
+       integer                             ::  keylen  !  Keyword length
+!
+! Finding the first line starting with the specified keyword 
+!
+       keylen = len_trim(key)
+       iost   = 0
+!
+       do
+         read(uni,'(A)',iostat=iost) line
+!~ write(*,*)'reading:',trim(line),iost
+         if ( iost /= 0 ) exit
+         if ( len_trim(line) .eq. 0 )  cycle
+         if ( len_trim(line) .lt. keylen ) cycle
+!
+         line = adjustl(line)
+         if ( line(:keylen) .eq. trim(key) ) return
+       end do
+!~ write(*,*) 'out'
+!
+       iost = 1
+!
+       return
+       end subroutine find_key
+!
+!======================================================================!
+!
+       subroutine below_key(uni,key,iost)
+!
+       use lengths, only: lenline
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)         ::  key     !  
+       integer,intent(out)                 ::  iost    !  Reading status
+       integer,intent(in)                  ::  uni     !  Reading status
+!
+! Local variables
+!
+character(len=100) ::  ioerrmsg
+       character(len=lenline)              ::  line    !  Line read
+       integer                             ::  keylen  !  Keyword length
+!
+! Finding the first line starting with the specified keyword 
+!
+       keylen = len_trim(key)
+       iost   = 0
+!
+       do
+         read(uni,'(A)',iostat=iost,iomsg=ioerrmsg) line
+!~ write(*,*)'reading:',trim(line),iost!,trim(ioerrmsg)
+         if ( iost /= 0 ) exit
+         if ( len_trim(line) .eq. 0 )  cycle
+         if ( len_trim(line) .lt. keylen ) cycle
+!
+         line = adjustl(line)
+         if ( line(:keylen) .eq. trim(key) ) return
+       end do
+!~ write(*,*) 'out'
+!
+       iost = 1
+!
+       return
+       end subroutine below_key
+!
+!======================================================================!
+!
+       subroutine find_last(uni,key,line,iost)
+!
+       use lengths, only: lenline
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)         ::  key     !  
+       character(len=lenline),intent(out)  ::  line    !  Line read
+       integer,intent(in)                  ::  uni     !
+       integer,intent(out)                 ::  iost    !  Reading status
+!
+! Local variables
+!
+       character(len=lenline)              ::  straux  !  Auxliary string
+       integer                             ::  keylen  !  Keyword length
+       integer                             ::  io      !  Input/Output status
+!
+! Finding the last line starting with the specified keyword 
+!
+       keylen = len_trim(key)
+       iost   = 1
+!
+       do
+         read(uni,'(A)',iostat=io) straux
+         if ( io /= 0 ) exit
+         straux = adjustl(straux)
+         if ( straux(:keylen) .eq. trim(key) ) then
+           iost = 0 
+           line = straux
+         end if
+       end do
+!
+       return
+       end subroutine find_last
+!
+!======================================================================!
+!
+       subroutine print_badread(inp,key)
+!
+       use lengths, only: leninp
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)       ::  key     !  Input file name
+       character(len=leninp),intent(in)  ::  inp     !  Input file name
+!
+       write(*,*)
+       write(*,'(2X,68("="))')
+       write(*,'(3X,A)')      'ERROR:  Missing information in the '//  &
+                              'input file'
+       write(*,*)
+       write(*,'(3X,2(A))')   'Keyword    : ',trim(adjustl(key))
+       write(*,'(3X,2(A))')   'Input file : ',trim(inp)
+       write(*,'(2X,68("="))')
+       write(*,*)
+       call exit(0)
+!
+       return
+       end subroutine print_badread
 !
 !======================================================================!
 !
