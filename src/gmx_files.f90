@@ -390,11 +390,12 @@
 !
          read(line,*) str1,nnode(i)
 !
-         if ( trim(str1) .ne. trim(sys(i)%rename(1)) ) then
+         if ( trim(str1) .ne. trim(sys(i)%title) ) then
            write(*,*)
            write(*,'(2X,68("="))')
            write(*,'(3X,A)') 'ERROR:  Molecule type not correct'
            write(*,*)
+           write(*,'(3X,A)') 'Molecule type defined: '//trim(sys(i)%title)
            write(*,'(3X,A)') 'Please, check the following definiti'//  &
                                      'on in [ molecules ]: '//trim(str1)
            write(*,*)

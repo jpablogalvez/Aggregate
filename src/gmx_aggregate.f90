@@ -44,6 +44,7 @@
        integer                                         ::  matms    !  Total number of subgroups in the molecules
        integer                                         ::  mgrps    !  
        integer                                         ::  msize    !  Maximum aggregate size
+       integer                                         ::  nmax     !  
 !
 ! Trajectory control variables
 !     
@@ -102,8 +103,6 @@
        lin  = 45
        lfin = 90
 !
-       nsolv = 10000
-!
 ! Initializing timings
 !
        call cpu_time(tin)
@@ -132,7 +131,8 @@
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
                          msize,neidis,schm,scrn,dopim,dolife,doscrn,   &
-                         seed,chunkadj,chunkscrn,chunklife,weight,debug)
+                         seed,chunkadj,chunkscrn,chunklife,weight,     &
+                         nsolv,debug)
 !
 !
 ! 
@@ -182,6 +182,8 @@
 !
        call line_dp(6,2,'Screening distance',lin,':','F5.2',           &
                     neidis,lfin)
+       call line_int(6,2,'Number of additional molecules',lin,':',     &
+                     'I6',nsolv,lfin)
        call line_int(6,2,'Maximum aggregate size',lin,':','I4',        &
                      msize,lfin)
        call line_int(6,2,'First step for analysis',lin,':','I12',      &
@@ -332,8 +334,6 @@
          allocate(rep(i)%neiang(sys(i)%nat))
 !
        end do
-!
-!~        if ( dolife ) allocate(avlife(ntot),nlife(ntot))
 !
 ! Setting up neiang array (first neighbour index)   TODO: find nei of H atoms with degree 1
 !
@@ -510,9 +510,22 @@
 !
 ! Allocating variables depending on topological information 
 !
-       allocate(pim(mgrps,mgrps,msize-1))
-!~        allocate(pop(msize),conc(msize),frac(msize))
-!~        allocate(prob(msize),num(msize))
+       j = 1
+       do i = 1, ntype
+         j = j*i
+       end do
+!
+       nmax = 1
+       do i = 1, ntype
+         nmax = nmax*(msize + i)
+       end do
+       nmax = nmax/j - 1
+!
+       allocate(pim(mgrps,mgrps,nmax-1))
+       allocate(pop(nmax),conc(nmax),frac(nmax))
+       allocate(prob(nmax),num(nmax))
+!
+       if ( dolife ) allocate(avlife(nmax),nlife(nmax))
 !
 ! Setting distance variables
 !
@@ -533,10 +546,10 @@
        write(*,*)
        CALL FLUSH()
 !
-!~        call driver(xtcf,sys%nat,nnode,thr,thr2,neidis,msize,     &
-!~                    nsteps,rep,nprint,      &
-!~                    minstep,maxstep,nsolv,avlife,nlife,dopim,schm,      &
-!~                    scrn,doscrn,dolife,debug)
+       call driver(xtcf,ntype,rep,nnode,inode,nat,iat,natms,iatms,     &
+                   ngrps,igrps,mnode,mat,matms,mgrps,thr,thr2,neidis,  &
+                   msize,nmax,nsteps,nprint,minstep,maxstep,nsolv,     &
+                   avlife,nlife,dopim,schm,scrn,doscrn,dolife,debug)
 !
        call system_clock(t1read)        
 !
@@ -688,7 +701,7 @@
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,scrn,dopim,   &
                                dolife,doscrn,seed,chunkadj,chunkscrn,  &
-                               chunklife,weight,debug)
+                               chunklife,weight,nsolv,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
@@ -714,6 +727,7 @@
        integer,intent(out)                       ::  chunkadj   !
        integer,intent(out)                       ::  chunkscrn  !
        integer,intent(out)                       ::  chunklife  !
+       integer,intent(out)                       ::  nsolv      !  
        integer,intent(out)                       ::  msize      !  Maximum aggregate size
        integer,intent(out)                       ::  nprint     !  Populations printing steps interval
        integer,intent(out)                       ::  minstep    !  First step for analysis
@@ -751,7 +765,8 @@
        minstep = 0
        maxstep = 999999999
 !
-       msize  = 10
+       msize = 10
+       nsolv = 10000
 !
        neidis  = 1.5d0
 !
@@ -948,6 +963,10 @@
              call get_command_argument(i,next,status=io)
              read(next,*) neidis
              i = i + 1
+           case ('-nsolv','--nsolv','--nsolvent')
+             call get_command_argument(i,next,status=io)
+             read(next,*) nsolv
+             i = i + 1
            case ('-m','-msize','--msize','--maximum-size')
              call get_command_argument(i,next,status=io)
              read(next,*) msize
@@ -1055,6 +1074,8 @@
        write(*,'(2X,A)') '-max,--maximum-step   Last step to be an'//  &
                                                                 'alysed'
        write(*,*)
+       write(*,'(2X,A)') '-nsolv,--nsolvent     Number of solvent '//  &
+                                                             'molecules'
        write(*,'(2X,A)') '-m,--msize            Maximum aggregate size'
        write(*,'(2X,A)') '-d,--neidis           Neighbour list cutoff'
        write(*,*)

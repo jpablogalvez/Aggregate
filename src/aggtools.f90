@@ -15,13 +15,14 @@
 !
 !  This subroutine defines the execution architecture of the algorithm
 !
-       subroutine driver(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,   &
-                         nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,   &
-                         body,grps,subg,atms,mbody,mgrps,msubg,matms,  &
-                         nprint,minstep,maxstep,nsolv,avlife,nlife,    &
-                         dopim,schm,scrn,doscrn,dolife,debug)
+       subroutine driver(xtcf,ntype,rep,nnode,inode,nat,iat,natms,     &
+                         iatms,ngrps,igrps,mnode,mat,matms,mgrps,thr,  &
+                         thr2,neidis,msize,nmax,nsteps,nprint,minstep, &
+                         maxstep,nsolv,avlife,nlife,dopim,schm,scrn,   &
+                         doscrn,dolife,debug)
 !
        use xdr,         only:  xtcfile
+       use datatypes,   only:  repre
 !
        use lengths,     only:  lenschm
 !
@@ -35,48 +36,40 @@
 ! System information
 !
        type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
-       integer,intent(in)                                       ::  nnode     !
+       type(repre),dimension(ntype),intent(inout)               ::  rep       !
+       integer,dimension(ntype),intent(in)                      ::  nnode     !  Total number of molecules of each size
+       integer,dimension(ntype),intent(in)                      ::  inode     !  Initial molecule of each size
+       integer,dimension(ntype),intent(in)                      ::  nat       !  Number of atoms in each molecule type
+       integer,dimension(ntype),intent(in)                      ::  iat       !  Initial atoms of each molecule type
+       integer,dimension(ntype),intent(in)                      ::  natms     !
+       integer,dimension(ntype),intent(in)                      ::  iatms     !
+       integer,dimension(ntype),intent(in)                      ::  ngrps     !  Number of active atoms in each representation type
+       integer,dimension(ntype),intent(in)                      ::  igrps     !  Initial active atom of each representation type
+       integer,intent(in)                                       ::  ntype     !  Number of molecules types
+       integer,intent(in)                                       ::  mnode     !  Total number of molecules
+       integer,intent(in)                                       ::  mat       !  Total number of atoms in the molecules
+       integer,intent(in)                                       ::  matms     !  Total number of subgroups in the molecules
+       integer,intent(in)                                       ::  mgrps     !  
+       integer,intent(in)                                       ::  msize     !  Maximum aggregate size
+       integer,intent(in)                                       ::  nmax      !
 !
 ! Interaction criteria information
 ! 
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr       !  Distance threshold
-       real(kind=8),dimension(nat,nat),intent(in)               ::  thr2      !  Distance threshold
+       real(kind=8),dimension(mat,mat),intent(in)               ::  thr       !  Distance threshold
+       real(kind=8),dimension(mat,mat),intent(in)               ::  thr2      !  Distance threshold
        real(kind=8),intent(in)                                  ::  neidis    !  Screening distance
-!
-! Average properties
-!
-       integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
-       integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
 ! Lifetimes calculation variables
 !
-       real(kind=8),dimension(nnode),intent(out)                ::  avlife    !
-       integer,dimension(nnode),intent(out)                     ::  nlife     !
+       real(kind=8),dimension(nmax),intent(out)                ::  avlife    !
+       integer,dimension(nmax),intent(out)                     ::  nlife     !
 !
 ! Trajectory control variables
 !     
        integer,intent(in)                                       ::  nprint    !  Populations printing interval
        integer,intent(in)                                       ::  minstep   !  First step for analysis
        integer,intent(in)                                       ::  maxstep   !  Last step for analysis
-!
-! Topological representations information
-!
-       integer,dimension(nat),intent(in)                        ::  body      !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  nbody     !  Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  ibody     !   Number of groups in each body
-       integer,dimension(nat),intent(in)                        ::  grps      !   Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  ngrps     !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  igrps     !  Number of subgroups in each group
-       integer,dimension(nat),intent(in)                        ::  subg      !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  nsubg     !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  isubg     !  Number of atoms in each subgroup
-       integer,dimension(nat),intent(in)                        ::  atms      !  Atoms identifier
-       integer,intent(in)                                       ::  nat       !  Monomer atoms
-       integer,intent(in)                                       ::  natms     !  Total number of subgroups in the system
-       integer,intent(in)                                       ::  mbody     !  Number of bodies
-       integer,intent(in)                                       ::  mgrps     !  Number of groups
-       integer,intent(in)                                       ::  msubg     !  Number of subgroups
-       integer,intent(in)                                       ::  matms     !  Number of interacting atoms in the monomer
+       integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
 !
 ! Program control flags
 !
@@ -90,6 +83,10 @@
 ! AnalysisPhenolMD variables
 !     
        integer,intent(in)                                       ::  nsolv     !
+!
+! Local variables
+!
+       character(len=lenschm)                                   ::  ch        !
 !
 ! Declaration of procedure pointers
 !
@@ -124,66 +121,141 @@
 !
        end interface
 !
-       procedure(subadj),pointer   ::  subbuildadj => null()
-       procedure(subscrn),pointer  ::  subscrnint  => null()
+       procedure(subadj),pointer    ::  subbuildadj  => null()
+       procedure(subscrn),pointer   ::  subscrnint   => null()
+!~        procedure(subnadj),pointer   ::  subnbuildadj => null()
+!~        procedure(subnscrn),pointer  ::  subnscrnint  => null()
 !
-! Selection of the aggregation algorithm
+! Selection of the aggregation algorithm ! FIXME: count reading time in this section
 ! --------------------------------------
+! 
+       ch = 'original'
+       if ( doscrn ) ch = 'scrn'   
+       if ( dolife ) ch = 'life'   
+       if ( doscrn .and. dolife ) ch = 'scrnlife' 
 !
-       if ( trim(scrn) .eq. 'complete' ) then
-         subscrnint => scrnint
-       else if ( trim(scrn) .eq. 'collisions' ) then
-         subscrnint => scrncol
-       else if ( trim(scrn) .eq. 'oscillations' ) then
-         subscrnint => scrnosc
+       if ( ntype .eq. 1 ) then
+!
+! Homogeneous systems algorithm
+!
+         if ( trim(scrn) .eq. 'complete' ) then
+           subscrnint => scrnint
+         else if ( trim(scrn) .eq. 'collisions' ) then
+           subscrnint => scrncol
+         else if ( trim(scrn) .eq. 'oscillations' ) then
+           subscrnint => scrnosc
+         end if
+!
+         if ( trim(schm) .eq. 'distances' ) then
+           subbuildadj => buildadjmolbub
+         else if ( trim(schm) .eq. 'angles' ) then
+           subbuildadj => buildadjmolang
+         end if  
+!
+         select case (trim(ch))
+           case ('original')
+!
+             call aggdist(xtcf,rep(1)%nat,nnode(1),natms(1),thr,thr2,  &
+                          neidis,msize,nsteps,rep(1)%nbody,            &
+                          rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,      &
+                          rep(1)%igrps,rep(1)%isubg,rep(1)%body,       &
+                          rep(1)%grps,rep(1)%subg,rep(1)%atms,         &
+                          rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,      &
+                          rep(1)%matms,nprint,minstep,maxstep,nsolv,   &
+                          dopim,subbuildadj,debug)
+!
+           case ('life')
+!
+             call agglife(xtcf,rep(1)%nat,nnode(1),natms(1),thr,thr2,  &
+                          neidis,msize,nsteps,rep(1)%nbody,            &
+                          rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,      &
+                          rep(1)%igrps,rep(1)%isubg,rep(1)%body,       &
+                          rep(1)%grps,rep(1)%subg,rep(1)%atms,         &
+                          rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,      &
+                          rep(1)%matms,nprint,minstep,maxstep,nsolv,   &
+                          avlife,nlife,dopim,subbuildadj,debug)
+!
+           case ('scrn')
+!
+             call aggscrn(xtcf,rep(1)%nat,nnode(1),natms(1),thr,thr2,  &
+                          neidis,msize,nsteps,rep(1)%nbody,            &
+                          rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,      &
+                          rep(1)%igrps,rep(1)%isubg,rep(1)%body,       &
+                          rep(1)%grps,rep(1)%subg,rep(1)%atms,         &
+                          rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,      &
+                          rep(1)%matms,nprint,minstep,maxstep,nsolv,   &
+                          dopim,subbuildadj,subscrnint,debug)
+!
+           case ('scrnlife')
+!
+             call aggscrnlife(xtcf,rep(1)%nat,nnode(1),natms(1),thr,   &
+                              thr2,neidis,msize,nsteps,rep(1)%nbody,   &
+                              rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,  &
+                              rep(1)%igrps,rep(1)%isubg,rep(1)%body,   &
+                              rep(1)%grps,rep(1)%subg,rep(1)%atms,     &
+                              rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,  &
+                              rep(1)%matms,nprint,minstep,maxstep,     &
+                              nsolv,avlife,nlife,dopim,subbuildadj,    &
+                              subscrnint,debug)
+!
+         end select             
+!
+       else
+!
+! N-components systems algorithm
+!
+stop 'N-components algorithm not yet implemented!'
+!~          if ( trim(scrn) .eq. 'complete' ) then
+!~            subnscrnint => nscrnint
+!~          else if ( trim(scrn) .eq. 'collisions' ) then
+!~            subnscrnint => nscrncol
+!~          else if ( trim(scrn) .eq. 'oscillations' ) then
+!~            subnscrnint => nscrnosc
+!~          end if
+!~ !
+!~          if ( trim(schm) .eq. 'distances' ) then
+!~            subnbuildadj => nbuildadjmolbub
+!~          else if ( trim(schm) .eq. 'angles' ) then
+!~            subnbuildadj => nbuildadjmolang
+!~          end if
+!
+!~          select case (trim(ch))
+!~            case ('original')
+!~ !
+!~              call aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+!~                           nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+!~                           body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+!~                           nprint,minstep,maxstep,nsolv,dopim,            &
+!~                           subbuildadj,debug)
+!~ !
+!~            case ('life')
+!~ !
+!~              call agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+!~                           nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+!~                           body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+!~                           nprint,minstep,maxstep,nsolv,avlife,nlife,     &
+!~                           dopim,subbuildadj,debug)
+!~ !
+!~            case ('scrn')
+!~ !
+!~              call aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
+!~                           nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
+!~                           body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
+!~                           nprint,minstep,maxstep,nsolv,dopim,            &
+!~                           subbuildadj,subscrnint,debug)
+!~ !
+!~            case ('scrnlife')
+!~ !
+!~              call aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,      &
+!~                               msize,nsteps,nbody,ngrps,nsubg,ibody,      &
+!~                               igrps,isubg,body,grps,subg,atms,mbody,     &
+!~                               mgrps,msubg,matms,nprint,minstep,maxstep,  &
+!~                               nsolv,avlife,nlife,dopim,subbuildadj,      &
+!~                               subscrnint,debug)
+!~ !
+!~          end select     
+!
        end if
-!
-       if ( trim(schm) .eq. 'distances' ) then
-         subbuildadj => buildadjmolbub
-       else if ( trim(schm) .eq. 'angles' ) then
-         subbuildadj => buildadjmolang
-       end if
-!
-       schm = 'original'
-       if ( doscrn ) schm = 'scrn'   
-       if ( dolife ) schm = 'life'   
-       if ( doscrn .and. dolife ) schm = 'scrnlife'   
-!
-       select case (trim(schm))
-         case ('original')
-!
-           call aggdist(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
-                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
-                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
-                        nprint,minstep,maxstep,nsolv,dopim,            &
-                        subbuildadj,debug)
-!
-         case ('life')
-!
-           call agglife(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
-                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
-                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
-                        nprint,minstep,maxstep,nsolv,avlife,nlife,     &
-                        dopim,subbuildadj,debug)
-!
-         case ('scrn')
-!
-           call aggscrn(xtcf,nat,nnode,natms,thr,thr2,neidis,msize,    &
-                        nsteps,nbody,ngrps,nsubg,ibody,igrps,isubg,    &
-                        body,grps,subg,atms,mbody,mgrps,msubg,matms,   &
-                        nprint,minstep,maxstep,nsolv,dopim,            &
-                        subbuildadj,subscrnint,debug)
-!
-         case ('scrnlife')
-!
-           call aggscrnlife(xtcf,nat,nnode,natms,thr,thr2,neidis,      &
-                            msize,nsteps,nbody,ngrps,nsubg,ibody,      &
-                            igrps,isubg,body,grps,subg,atms,mbody,     &
-                            mgrps,msubg,matms,nprint,minstep,maxstep,  &
-                            nsolv,avlife,nlife,dopim,subbuildadj,      &
-                            subscrnint,debug)
-!
-       end select             
 !
        return
        end subroutine driver
