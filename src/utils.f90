@@ -2,11 +2,11 @@
 !
        module utils
 !
-       use printings
+       use units,      only:  uniinp
+!
+       use printings,  only:  print_end
 !
        implicit none
-!
-       include 'inout.h'
 !
        contains
 !
@@ -77,7 +77,33 @@
 !
 !======================================================================!
 !
-       subroutine read_realvec(i,n,box)
+       subroutine read_srealvec(i,n,box)
+!
+       use lengths,  only:  lenarg
+!
+       implicit none
+!
+! Input/output variables
+       integer,intent(inout)                  ::  i       !  Argument index
+       integer,intent(in)                     ::  n       !  Vector dimension
+       real(kind=4),dimension(n),intent(out)  ::  box     !  Double precision vector
+! Local variables
+       character(len=lenarg)                  ::  next    !  Next argument to be read
+       integer                                ::  io      !  Status
+       integer                                ::  k       !  Index
+!
+       do k = 1, n
+         call get_command_argument(i,next,status=io)
+         read(next,*) box(k)
+         i = i + 1
+       end do
+!
+       return
+       end subroutine read_srealvec
+!
+!======================================================================!
+!
+       subroutine read_drealvec(i,n,box)
 !
        use lengths,  only:  lenarg
 !
@@ -99,7 +125,7 @@
        end do
 !
        return
-       end subroutine read_realvec
+       end subroutine read_drealvec
 !
 !======================================================================!
 !
@@ -799,84 +825,6 @@
 !
        return
        end subroutine countlines
-!
-!======================================================================!
-!
-       subroutine print_info(i,n,A,B,C,str1,str2,str3)
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,intent(in)               ::  i       !
-       integer,intent(in)               ::  n       !
-       integer,intent(in),dimension(n)  ::  A,B,C   !
-       character(len=*),intent(in)      ::  str1    !   
-       character(len=*),intent(in)      ::  str2    !   
-       character(len=*),intent(in)      ::  str3    !   
-!
-! Local variables
-!
-       integer,parameter                ::  num=10  !
-       integer                          ::  ilower  !
-       integer                          ::  iupper  !
-       integer                          ::  j       !
-!
-       do ilower = 1, n, num
-         iupper = min(ilower + num - 1,n)
-         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
-         write(*,*)
-       end do
-!
-       return
-       end subroutine print_info
-!
-!======================================================================!
-!
-       subroutine print_test(n,i,m,A,B,C,D,str1,str2,str3,str4)
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,intent(in)               ::  i       !
-       integer,intent(in)               ::  n       !
-       integer,intent(in)               ::  m       !
-       integer,intent(in),dimension(n)  ::  A       !
-       integer,intent(in),dimension(m)  ::  B,C,D   !
-       character(len=*),intent(in)      ::  str1    !   
-       character(len=*),intent(in)      ::  str2    !   
-       character(len=*),intent(in)      ::  str3    !   
-       character(len=*),intent(in)      ::  str4    !   
-!
-! Local variables
-!
-       integer,parameter                ::  num=10  !
-       integer                          ::  ilower  !
-       integer                          ::  iupper  !
-       integer                          ::  j       !
-!
-       do ilower = 1, n, num
-         iupper = min(ilower + num - 1,n)
-         write(*,'(11X,10(X,I6))')    (j,j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
-         write(*,*)
-       end do
-!
-       do ilower = 1, m, num
-         iupper = min(ilower + num - 1,m)
-         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str4,(D(j),j=ilower,iupper)
-         write(*,*)
-       end do
-!
-       return
-       end subroutine print_test
 !
 !======================================================================!
 !

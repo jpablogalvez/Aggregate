@@ -6,11 +6,10 @@
 !
 ! Interaction criteria information
 ! 
-       real(kind=8),dimension(:,:),allocatable  ::  thr     !  Distance threshold
-       real(kind=8),dimension(:,:),allocatable  ::  thr2    !  Distance threshold
-       real(kind=8),dimension(:,:),allocatable  ::  thrang  !  Angles threshold
-       real(kind=8)                             ::  neidis  !  Screening distance
-       integer,dimension(:),allocatable         ::  neiang  !  First neighbour index
+       real(kind=4),dimension(:,:),allocatable  ::  thr     !  Distance threshold
+       real(kind=4),dimension(:,:),allocatable  ::  thrang  !  Angles threshold
+       real(kind=4)                             ::  neidis  !  Screening distance
+       integer,dimension(:),allocatable         ::  neiang  !
 !
        end module thresholds
 !

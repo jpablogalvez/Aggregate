@@ -1,6 +1,11 @@
 !======================================================================!
 !
        module lifetimes
+!
+       use omp_var,  only:  np,chunklife
+!
+       use omp_lib
+!
        implicit none
 !
        contains
@@ -15,10 +20,6 @@
        subroutine tracklife(nnode,rsize,rmol,tsize,tmol,rnagg,riagg,   &
                             rnmol,rimol,tnagg,tiagg,timol,life,death,  &
                             imap)
-!
-       use omp_var
-!
-       use omp_lib
 !
        implicit none
 !
@@ -55,7 +56,8 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
-!$omp parallel do shared(life,death,imap)                              &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(life,death,imap)                              &
 !$omp             private(ni)                                          &
 !$omp             schedule(dynamic,chunklife)
 !
@@ -70,7 +72,8 @@
        msize = tsize
        if ( rsize .lt. tsize ) msize = rsize
 !
-!$omp parallel do shared(life,death,imap,tnagg,tmol,rmol,tiagg,riagg,  &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(life,death,imap,tnagg,tmol,rmol,tiagg,riagg,  &
 !$omp                    rnagg,rnmol,rimol,timol,msize)                &
 !$omp             private(isize,qiagg,iimol,jimol,qimol,iiagg,ni,nj,   &
 !$omp                     jiagg,jsize)                                 &
@@ -164,10 +167,6 @@
        subroutine calclife(avlife,nlife,nnode,life,nsize,nagg,iagg,    &
                            magg,iwont)
 !
-       use omp_var
-!
-       use omp_lib
-!
        implicit none
 !
 ! Input/Output variables
@@ -190,17 +189,19 @@
 !
 ! Averaging lifetimes
 !
-!$omp parallel do shared(life,nagg)                                    &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(life,nagg)                                    &
 !$omp             private(iiagg)                                       &
 !$omp             schedule(dynamic,chunklife)
 !
        do iiagg = nagg(1)+1, magg
-         life(iiagg) = life(iiagg) + 1
+         life(iiagg) = life(iiagg) + 1 ! FIXME: reduction (?)
        end do
 !
 !$omp end parallel do 
 !
-!$omp parallel do shared(iwont,avlife,life,nlife,nagg,iagg)            &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(iwont,avlife,life,nlife,nagg,iagg)            &
 !$omp             private(isize,inagg,iiagg)                           &
 !$omp             schedule(dynamic,1)
 !
@@ -210,8 +211,8 @@
            iiagg = iagg(isize) + inagg
 !
            if ( iwont(iiagg) ) then
-             avlife(isize) = avlife(isize) + life(iiagg)
-             nlife(isize)  = nlife(isize)  + 1
+             avlife(isize) = avlife(isize) + life(iiagg) ! FIXME: reduction (?)
+             nlife(isize)  = nlife(isize)  + 1           ! FIXME: reduction (?)
              life(iiagg)   = 0
            end if
 !

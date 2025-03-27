@@ -213,6 +213,72 @@
 !
 !======================================================================!
 !
+       subroutine line_sp(uni,blnk,key,lenin,sep,sizedp,sval,lenfin)
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  sizedp   !  
+       character(len=*),intent(in)  ::  sep      !    
+       real(kind=4),intent(in)      ::  sval     !
+       integer,intent(in)           ::  blnk     !   
+       integer,intent(in)           ::  uni      !   
+       integer,intent(in)           ::  lenin    !   
+       integer,intent(in)           ::  lenfin   !   
+!
+! Local variables
+!
+       character(len=64)            ::  straux   !
+       character(len=256)           ::  fmt1     !
+       integer                      ::  iaux     !
+       integer                      ::  lenmid   !
+       integer                      ::  io       !
+!
+       write(straux,'(I4)') blnk
+       straux = adjustl(straux)
+!
+       fmt1 = '('//trim(straux)//'X,A,'
+!
+       lenmid = lenin - len(key) - blnk    ! FLAG: check if iaux is negative
+       write(straux,*) lenmid
+       straux = adjustl(straux)
+!
+       fmt1 = trim(fmt1)//trim(straux)//'X,("'//sep//'"),'
+!
+       io = scan(sizedp,'.')
+       if ( io .eq. 0 ) then 
+          write(*,*)
+          write(*,'(2X,68("="))')
+          write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DP called inc'//  &
+                                                              'orrectly'
+          write(*,*) 
+          write(*,'(3X,A)') 'Error while printing information'
+          write(*,'(2X,68("="))')
+          write(*,*) 
+          call print_end() 
+       end if
+!
+       iaux = io - 2
+       write(straux,*) iaux
+       straux = adjustl(straux)
+       straux = '(I'//trim(straux)//')'
+!
+       read(sizedp(2:io-1),straux) iaux
+       iaux = lenfin - lenin - iaux - len(sep)  ! FLAG: check if iaux is negative
+       write(straux,*) iaux
+       straux = adjustl(straux)
+!
+       fmt1 = trim(fmt1)//trim(straux)//'X,'//sizedp//')'
+!
+       write(uni,fmt1) key,sval
+!
+       return
+       end subroutine line_sp
+!
+!======================================================================!
+!
        subroutine line_dp(uni,blnk,key,lenin,sep,sizedp,dval,lenfin)
 !
        implicit none
@@ -629,6 +695,179 @@
 !
        return
        end subroutine print_titleint
+
+!
+!======================================================================!
+!
+       subroutine print_ivec(i,n,A)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)               ::  i       !
+       integer,intent(in)               ::  n       !
+       integer,intent(in),dimension(n)  ::  A       !
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(1X,10(X,I6))') (i+j,j=ilower,iupper)
+         write(*,'(1X,10(X,I6))') (A(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_ivec
+!
+!======================================================================!
+!
+       subroutine print_dvec(i,n,A)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                    ::  i       !
+       integer,intent(in)                    ::  n       !
+       real(kind=8),intent(in),dimension(n)  ::  A       !
+!
+! Local variables
+!
+       integer,parameter                     ::  num=10  !
+       integer                               ::  ilower  !
+       integer                               ::  iupper  !
+       integer                               ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(1X,10(X,I6))') (i+j,j=ilower,iupper)
+         write(*,'(1X,10(X,I6))') (A(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_dvec
+!
+!======================================================================!
+!
+       subroutine print_info(i,n,A,B,C,str1,str2,str3)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)               ::  i       !
+       integer,intent(in)               ::  n       !
+       integer,intent(in),dimension(n)  ::  A,B,C   !
+       character(len=*),intent(in)      ::  str1    !   
+       character(len=*),intent(in)      ::  str2    !   
+       character(len=*),intent(in)      ::  str3    !   
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_info
+!
+!======================================================================!
+!
+       subroutine print_dictionary(i,n,A,m,B,str1,str2)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                 ::  i       !
+       integer,intent(in)                 ::  n       !
+       integer,intent(in)                 ::  m       !
+       integer,intent(in),dimension(n)    ::  A       !
+       integer,intent(in),dimension(m,n)  ::  B       !
+       character(len=*),intent(in)        ::  str1    !   
+       character(len=*),intent(in)        ::  str2    !   
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j,k     !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         do k = 1, m
+           write(*,'(1X,A10,10(X,I6))') str2,(B(k,j),j=ilower,iupper)
+         end do
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_dictionary
+!
+!======================================================================!
+!
+       subroutine print_test(n,i,m,A,B,C,D,str1,str2,str3,str4)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)               ::  i       !
+       integer,intent(in)               ::  n       !
+       integer,intent(in)               ::  m       !
+       integer,intent(in),dimension(n)  ::  A       !
+       integer,intent(in),dimension(m)  ::  B,C,D   !
+       character(len=*),intent(in)      ::  str1    !   
+       character(len=*),intent(in)      ::  str2    !   
+       character(len=*),intent(in)      ::  str3    !   
+       character(len=*),intent(in)      ::  str4    !   
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(11X,10(X,I6))')    (j,j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       do ilower = 1, m, num
+         iupper = min(ilower + num - 1,m)
+         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str4,(D(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_test
 !
 !======================================================================!
 !

@@ -11,7 +11,7 @@
 !
 !======================================================================!
 !
-       subroutine read_inp(inp,ntype,rep,mat,thr,thr2,thrang)
+       subroutine read_inp(inp,ntype,rep,mat,thr,thrang)
 !
        use datatypes,  only:  repre
        use lengths,    only:  leninp,lentag,lenline
@@ -24,17 +24,17 @@
 !
        type(repre),dimension(ntype),intent(inout)        ::  rep     !  Topological representations
        character(len=leninp),intent(in)                  ::  inp     !  General input file name
-       real(kind=8),dimension(mat,mat),intent(out)       ::  thr     !  Distance threshold
-       real(kind=8),dimension(mat,mat),intent(out)       ::  thr2    !  Distance threshold
-       real(kind=8),dimension(mat,mat),intent(out)       ::  thrang  !  Angle threshold
+       real(kind=4),dimension(mat,mat),intent(out)       ::  thr     !  Distance threshold
+       real(kind=4),dimension(mat,mat),intent(out)       ::  thrang  !  Angle threshold
        integer,intent(in)                                ::  ntype   !
        integer,intent(in)                                ::  mat     !
 !
 ! Local variables
 !
-       character(len=lentag),dimension(mat)              ::  grptag   !  Names of the groups
+       character(len=lentag),dimension(mat)              ::  grptag  !  Names of the groups
        character(len=lenline)                            ::  line    !
        character(len=lenline)                            ::  key     !
+       integer                                           ::  msubg   !
        integer                                           ::  imol    !
        integer                                           ::  itag    !
        integer                                           ::  io      !  Input/Output status
@@ -42,9 +42,7 @@
 !
 ! Setting defaults
 !
-       thr(:,:)  = 0.0d0
-       thr2(:,:) = 0.0d0
-!
+       thr(:,:)    = 0.0d0
        thrang(:,:) = 0.0d0
 !
        do j = 1, ntype
@@ -70,8 +68,9 @@
 ! Reading general input file
 ! --------------------------
 !
-       imol = 1
-       itag = 0
+       msubg = 0
+       itag  = 0
+       imol  = 1
 !
        open(unit=uniinp,file=trim(inp),action='read',                  &
             status='old',iostat=io)
@@ -110,8 +109,9 @@
 !            
              grptag(itag+1:itag+rep(imol)%mgrps) = rep(imol)%grptag(:rep(imol)%mgrps)
 !
-             itag = itag + rep(imol)%mgrps
-             imol = imol + 1 
+             msubg = msubg + rep(imol)%msubg
+             itag  = itag  + rep(imol)%mgrps
+             imol  = imol  + 1 
 !      
            case ('**THRESH','**THRESHOLD')
 !~              write(*,*) 
@@ -130,7 +130,7 @@
              call findline(line,'blck','**INTERTHRESHOLD')
 !
              call read_interthreshold(line,'**INTERTHRESHOLD',         &
-                                      mat,thr2,itag,grptag(:itag))
+                                      mat,thr,itag,grptag(:itag))
 !
            case ('**ANGLES','**THRANG','**THRANGLE','**THREANGLES')
 !~              write(*,*) 
@@ -139,7 +139,7 @@
 !
              call findline(line,'blck','**ANGLES')
 !
-             call read_angles(line,'**ANGLES',mat,thrang,itag,grptag(:itag))
+             call read_angles(line,'**ANGLES',mat,thrang,itag,grptag(:itag),msubg)
 !
            case default
              write(*,*)
@@ -406,6 +406,7 @@
              case ('name')
                call chkkeyarg(key,line,arg)
                grptag(mgrps) = arg(:lentag)
+               grptag(mgrps) = adjustr(grptag(mgrps))
 !
              case default
                call unkkeysect(key,opt)
@@ -433,7 +434,7 @@
        character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
        character(len=lenline),intent(inout)                ::  key     !
        character(len=*),intent(in)                         ::  blck    !
-       real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
+       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
        integer,intent(in)                                  ::  nat     !
        integer,intent(in)                                  ::  ntag    !
 
@@ -442,7 +443,7 @@
 !
        character(len=lentag)                            ::  caux1   !
        character(len=lentag)                            ::  caux2   !
-       real(kind=8)                                     ::  daux    !
+       real(kind=4)                                     ::  saux    !
        integer                                          ::  iaux1   !
        integer                                          ::  iaux2   !
        integer                                          ::  posi    !
@@ -463,9 +464,9 @@
 !~              write(*,*) 'Reading .THR option'
 !~              write(*,*)
 !
-             read(uniinp,*) daux    ! FLAG: check if a value is introduced
+             read(uniinp,*) saux    ! FLAG: check if a value is introduced
 !
-             thr(:,:) = daux
+             thr(:,:) = saux
 !
              call findline(key,'blck','**THRESHOLD')
 !
@@ -504,11 +505,11 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                key = key(:posi-1)
-               read(key,*) daux
+               read(key,*) saux
 !
-!~ write(*,*) 'adding',iaux1,iaux2,daux
-               thr(iaux1,iaux2) = daux
-               thr(iaux2,iaux1) = daux
+!~ write(*,*) 'adding',iaux1,iaux2,saux
+               thr(iaux1,iaux2) = saux
+               thr(iaux2,iaux1) = saux
 !
                call findline(key,'opt','.VALUES')
 !
@@ -546,7 +547,7 @@
        character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
        character(len=lenline),intent(inout)                ::  key     !
        character(len=*),intent(in)                         ::  blck    !
-       real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
+       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
        integer,intent(in)                                  ::  nat     !
        integer,intent(in)                                  ::  ntag    !
 
@@ -555,7 +556,7 @@
 !
        character(len=lentag)                               ::  caux1   !
        character(len=lentag)                               ::  caux2   !
-       real(kind=8)                                        ::  daux    !
+       real(kind=4)                                        ::  saux    !
        integer                                             ::  iaux1   !
        integer                                             ::  iaux2   !
        integer                                             ::  posi    !
@@ -576,9 +577,9 @@
 !~              write(*,*) 'Reading .THR option'
 !~              write(*,*)
 !
-             read(uniinp,*) daux    ! FLAG: check if a value is introduced
+             read(uniinp,*) saux    ! FLAG: check if a value is introduced
 !
-             thr(:,:) = daux
+             thr(:,:) = saux
 !
              call findline(key,'blck','**INTERTHRESHOLD')
 !
@@ -617,10 +618,10 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                key = key(:posi-1)
-               read(key,*) daux
+               read(key,*) saux
 !
-               thr(iaux1,iaux2) = daux
-               thr(iaux2,iaux1) = daux
+               thr(iaux1,iaux2) = saux
+               thr(iaux2,iaux1) = saux
 !
                call findline(key,'opt','.VALUES')
 !
@@ -644,10 +645,11 @@
 !
 !======================================================================!
 !
-       subroutine read_angles(key,blck,nat,thr,ntag,grptag)
+       subroutine read_angles(key,blck,nat,thr,ntag,grptag,msubg)
 !
-       use parameters
-       use lengths,    only:  lentag,lenline
+       use thresholds,  only:  neiang
+       use parameters,  only:  zero,pi
+       use lengths,     only:  lentag,lenline
        use utils
 !
        implicit none
@@ -657,7 +659,8 @@
        character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
        character(len=lenline),intent(inout)                ::  key     !
        character(len=*),intent(in)                         ::  blck    !
-       real(kind=8),dimension(nat,nat),intent(inout)       ::  thr     !
+       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
+       integer,intent(in)                                  ::  msubg   !
        integer,intent(in)                                  ::  nat     !
        integer,intent(in)                                  ::  ntag    !
 
@@ -666,7 +669,7 @@
 !
        character(len=lentag)                               ::  caux1   !
        character(len=lentag)                               ::  caux2   !
-       real(kind=8)                                        ::  daux    !
+       real(kind=4)                                        ::  saux    !
        integer                                             ::  iaux1   !
        integer                                             ::  iaux2   !
        integer                                             ::  posi    !
@@ -682,23 +685,23 @@
          if ( posi .gt. 0 ) key = key(:posi-1)
 ! Reading the different section options       
          select case (key)
-!~            case ('.NEI','.NEIGHBOUR','.NEIGHBOURS')
+           case ('.NEI','.NEIGHBOUR','.NEIGHBOURS')
 !             write(*,*) 
 !             write(*,*) 'Reading .NEIGHBOURS option'
 !             write(*,*)
-!~ !
-!~              read(uniinp,*) neiang(:msubg)    ! FLAG: check if a value is introduced
-!~ !
-!~              call findline(key,'blck','**ANGLES')
-!~ !
+!
+             read(uniinp,*) neiang(:msubg)    ! FLAG: check if a value is introduced
+!
+             call findline(key,'blck','**ANGLES')
+!
            case ('.THR')
 !~              write(*,*) 
 !~              write(*,*) 'Reading .THR option'
 !~              write(*,*)
 !
-             read(uniinp,*) daux    ! FLAG: check if a value is introduced
+             read(uniinp,*) saux    ! FLAG: check if a value is introduced
 !
-             if ( daux .gt. zero ) thr(:,:) = pi - daux*pi/180.0d0
+             if ( saux .gt. zero ) thr(:,:) = pi - saux*pi/180.0
 !
              call findline(key,'blck','**ANGLES')
 !
@@ -744,10 +747,10 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                key = key(:posi-1)
-               read(key,*) daux
+               read(key,*) saux
 !
-               thr(iaux1,iaux2) = pi - daux*pi/180.0d0
-               thr(iaux2,iaux1) = pi - daux*pi/180.0d0
+               thr(iaux1,iaux2) = pi - saux*pi/180.0
+               thr(iaux2,iaux1) = pi - saux*pi/180.0
 !
                call findline(key,'opt','.VALUES')
 !

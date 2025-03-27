@@ -9,8 +9,15 @@
 !
        private
        public  ::  read_gro,                                           &
+                   read_defaults,                                      &
+                   read_attype,                                        &
+                   read_moltype,                                       &
+                   read_atoms,                                         &
+                   read_bond,                                          &
+                   read_system,                                        &
+                   read_molecules,                                     &
                    top_parser,                                         &
-!~                    read_top,                                           &
+                   count_bond,                                         &
                    count_moltype
 !
        contains
@@ -100,7 +107,7 @@
             status='old',form='formatted',iostat=io)
        if ( io .ne. 0 ) call print_missinp(top)
 !
-! First round to allocate information
+! First round to allocate information ! TODO: first read molecules, then find moleculetype block
 ! ...................................
 !
        do i = 1, ntype    

@@ -1,6 +1,11 @@
 !======================================================================!
 !
        module screening
+!
+       use omp_var,  only:  np,chunkscrn
+
+       use omp_lib
+!
        implicit none
 !
        contains
@@ -15,10 +20,6 @@
 !  next snapshots (add oscillations)
 !
        subroutine scrnint(nnode,oldadj,adj,newadj)
-!
-       use omp_var
-!
-       use omp_lib
 !
        implicit none
 !
@@ -35,7 +36,8 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
-!$omp parallel do shared(adj,oldadj,newadj)                            &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(adj,oldadj,newadj)                            &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !
@@ -68,10 +70,6 @@
 !
        subroutine scrncol(nnode,oldadj,adj,newadj)
 !
-       use omp_var
-!
-       use omp_lib
-!
        implicit none
 !
 ! Input/output variables
@@ -87,7 +85,8 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
-!$omp parallel do shared(adj,oldadj,newadj)                            &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(adj,oldadj,newadj)                            &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !
@@ -115,10 +114,6 @@
 !
        subroutine scrnosc(nnode,oldadj,adj,newadj)
 !
-       use omp_var
-!
-       use omp_lib
-!
        implicit none
 !
 ! Input/output variables
@@ -134,7 +129,8 @@
 !
 ! Comparing the diagonal blocks of two adjacency matrices
 !
-!$omp parallel do shared(adj,oldadj,newadj)                            &
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(adj,oldadj,newadj)                            &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !
