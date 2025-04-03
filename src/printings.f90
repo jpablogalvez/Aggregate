@@ -718,8 +718,8 @@
 !
        do ilower = 1, n, num
          iupper = min(ilower + num - 1,n)
-         write(*,'(1X,10(X,I6))') (i+j,j=ilower,iupper)
-         write(*,'(1X,10(X,I6))') (A(j),j=ilower,iupper)
+         write(*,'(1X,10(X,I10))') (i+j,j=ilower,iupper)
+         write(*,'(1X,10(X,I10))') (A(j),j=ilower,iupper)
          write(*,*)
        end do
 !
@@ -748,12 +748,41 @@
        do ilower = 1, n, num
          iupper = min(ilower + num - 1,n)
          write(*,'(1X,10(X,I6))') (i+j,j=ilower,iupper)
-         write(*,'(1X,10(X,I6))') (A(j),j=ilower,iupper)
+         write(*,'(1X,10(X,F6.2))') (A(j),j=ilower,iupper)
          write(*,*)
        end do
 !
        return
        end subroutine print_dvec
+!
+!======================================================================!
+!
+       subroutine print_evec(i,n,A)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                    ::  i       !
+       integer,intent(in)                    ::  n       !
+       real(kind=8),intent(in),dimension(n)  ::  A       !
+!
+! Local variables
+!
+       integer,parameter                     ::  num=10  !
+       integer                               ::  ilower  !
+       integer                               ::  iupper  !
+       integer                               ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(1X,10(X,I12))') (i+j,j=ilower,iupper)
+         write(*,'(1X,10(X,D12.6))') (A(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_evec
 !
 !======================================================================!
 !

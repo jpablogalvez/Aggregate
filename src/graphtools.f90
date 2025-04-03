@@ -1159,16 +1159,19 @@
                nk     = queue(iqueue)
                kk     = qtype(iqueue)
                kinode = qnode(iqueue)
+!~ write(*,*) 'taking from the queue node',nk
 !
 ! Checking the connection between actual queue element and the rest of nodes
 !
 !   Connection within the same moleculetype
 !   .......................................
 !
-               do jinode = kinode+1, nnode(kk)
-                 nj = inode(kk) + jinode
+               do nj = inode(ii)+iinode+1, inode(ii)+nnode(ii)
+                 jinode = nj - inode(ii)
 ! Checking if node j is connected to node k and has not been already visited
+!~ write(*,*) 'checking nk',nk,'nj',nj,':',adj(nj,nk)
                  if ( notvis(nj) .and. adj(nj,nk) ) then
+!~ write(*,*) '  ACCEPTED'
 ! Updating the system information
                    tag(nnmol) = magg
                    nnmol      = nnmol + 1
@@ -1191,11 +1194,13 @@
 !   Connection within different moleculetypes
 !   .........................................
 !
-               do jj = kk+1, mtype
+               do jj = ii+1, mtype
                  do jinode = 1, nnode(jj)
                    nj = inode(jj) + jinode
 ! Checking if node j is connected to node k and has not been already visited
+!~ write(*,*) 'checking nk',nk,'nj',nj,':',adj(nj,nk)
                    if ( notvis(nj) .and. adj(nj,nk) ) then
+!~ write(*,*) '  ACCEPTED'
 ! Updating the system information
                      tag(nnmol) = magg
                      nnmol      = nnmol + 1
@@ -1220,6 +1225,7 @@
 !
                iqueue = iqueue + 1
              end do
+!~ write(*,*)
 !
 ! Saving aggregate information
 ! ............................
@@ -1241,7 +1247,7 @@
 ! Update the number of aggregates of each size
              if ( ntag .gt. maxagg ) maxagg = ntag
 !
-             if ( maxagg .le. msize ) then
+             if ( ntag .le. msize ) then
                nagg(iidx) = nagg(iidx) + 1
              else
                nagg(nmax) = nagg(nmax) + 1

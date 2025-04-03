@@ -22,16 +22,16 @@
        use units,         only:  uniinp,uniout
        use omp_var,       only:  np,chunkadj,chunkscrn,chunklife
 !
-       use aggtools,      only:  driver
-       use graphtools,    only:  bonds2adj
-       use mathtools,     only:  setidx
-!
        use printings,     only:  print_start,print_end,print_inp,      &
                                  print_title,line_str,line_sp,         &
                                  line_dp,line_dvec,line_int,line_log,  &
                                  print_time,print_speed,print_ivec,    &
-                                 print_dvec,print_dictionary
+                                 print_dvec,print_evec,print_dictionary
        use utils,         only:  rndmseed
+!
+       use aggtools,      only:  driver
+       use graphtools,    only:  bonds2adj
+       use mathtools,     only:  setidx
 !
        use input_section, only:  read_inp
        use gmx_files,     only:  read_gro,top_parser,count_moltype
@@ -511,6 +511,21 @@
 !
 ! Computing the maximum number of aggregate identifiers + 1
 !
+       if ( mnode .lt. msize ) then
+!
+         msize = mnode
+!
+         write(*,*)
+         write(*,'(2X,68("="))')
+         write(*,'(3X,A)')      'NOTE:  Maximum aggregate size req'//  &
+                                'uested larger than number of molecules'
+         write(*,*)
+         write(*,'(3X,A,I2)') 'Maximum aggregate size updated to',msize
+         write(*,'(2X,68("="))')
+         write(*,*)
+!
+       end if
+!
        j = 1
        do i = 1, mtype
          j = j*i
@@ -630,11 +645,11 @@
        write(*,*) 
 !
        write(*,'(1X,A)')   'Global fractions      : '
-       call print_dvec(0,nmax,frac)
+       call print_evec(0,nmax,frac)
        write(*,*) 
 !
        write(*,'(1X,A)')   'Global concentrations : '
-       call print_dvec(0,nmax,conc)
+       call print_evec(0,nmax,conc)
        write(*,*) 
 !
        write(*,'(1X,A)')   'Number of samples     : '
@@ -1615,7 +1630,7 @@
        subroutine nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,    &
                              nagg,iagg,nmol,imol,magg,debug)
 !
-       use systeminf,   only:  mtype,mnode
+       use systeminf,   only:  mtype,mnode,xtcf
        use properties,  only:  nmax,nmon
        use timings,     only:  count_rate,tbfs,tsort,tcpubfs,tcpusort
 !
@@ -1629,12 +1644,12 @@
 ! Input/output variables
 !
        logical,dimension(mnode,mnode),intent(in)  ::  adj       !  Adjacency matrix
-       integer,dimension(nmax),intent(out)        ::  idx       !  
-       integer,dimension(nmax),intent(out)        ::  ntype     !  
-       integer,dimension(nmax),intent(out)        ::  itype     !  
-       integer,dimension(nmax),intent(out)        ::  mol       !  Molecules identifier
-       integer,dimension(nmax),intent(out)        ::  tag       !  Aggregates identifier
-       integer,dimension(nmax),intent(out)        ::  agg       !  Aggregates size
+       integer,dimension(mnode),intent(out)       ::  idx       !  
+       integer,dimension(mnode),intent(out)       ::  ntype     !  
+       integer,dimension(mnode),intent(out)       ::  itype     !  
+       integer,dimension(mnode),intent(out)       ::  mol       !  Molecules identifier
+       integer,dimension(mnode),intent(out)       ::  tag       !  Aggregates identifier
+       integer,dimension(mnode),intent(out)       ::  agg       !  Aggregates size
        integer,dimension(nmax),intent(out)        ::  nagg      !  Number of aggregates of each size
        integer,dimension(nmax),intent(out)        ::  iagg      !
        integer,dimension(nmax),intent(out)        ::  nmol      !
@@ -1666,6 +1681,11 @@
 !
        call nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,nagg,       &
                            magg,nsize)
+!~ write(*,*) 'adj',adj
+!~ write(*,*) xtcf%STEP,'mol:',mol
+!~ write(*,*) xtcf%STEP,'tag:',tag
+!~ write(*,*) xtcf%STEP,'agg:',agg
+
 !
        call cpu_time(tfinbfs)
        call system_clock(t2bfs)     
@@ -1710,20 +1730,20 @@
 ! Sorting molecules and aggregate identifiers based on the 
 !  aggregate identifier
 !
-write(*,*) 'sorting based on idx from',1,'to',mnode
+!~ write(*,*) 'sorting based on idx from',1,'to',mnode
        call ivvvvvqsort(mnode,idx,agg,tag,mol,ntype,itype,1,mnode)
 !
 ! Sorting molecules based on their aggregate tag
 !
        do i = mtype+1, nmax-1
          if ( nagg(i) .gt. 1 ) then
-write(*,*) 'sorting based on tag from',imol(i)+1,'to',imol(i+1)
+!~ write(*,*) 'sorting based on tag from',imol(i)+1,'to',imol(i+1)
            call ivvvqsort(mnode,tag,mol,ntype,itype,imol(i)+1,imol(i+1))
          end if
        end do
 !
        if ( nagg(nmax) .gt. 1 )                                        &
-write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
+!~ write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
          call ivvvqsort(mnode,tag,mol,ntype,itype,imol(nmax)+1,mnode)
 !
 ! Sorting molecules based on their canonical order
@@ -1733,7 +1753,7 @@ write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
 !
            k = imol(i)
            do j = 1, nagg(i)
-write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
+!~ write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
              call ivvqsort(mnode,mol,ntype,itype,k+1,k+nmon(i))
              k = k + nmon(i)
            end do
@@ -1745,7 +1765,7 @@ write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
 !
          k = imol(nmax)
          do j = 1, nagg(nmax)
-write(*,*) 'final sorting based on mol from',k+1,'to',k+agg(k+1)
+!~ write(*,*) 'final sorting based on mol from',k+1,'to',k+agg(k+1)
            call ivvqsort(mnode,mol,ntype,itype,k+1,k+agg(k+1))  ! FIXME: check if aggregates > msize are correct
            k = k + agg(k+1)
          end do
