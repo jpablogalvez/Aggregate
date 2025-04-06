@@ -3,7 +3,7 @@
        module screening
 !
        use omp_var,  only:  np,chunkscrn
-
+!
        use omp_lib
 !
        implicit none
@@ -37,7 +37,7 @@
 ! Comparing the diagonal blocks of two adjacency matrices
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(adj,oldadj,newadj)                            &
+!$omp             shared(adj,oldadj,newadj,nnode)                      &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !
@@ -86,7 +86,7 @@
 ! Comparing the diagonal blocks of two adjacency matrices
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(adj,oldadj,newadj)                            &
+!$omp             shared(adj,oldadj,newadj,nnode)                      &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !
@@ -130,7 +130,7 @@
 ! Comparing the diagonal blocks of two adjacency matrices
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(adj,oldadj,newadj)                            &
+!$omp             shared(adj,oldadj,newadj,nnode)                      &
 !$omp             private(i,j)                                         &
 !$omp             schedule(dynamic,chunkscrn)
 !

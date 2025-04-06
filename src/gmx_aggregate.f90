@@ -1630,7 +1630,7 @@
        subroutine nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,    &
                              nagg,iagg,nmol,imol,magg,debug)
 !
-       use systeminf,   only:  mtype,mnode,xtcf
+       use systeminf,   only:  mtype,mnode
        use properties,  only:  nmax,nmon
        use timings,     only:  count_rate,tbfs,tsort,tcpubfs,tcpusort
 !
@@ -1643,60 +1643,60 @@
 !
 ! Input/output variables
 !
-       logical,dimension(mnode,mnode),intent(in)  ::  adj       !  Adjacency matrix
-       integer,dimension(mnode),intent(out)       ::  idx       !  
-       integer,dimension(mnode),intent(out)       ::  ntype     !  
-       integer,dimension(mnode),intent(out)       ::  itype     !  
-       integer,dimension(mnode),intent(out)       ::  mol       !  Molecules identifier
-       integer,dimension(mnode),intent(out)       ::  tag       !  Aggregates identifier
-       integer,dimension(mnode),intent(out)       ::  agg       !  Aggregates size
-       integer,dimension(nmax),intent(out)        ::  nagg      !  Number of aggregates of each size
-       integer,dimension(nmax),intent(out)        ::  iagg      !
-       integer,dimension(nmax),intent(out)        ::  nmol      !
-       integer,dimension(nmax),intent(out)        ::  imol      !
-       integer,intent(out)                        ::  nsize     !  Maximum aggregate size
-       integer,intent(out)                        ::  magg      !  Number of aggregates
-       logical,intent(out)                        ::  debug     !  
+       logical,dimension(mnode,mnode),intent(in)  ::  adj     !  Adjacency matrix
+       integer,dimension(mnode),intent(out)       ::  idx     !  
+       integer,dimension(mnode),intent(out)       ::  ntype   !  
+       integer,dimension(mnode),intent(out)       ::  itype   !  
+       integer,dimension(mnode),intent(out)       ::  mol     !  Molecules identifier
+       integer,dimension(mnode),intent(out)       ::  tag     !  Aggregates identifier
+       integer,dimension(mnode),intent(out)       ::  agg     !  Aggregates size
+       integer,dimension(nmax),intent(out)        ::  nagg    !  Number of aggregates of each size
+       integer,dimension(nmax),intent(out)        ::  iagg    !
+       integer,dimension(nmax),intent(out)        ::  nmol    !
+       integer,dimension(nmax),intent(out)        ::  imol    !
+       integer,intent(out)                        ::  nsize   !  Maximum aggregate size
+       integer,intent(out)                        ::  magg    !  Number of aggregates
+       logical,intent(out)                        ::  debug   !  
 !
 ! Local variables
 ! 
-       integer                                    ::  i,j,k     !  Indexes
+       integer                                    ::  i,j,k   !  Indexes
 !
 ! Declaration of time control variables
 !
-       real(kind=8)                               ::  tinbfs    !  Initial CPU BFS time
-       real(kind=8)                               ::  tfinbfs   !  Final CPU BFS time
-       real(kind=8)                               ::  tinsort   !  Initial CPU sorting time
-       real(kind=8)                               ::  tfinsort  !  Final CPU sorting time
-       integer                                    ::  t1bfs     !  Initial BFS time
-       integer                                    ::  t2bfs     !  Final BFS time
-       integer                                    ::  t1sort    !  Initial sorting time
-       integer                                    ::  t2sort    !  Final sorting time  
+       real(kind=8)                               ::  tibfs   !  Initial CPU BFS time
+       real(kind=8)                               ::  tfbfs   !  Final CPU BFS time
+       real(kind=8)                               ::  tisort  !  Initial CPU sorting time
+       real(kind=8)                               ::  tfsort  !  Final CPU sorting time
+       integer                                    ::  t1bfs   !  Initial BFS time
+       integer                                    ::  t2bfs   !  Final BFS time
+       integer                                    ::  t1sort  !  Initial sorting time
+       integer                                    ::  t2sort  !  Final sorting time  
 !
 ! Block-diagonalizing the adjacency matrix 
 ! ----------------------------------------
 !
-       call cpu_time(tinbfs)
+       call cpu_time(tibfs)
        call system_clock(t1bfs)     
 !
        call nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,nagg,       &
                            magg,nsize)
-!~ write(*,*) 'adj',adj
+write(*,*) 'adj',adj
 !~ write(*,*) xtcf%STEP,'mol:',mol
 !~ write(*,*) xtcf%STEP,'tag:',tag
 !~ write(*,*) xtcf%STEP,'agg:',agg
 
 !
-       call cpu_time(tfinbfs)
+       call cpu_time(tfbfs)
        call system_clock(t2bfs)     
 !
-       tcpubfs = tcpubfs + tfinbfs - tinbfs
+       tcpubfs = tcpubfs + tfbfs - tibfs
        tbfs    = tbfs    + dble(t2bfs-t1bfs)/dble(count_rate)
 !
 ! Sorting the blocks of the adjacency matrix according to their size,
 !  identifier, and canonical order of the constituent molecules
 !
-       call cpu_time(tinsort)
+       call cpu_time(tisort)
        call system_clock(t1sort)
 ! 
 ! Setting up iagg, imol and nmol arrays
@@ -1772,10 +1772,10 @@
 !
        end if
 !
-       call cpu_time(tfinsort)
+       call cpu_time(tfsort)
        call system_clock(t2sort)     
 !
-       tcpusort = tcpusort + tfinsort - tinsort
+       tcpusort = tcpusort + tfsort - tisort
        tsort    = tsort    + dble(t2sort-t1sort)/dble(count_rate)
 !
 !~        if ( debug ) then

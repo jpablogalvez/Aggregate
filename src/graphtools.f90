@@ -622,10 +622,12 @@
        use omp_lib
 !
        use systeminf,  only:  xtcf,rep,mtype,nnode,inode,iat,iatms,igrps
-       use thresholds, only:  thr,thrang
 !
+       use thresholds, only:  thr,thrang
        use parameters, only:  zero
+!
        use geometry,   only:  sminimgvec
+!
        use omp_var,    only:  np,chunkadj
 !
        implicit none
