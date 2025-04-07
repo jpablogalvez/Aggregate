@@ -447,6 +447,7 @@
          write(*,'(A,20I5)') 'ngrps  ',ngrps(:)
          write(*,'(A,20I5)') 'igrps  ',igrps(:)
          write(*,*)
+         write(*,'(A,20I5)') 'maxat  ',maxat
          write(*,'(A,20I5)') 'nat    ',nat(:)
          write(*,'(A,20I5)') 'iat    ',iat(:)
          write(*,*)
@@ -1681,7 +1682,7 @@
 !
        call nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,nagg,       &
                            magg,nsize)
-write(*,*) 'adj',adj
+!~ write(*,*) 'adj',adj
 !~ write(*,*) xtcf%STEP,'mol:',mol
 !~ write(*,*) xtcf%STEP,'tag:',tag
 !~ write(*,*) xtcf%STEP,'agg:',agg

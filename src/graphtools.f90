@@ -828,8 +828,8 @@
 !
              do jinode = 1, nnode(jj)
 !
-               jnnode = iiatms + (jinode-1)*rep(jj)%msubg
-               jnnei  = iiat   + (jinode-1)*rep(jj)%nat
+               jnnode = jiatms + (jinode-1)*rep(jj)%msubg
+               jnnei  = jiat   + (jinode-1)*rep(jj)%nat
 !
                do ingrps = 1, rep(ii)%mgrps     
 !      
