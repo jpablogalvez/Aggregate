@@ -518,8 +518,8 @@
 !
          write(*,*)
          write(*,'(2X,68("="))')
-         write(*,'(3X,A)')      'NOTE:  Maximum aggregate size req'//  &
-                                'uested larger than number of molecules'
+         write(*,'(3X,A)') 'NOTE:  Maximum aggregate size requeste'//  &
+                                     'd larger than number of molecules'
          write(*,*)
          write(*,'(3X,A,I2)') 'Maximum aggregate size updated to',msize
          write(*,'(2X,68("="))')
@@ -552,12 +552,10 @@
 !
        call setidx(msize,mtype,nmax,nmon,imon)
 !
-       if ( debug ) then
-         write(*,*) 'Aggregate stoichiometry identifiers'
-         write(*,*) '-----------------------------------'
-         write(*,*)
-         call print_dictionary(0,nmax,nmon,mtype,imon,'nmon','imon')
-       end if
+       write(*,*) 'Aggregate stoichiometry identifiers'
+       write(*,*) '-----------------------------------'
+       write(*,*)
+       call print_dictionary(0,nmax,nmon,mtype,imon,'nmon','imon')
 !
 ! Setting distance variables
 !
@@ -1137,7 +1135,7 @@
        write(*,'(2X,A)') '-r,--restraints       Interaction criter'//  &
                                        'ia algorithm [distances,angles]'
        write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
-                                   'm [complete,collisions,oscillations'
+                                  'm [complete,collisions,oscillations]'
        write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
