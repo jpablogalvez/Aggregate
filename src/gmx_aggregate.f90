@@ -430,6 +430,7 @@
 ! Setting up first neighbour index array
 !
        call setneiidx()
+       neiang(:) = rep(1)%neiang(:)
 !
 ! Printing information
 !
