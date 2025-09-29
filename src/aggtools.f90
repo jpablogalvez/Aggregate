@@ -130,64 +130,64 @@
 ! Homogeneous systems algorithm
 ! .............................
 !
-       if ( mtype .eq. 1 ) then
-!
-         if ( trim(schm) .eq. 'distances' ) then
-           subbuildadj => buildadjmolbub
-         else if ( trim(schm) .eq. 'angles' ) then
-           subbuildadj => buildadjmolang
-         end if  
-!
-         select case (trim(ch))
-           case ('original')
-!
-             call aggdist(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
-                          msize,nsteps,rep(1)%ngrps,rep(1)%nsubg,      &
-                          rep(1)%igrps,rep(1)%isubg,rep(1)%atms,       &
-                          rep(1)%mgrps,rep(1)%msubg,nprint,minstep,    &
-                          maxstep,nsolv,dopim,doconf,cin(1),           &
-                          subbuildadj,debug)
-!
-           case ('life')
-!
-             call agglife(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
-                          msize,nsteps,rep(1)%nbody,rep(1)%ngrps,      &
-                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      & 
-                          rep(1)%isubg,rep(1)%body,rep(1)%grps,        &
-                          rep(1)%subg,rep(1)%atms,rep(1)%mbody,        &
-                          rep(1)%mgrps,rep(1)%msubg,rep(1)%matms,      &
-                          nprint,minstep,maxstep,nsolv,avlife,nlife,   &
-                          dopim,cin(1),subbuildadj,debug)
-!
-           case ('scrn')
-!
-             call aggscrn(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
-                          msize,nsteps,rep(1)%nbody,rep(1)%ngrps,      &
-                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      &
-                          rep(1)%isubg,rep(1)%body,rep(1)%grps,        &
-                          rep(1)%subg,rep(1)%atms,rep(1)%mbody,        &
-                          rep(1)%mgrps,rep(1)%msubg,rep(1)%matms,      &
-                          nprint,minstep,maxstep,nsolv,dopim,cin(1),   &
-                          subbuildadj,subscrnint,debug)
-!
-           case ('scrnlife')
-!
-             call aggscrnlife(xtcf,rep(1)%nat,nnode(1),natms(1),       &
-                              neidis,msize,nsteps,rep(1)%nbody,        & 
-                              rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,  &
-                              rep(1)%igrps,rep(1)%isubg,rep(1)%body,   &
-                              rep(1)%grps,rep(1)%subg,rep(1)%atms,     &
-                              rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,  &
-                              rep(1)%matms,nprint,minstep,maxstep,     &
-                              nsolv,avlife,nlife,dopim,cin(1),         &
-                              subbuildadj,subscrnint,debug)
-!
-         end select 
-!
-! N-components systems algorithm
-! ..............................
-!
-       else
+!!!       if ( mtype .eq. 1 ) then
+!!!!
+!!!         if ( trim(schm) .eq. 'distances' ) then
+!!!           subbuildadj => buildadjmolbub
+!!!         else if ( trim(schm) .eq. 'angles' ) then
+!!!           subbuildadj => buildadjmolang
+!!!         end if  
+!!!!
+!!!         select case (trim(ch))
+!!!           case ('original')
+!!!!
+!!!             call aggdist(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
+!!!                          msize,nsteps,rep(1)%ngrps,rep(1)%nsubg,      &
+!!!                          rep(1)%igrps,rep(1)%isubg,rep(1)%atms,       &
+!!!                          rep(1)%mgrps,rep(1)%msubg,nprint,minstep,    &
+!!!                          maxstep,nsolv,dopim,doconf,cin(1),           &
+!!!                          subbuildadj,debug)
+!!!!
+!!!           case ('life')
+!!!!
+!!!             call agglife(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
+!!!                          msize,nsteps,rep(1)%nbody,rep(1)%ngrps,      &
+!!!                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      & 
+!!!                          rep(1)%isubg,rep(1)%body,rep(1)%grps,        &
+!!!                          rep(1)%subg,rep(1)%atms,rep(1)%mbody,        &
+!!!                          rep(1)%mgrps,rep(1)%msubg,rep(1)%matms,      &
+!!!                          nprint,minstep,maxstep,nsolv,avlife,nlife,   &
+!!!                          dopim,cin(1),subbuildadj,debug)
+!!!!
+!!!           case ('scrn')
+!!!!
+!!!             call aggscrn(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
+!!!                          msize,nsteps,rep(1)%nbody,rep(1)%ngrps,      &
+!!!                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      &
+!!!                          rep(1)%isubg,rep(1)%body,rep(1)%grps,        &
+!!!                          rep(1)%subg,rep(1)%atms,rep(1)%mbody,        &
+!!!                          rep(1)%mgrps,rep(1)%msubg,rep(1)%matms,      &
+!!!                          nprint,minstep,maxstep,nsolv,dopim,cin(1),   &
+!!!                          subbuildadj,subscrnint,debug)
+!!!!
+!!!           case ('scrnlife')
+!!!!
+!!!             call aggscrnlife(xtcf,rep(1)%nat,nnode(1),natms(1),       &
+!!!                              neidis,msize,nsteps,rep(1)%nbody,        & 
+!!!                              rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,  &
+!!!                              rep(1)%igrps,rep(1)%isubg,rep(1)%body,   &
+!!!                              rep(1)%grps,rep(1)%subg,rep(1)%atms,     &
+!!!                              rep(1)%mbody,rep(1)%mgrps,rep(1)%msubg,  &
+!!!                              rep(1)%matms,nprint,minstep,maxstep,     &
+!!!                              nsolv,avlife,nlife,dopim,cin(1),         &
+!!!                              subbuildadj,subscrnint,debug)
+!!!!
+!!!         end select 
+!!!!
+!!!! N-components systems algorithm
+!!!! ..............................
+!!!!
+!!!       else
 !
          if ( trim(schm) .eq. 'distances' ) then
            subnbuildadj => nbuildadjmolbub
@@ -209,7 +209,7 @@ stop 'Lifetimes algorithm for N-components systems not yet implemented!'
            case ('scrn')
 !
              call naggscrn(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,subbuildadj,subscrnint,debug)
+                           dopim,doconf,subnbuildadj,subscrnint,debug)
 !
            case ('scrnlife')
 !
@@ -218,7 +218,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
          end select     
 !
-       end if
+!!!       end if
 !
        return
        end subroutine driver
@@ -3025,7 +3025,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call cpu_time(tiadj)
            call system_clock(t1adj) 
 !
-           call nbuildadj(newadj,newposi,xtcf%pos,box,neidis,          &
+           call nbuildadj(newadj,newposi,xtcf%pos,newbox,neidis,          &
                           buildadjmol)
 !
            call cpu_time(tfadj)
