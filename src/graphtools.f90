@@ -1045,7 +1045,7 @@
 !  representaion ADJ(NODE,NODE) using Breadth First Search.  
 !
        subroutine nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,      &
-                                 nagg,magg,maxagg)
+                                 nagg,magg,maxagg,maxidx)
 !
        use systeminf,   only:  mtype,nnode,inode,mnode
        use properties,  only:  msize,nmax
@@ -1066,6 +1066,7 @@
        integer,dimension(nmax),intent(out)        ::  nagg    !  Number of aggregates of each size
        integer,intent(out)                        ::  magg    !  Number of aggregates  
        integer,intent(out)                        ::  maxagg  !  Maximum aggregate size
+       integer,intent(out)                        ::  maxidx  !  Maximum aggregate identifier
 !
 ! Local variables
 !
@@ -1093,6 +1094,7 @@
 ! Performing Breadth First Search over the target molecules
 ! ---------------------------------------------------------
 !
+!~ write(*,*) 'STARTING BFS'
 ! Marking all the vertices as not visited
        notvis(:) = .TRUE.
 ! Initializing index information
@@ -1112,6 +1114,7 @@
        tag(:)  = 0
 ! 
        maxagg  = 1
+       maxidx  = 1
 !
 ! Outer loop over each node
 ! .........................
@@ -1161,47 +1164,51 @@
                nk     = queue(iqueue)
                kk     = qtype(iqueue)
                kinode = qnode(iqueue)
-!~ write(*,*) 'taking from the queue node',nk
+!~ write(*,*) 'taking from the queue node',nk,'type',kk
 !
 ! Checking the connection between actual queue element and the rest of nodes
 !
-!   Connection within the same moleculetype
-!   .......................................
+!   Connection within the same moleculetype as the outer loop node
+!   ..............................................................
 !
+!               do nj = inode(ii)+1, inode(kk)+nnode(kk)
+!                 jinode = nj - inode(kk)
                do nj = inode(ii)+iinode+1, inode(ii)+nnode(ii)
                  jinode = nj - inode(ii)
 ! Checking if node j is connected to node k and has not been already visited
-!~ write(*,*) 'checking nk',nk,'nj',nj,':',adj(nj,nk)
+!~ write(*,*) 'checking nk',nk,'nj',nj,'jtype',ii,':',adj(nj,nk)
                  if ( notvis(nj) .and. adj(nj,nk) ) then
-!~ write(*,*) '  ACCEPTED'
+!~ write(*,*) '  ACCEPTED',nj
+!write(*,*) 'ADDING NODE',nk,nj
 ! Updating the system information
                    tag(nnmol) = magg
                    nnmol      = nnmol + 1
 !
                    ntag       = ntag + 1
 !
-                   nntype(kk) = nntype(kk) + 1
-                   tmp(nntype(kk),kk) = nj
+                   nntype(ii) = nntype(ii) + 1
+                   tmp(nntype(ii),ii) = nj
 ! Marking the node connected to node k as visited
                    notvis(nj) = .FALSE.
 ! Adding to the queue the node connected to node k
                    queue(nqueue) = nj
-                   qtype(nqueue) = kk
+                   qtype(nqueue) = ii
                    qnode(nqueue) = jinode
 ! Updating next position in the queue
                    nqueue = nqueue + 1
                  end if
                end do
 !
-!   Connection within different moleculetypes
-!   .........................................
+!   Connection within different moleculetypes to the outer loop node
+!   ................................................................
 !
                do jj = ii+1, mtype
                  do jinode = 1, nnode(jj)
                    nj = inode(jj) + jinode
 ! Checking if node j is connected to node k and has not been already visited
-!~ write(*,*) 'checking nk',nk,'nj',nj,':',adj(nj,nk)
+!~ write(*,*) 'checking nk',nk,'nj',nj,'jtype',jj,':',adj(nj,nk)
                    if ( notvis(nj) .and. adj(nj,nk) ) then
+!write(*,*) 'ADDING NODE',nk,nj
 !~ write(*,*) '  ACCEPTED'
 ! Updating the system information
                      tag(nnmol) = magg
@@ -1237,17 +1244,20 @@
 ! Saving the information of the aggregate found
              agg(nntag+1:nntag+ntag) = ntag
              idx(nntag+1:nntag+ntag) = iidx
+!~ if (ntag.gt.1) write(*,*) 'NEW AGG',ntag,iidx,':',nntype
 !
              do i = 1, mtype
 !
                mol(nntag+1:nntag+nntype(i))   = tmp(:nntype(i),i)
                itype(nntag+1:nntag+nntype(i)) = i
                ntype(nntag+1:nntag+nntype(i)) = nntype(i)
+!~ if (ntag.gt.1) write(*,*) 'mol',tmp(:nntype(i),i)
 !
                nntag = nntag + nntype(i)
              end do
 ! Update the number of aggregates of each size
              if ( ntag .gt. maxagg ) maxagg = ntag
+             if ( iidx .gt. maxidx ) maxidx = iidx 
 !
              if ( ntag .le. msize ) then
                nagg(iidx) = nagg(iidx) + 1
@@ -1259,6 +1269,7 @@
 !
          end do
        end do
+!~ write(*,*)
 !
        return
        end subroutine nfindcompundir

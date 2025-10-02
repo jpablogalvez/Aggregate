@@ -657,7 +657,7 @@
        write(*,*) 
        if ( dolife ) then
          write(*,'(1X,A)') 'Average lifetimes     : '
-         call print_dvec(0,nmax,avlife(:nmax))
+         call print_evec(0,nmax,avlife(:nmax))
          write(*,*) 
        end if
 !
@@ -1628,7 +1628,7 @@
 !  forming the aggregate according to their canonical order.
 !
        subroutine nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,    &
-                             nagg,iagg,nmol,imol,magg,debug)
+                             nagg,iagg,nmol,imol,magg,nidx,debug)
 !
        use systeminf,   only:  mtype,mnode
        use properties,  only:  nmax,nmon
@@ -1637,7 +1637,7 @@
        use graphtools,  only:  nfindcompundir
        use sorting,     only:  ivvvvvqsort,ivvvqsort,ivvqsort
 !
-       use printings,   only:  print_info
+       use printings,   only:  nprint_info
 !
        implicit none
 !
@@ -1655,6 +1655,7 @@
        integer,dimension(nmax),intent(out)        ::  nmol    !
        integer,dimension(nmax),intent(out)        ::  imol    !
        integer,intent(out)                        ::  nsize   !  Maximum aggregate size
+       integer,intent(out)                        ::  nidx    !  Maximum aggregate identifier 
        integer,intent(out)                        ::  magg    !  Number of aggregates
        logical,intent(out)                        ::  debug   !  
 !
@@ -1680,12 +1681,7 @@
        call system_clock(t1bfs)     
 !
        call nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,nagg,       &
-                           magg,nsize)
-!~ write(*,*) 'adj',adj
-!~ write(*,*) xtcf%STEP,'mol:',mol
-!~ write(*,*) xtcf%STEP,'tag:',tag
-!~ write(*,*) xtcf%STEP,'agg:',agg
-
+                           magg,nsize,nidx)
 !
        call cpu_time(tfbfs)
        call system_clock(t2bfs)     
@@ -1737,23 +1733,23 @@
 !
        do i = mtype+1, nmax-1
          if ( nagg(i) .gt. 1 ) then
-!~ write(*,*) 'sorting based on tag from',imol(i)+1,'to',imol(i+1)
+! write(*,*) 'sorting based on tag from',imol(i)+1,'to',imol(i+1)
            call ivvvqsort(mnode,tag,mol,ntype,itype,imol(i)+1,imol(i+1))
          end if
        end do
 !
        if ( nagg(nmax) .gt. 1 )                                        &
-!~ write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
+! write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
          call ivvvqsort(mnode,tag,mol,ntype,itype,imol(nmax)+1,mnode)
 !
 ! Sorting molecules based on their canonical order
 !
        do i = mtype+1, nmax-1
-         if ( nagg(i) .gt. 1 ) then
+         if ( nagg(i) .ge. 1 ) then
 !
            k = imol(i)
            do j = 1, nagg(i)
-!~ write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
+! write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
              call ivvqsort(mnode,mol,ntype,itype,k+1,k+nmon(i))
              k = k + nmon(i)
            end do
@@ -1765,7 +1761,7 @@
 !
          k = imol(nmax)
          do j = 1, nagg(nmax)
-!~ write(*,*) 'final sorting based on mol from',k+1,'to',k+agg(k+1)
+! write(*,*) 'final sorting based on mol from',k+1,'to',k+agg(k+1)
            call ivvqsort(mnode,mol,ntype,itype,k+1,k+agg(k+1))  ! FIXME: check if aggregates > msize are correct
            k = k + agg(k+1)
          end do
@@ -1778,9 +1774,10 @@
        tcpusort = tcpusort + tfsort - tisort
        tsort    = tsort    + dble(t2sort-t1sort)/dble(count_rate)
 !
-!~        if ( debug ) then
-!~          call nprint_info(0,nnode,agg,tag,mol,ntype,itype,idx,'agg','tag','mol','ntype','itype','idx')
-!~        end if
+       if ( debug ) then
+         call nprint_info(0,mnode,agg,tag,mol,ntype,itype,idx, &
+                          'agg','tag','mol','ntype','itype','idx')
+       end if
 !
        return
        end subroutine nblockdiag

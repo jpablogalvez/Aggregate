@@ -81,20 +81,30 @@
 !
        do isize = 2, msize
          if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
-!
-           qiagg = 1
 ! 
-           iimol = timol(isize)
-           jimol = rimol(isize)
+           iimol = timol(isize)         ! First target molecule of size isize
+           jimol = rimol(isize)         ! First target molecule of size isize
 !
-           qimol = jimol + rnmol(isize)
+           qimol = jimol + rnmol(isize) ! Maximum reference molecule of size isize
 !
-           iiagg = 1
+           qiagg = 1                    ! Index of reference aggregate to be compared
+           iiagg = 1                    ! Index of target aggregate
 !
+! Compare aggregates while
+!  i) The index of the target aggregate is lower than or equal to the number of target aggregates
+!     Run over all the target aggregates
+! ii) The index of the reference molecule is lower than the maximum index of the reference molecule
+!     Run over all the reference molecules (i.e., reference aggregates)
+!     There are no more reference molecules to compare
+!    
            do while ( (iiagg.le.tnagg(isize)) .and. (jimol.lt.qimol) )
 !
-             ni = iimol + 1
-             nj = jimol + 1
+             ni = iimol + 1  ! Target molecule index
+             nj = jimol + 1  ! Reference molecule index
+!
+! Starting from the first reference aggregate
+! The first molecule of the first reference aggregate to be compared 
+! must be equal or greater than the first target molecule 
 !
              do jiagg = qiagg, rnagg(isize) 
 !
@@ -103,6 +113,9 @@
 ! Starting comparison of the indexes
 !
                if ( tmol(ni) .lt. rmol(nj) ) then
+!
+! If first molecule of the target aggregate is lower than the reference molecule to be compared
+! it will never appear in the reference aggregates 
 !
                  qiagg = jiagg
                  exit 
@@ -118,7 +131,7 @@
 !
 ! If all indexes do not match we have a fake positive
 !
-                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )  then   !&
+                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )  then
                      life(tiagg(isize)+iiagg) = .FALSE.
                    end if
 !
@@ -139,11 +152,15 @@
 !
                else
 !
+! Move to the first molecule of the next reference aggregate
+!
                  jimol = jimol + isize
 !
                end if 
 !
              end do
+!
+! Update the target molecule and the target aggregate
 !
              iimol = iimol + isize
              iiagg = iiagg + 1
@@ -164,18 +181,19 @@
 !
 ! This subroutine 
 !
-       subroutine calclife(avlife,nlife,nnode,life,nsize,nagg,iagg,    &
+       subroutine calclife(nmax,avlife,nlife,nnode,life,nsize,nagg,iagg,    &
                            magg,iwont)
 !
        implicit none
 !
 ! Input/Output variables
 !
-       real(kind=8),dimension(nnode),intent(inout)  ::  avlife   !  Average lifetimes
-       integer,dimension(nnode),intent(inout)       ::  nlife    !  
+       real(kind=8),dimension(nmax),intent(inout)  ::  avlife   !  Average lifetimes
+       integer,dimension(nmax),intent(inout)       ::  nlife    !  
        integer,dimension(nnode),intent(inout)       ::  life     !
        integer,dimension(nnode),intent(in)          ::  nagg     !
        integer,dimension(nnode),intent(in)          ::  iagg     !
+       integer,intent(in)                           ::  nmax     ! 
        integer,intent(in)                           ::  nnode    !  Total number of molecules
        integer,intent(in)                           ::  nsize    ! 
        integer,intent(in)                           ::  magg     ! 
@@ -231,25 +249,30 @@
 ! This subroutine compares the blocks of two adjacency matrices given as
 !  an input list (array representation)
 !
-       subroutine ntracklife(nnode,rsize,rmol,tsize,tmol,rnagg,riagg,   &
-                             rnmol,rimol,tnagg,tiagg,timol,life,death,  &
-                             imap)
+       subroutine ntracklife(mtype,nnode,nmax,nmon,rmidx,rsize,rmol,   &
+                             tmidx,tsize,tmol,rnagg,riagg,rnmol,rimol, &
+                             tnagg,tiagg,timol,life,death,imap)
 !
        implicit none
 !
 ! Input/output variables
 !
+       integer,dimension(nmax),intent(in)    ::  nmon   !  
        integer,dimension(nnode),intent(in)   ::  rmol   !  Molecules identifier
        integer,dimension(nnode),intent(in)   ::  tmol   !  Molecules identifier
        integer,dimension(nnode),intent(out)  ::  imap   ! 
-       integer,dimension(nnode),intent(in)   ::  rnagg  !  
-       integer,dimension(nnode),intent(in)   ::  riagg  !
-       integer,dimension(nnode),intent(in)   ::  tnagg  !  
-       integer,dimension(nnode),intent(in)   ::  tiagg  !
-       integer,dimension(nnode),intent(in)   ::  rnmol  !  
-       integer,dimension(nnode),intent(in)   ::  rimol  !
-       integer,dimension(nnode),intent(in)   ::  timol  !
+       integer,dimension(nmax),intent(in)    ::  rnagg  !  
+       integer,dimension(nmax),intent(in)    ::  riagg  !
+       integer,dimension(nmax),intent(in)    ::  tnagg  !  
+       integer,dimension(nmax),intent(in)    ::  tiagg  !
+       integer,dimension(nmax),intent(in)    ::  rnmol  !  
+       integer,dimension(nmax),intent(in)    ::  rimol  !
+       integer,dimension(nmax),intent(in)    ::  timol  !
+       integer,intent(in)                    ::  mtype  ! 
        integer,intent(in)                    ::  nnode  !  Number of molecules
+       integer,intent(in)                    ::  nmax   !  Number of possible aggregates 
+       integer,intent(in)                    ::  rmidx  !  Maximum aggregate identifier
+       integer,intent(in)                    ::  tmidx  !  Maximum aggregate identifier
        integer,intent(in)                    ::  rsize  !  Maximum aggregate size
        integer,intent(in)                    ::  tsize  !  Maximum aggregate size
        logical,dimension(nnode),intent(out)  ::  life   !
@@ -283,32 +306,43 @@
 !
 !$omp end parallel do                   
 ! 
-       msize = tsize
-       if ( rsize .lt. tsize ) msize = rsize
+       msize = tmidx
+       if ( rmidx .lt. tmidx ) msize = rmidx 
+       if ( nmax .lt. msize ) msize = nmax
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life,death,imap,tnagg,tmol,rmol,tiagg,riagg,  &
-!$omp                    rnagg,rnmol,rimol,timol,msize)                &
+!$omp                    rnagg,rnmol,rimol,timol,msize,nmon)           &
 !$omp             private(isize,qiagg,iimol,jimol,qimol,iiagg,ni,nj,   &
 !$omp                     jiagg,jsize)                                 &
 !$omp             schedule(dynamic,1)
 !
-       do isize = 2, msize
+       do isize = mtype+1, msize
          if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
-!
-           qiagg = 1
 ! 
-           iimol = timol(isize)
-           jimol = rimol(isize)
+           iimol = timol(isize)         ! First target molecule of size isize
+           jimol = rimol(isize)         ! First target molecule of size isize
 !
-           qimol = jimol + rnmol(isize)
+           qimol = jimol + rnmol(isize) ! Maximum reference molecule of size isize
 !
-           iiagg = 1
+           qiagg = 1                    ! Index of reference aggregate to be compared
+           iiagg = 1                    ! Index of target aggregate
 !
+! Compare aggregates while
+!  i) The index of the target aggregate is lower than or equal to the number of target aggregates
+!     Run over all the target aggregates
+! ii) The index of the reference molecule is lower than the maximum index of the reference molecule
+!     Run over all the reference molecules (i.e., reference aggregates)
+!     There are no more reference molecules to compare
+!    
            do while ( (iiagg.le.tnagg(isize)) .and. (jimol.lt.qimol) )
 !
-             ni = iimol + 1
-             nj = jimol + 1
+             ni = iimol + 1  ! Target molecule index
+             nj = jimol + 1  ! Reference molecule index
+!
+! Starting from the first reference aggregate
+! The first molecule of the first reference aggregate to be compared 
+! must be equal or greater than the first target molecule 
 !
              do jiagg = qiagg, rnagg(isize) 
 !
@@ -317,6 +351,9 @@
 ! Starting comparison of the indexes
 !
                if ( tmol(ni) .lt. rmol(nj) ) then
+!
+! If first molecule of the target aggregate is lower than the reference molecule to be compared
+! it will never appear in the reference aggregates 
 !
                  qiagg = jiagg
                  exit 
@@ -327,12 +364,12 @@
 !
                  life(tiagg(isize)+iiagg) = .TRUE.
                  jsize = 2
-                 do while ( (jsize.le.isize) .and.                     &
+                 do while ( (jsize.le.nmon(isize)) .and.               &
                                               life(tiagg(isize)+iiagg) )
 !
 ! If all indexes do not match we have a fake positive
 !
-                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )  then   !&
+                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )  then
                      life(tiagg(isize)+iiagg) = .FALSE.
                    end if
 !
@@ -348,18 +385,22 @@
                  end if
 !
                  qiagg = jiagg + 1
-                 jimol = jimol + isize
+                 jimol = jimol + nmon(isize)
                  exit
 !
                else
 !
-                 jimol = jimol + isize
+! Move to the first molecule of the next reference aggregate
+!
+                 jimol = jimol + nmon(isize)
 !
                end if 
 !
              end do
 !
-             iimol = iimol + isize
+! Update the target molecule and the target aggregate
+!
+             iimol = iimol + nmon(isize)
              iiagg = iiagg + 1
 !
            end do
@@ -378,18 +419,22 @@
 !
 ! This subroutine 
 !
-       subroutine ncalclife(avlife,nlife,nnode,life,nsize,nagg,iagg,    &
-                           magg,iwont)
+       subroutine ncalclife(mtype,nnode,nmax,avlife,nlife,life,nsize,  &
+                            nagg,iagg,magg,iwont)
 !
        implicit none
 !
 ! Input/Output variables
 !
-       real(kind=8),dimension(nnode),intent(inout)  ::  avlife   !  Average lifetimes
-       integer,dimension(nnode),intent(inout)       ::  nlife    !  
+       real(kind=8),dimension(nmax),intent(inout)   ::  avlife   !  Average lifetimes
+       integer,dimension(nmax),intent(inout)        ::  nlife    !  
+       integer,dimension(nmax)        ::  tmpavlife    !  
+       integer,dimension(nmax)        ::  tmpnlife    !  
        integer,dimension(nnode),intent(inout)       ::  life     !
-       integer,dimension(nnode),intent(in)          ::  nagg     !
-       integer,dimension(nnode),intent(in)          ::  iagg     !
+       integer,dimension(nmax),intent(in)           ::  nagg     !
+       integer,dimension(nmax),intent(in)           ::  iagg     !
+       integer,intent(in)                           ::  mtype    ! 
+       integer,intent(in)                           ::  nmax     !  
        integer,intent(in)                           ::  nnode    !  Total number of molecules
        integer,intent(in)                           ::  nsize    ! 
        integer,intent(in)                           ::  magg     ! 
@@ -400,6 +445,7 @@
        integer                                      ::  iiagg    !   
        integer                                      ::  inagg    !   
        integer                                      ::  isize    !   
+integer :: i,j,k
 !
 ! Averaging lifetimes
 !
@@ -408,7 +454,7 @@
 !$omp             private(iiagg)                                       &
 !$omp             schedule(dynamic,chunklife)
 !
-       do iiagg = nagg(1)+1, magg
+       do iiagg = nagg(mtype+1)+1, magg
          life(iiagg) = life(iiagg) + 1 ! FIXME: reduction (?)
        end do
 !
@@ -419,7 +465,7 @@
 !$omp             private(isize,inagg,iiagg)                           &
 !$omp             schedule(dynamic,1)
 !
-       do isize = 2, nsize
+       do isize = mtype+1, nsize
          do inagg = 1, nagg(isize)
 !
            iiagg = iagg(isize) + inagg

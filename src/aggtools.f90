@@ -19,7 +19,7 @@
                          avlife,nlife,dopim,doconf,schm,scrn,doscrn,   &
                          dolife,debug)
 !
-       use systeminf,   only:  rep,xtcf,mtype,nnode,natms
+       use systeminf,   only:  mnode,rep,xtcf,mtype,nnode,natms
        use properties,  only:  nmax,msize,cin
 !
        use lengths,     only:  lenschm
@@ -203,8 +203,9 @@
 !
            case ('life')
 !
-stop 'Lifetimes algorithm for N-components systems not yet implemented!'
-!             call nagglife()
+             call nagglife(neidis,nsteps,nprint,minstep,maxstep,       &
+                           nsolv,avlife,nlife,dopim,doconf,            &
+                           subnbuildadj,debug)
 !
            case ('scrn')
 !
@@ -494,7 +495,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use xdr,         only:  xtcfile
        use omp_lib
 !
-       use properties,  only:  pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,volu
 ! 
        use omp_var
        use datatypes
@@ -525,8 +526,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Lifetimes calculation variables
 !
-       real(kind=8),dimension(nnode),intent(out)                ::  avlife    !
-       integer,dimension(nnode),intent(out)                     ::  nlife     !
+       real(kind=8),dimension(nmax),intent(out)                ::  avlife    !
+       integer,dimension(nmax),intent(out)                     ::  nlife     !
 !
 ! Trajectory control variables
 !     
@@ -679,12 +680,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        actstep = xtcf%STEP
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(life,avlife,nlife)                            &
+!$omp             shared(life)                                         &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunklife)
 !
        do i = 1, nnode
          life(i)   = 0
+       end do
+! 
+!$omp end parallel do 
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(avlife,nlife)                                 &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = 1, nmax
          avlife(i) = 0.0d0
          nlife(i)  = 0
        end do
@@ -809,7 +820,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call cpu_time(tinlife)
            call system_clock(t1life)
 ! 
-           call calclife(avlife,nlife,nnode,life,nsize,nagg,iagg,      &
+           call calclife(nmax,avlife,nlife,nnode,life,nsize,nagg,iagg,      &
                          magg,iwont)
 !
 ! Analyzing aggregates by their connectivity
@@ -852,6 +863,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !$omp             schedule(dynamic,chunklife)
 !
            do i = 1, nnode
+!
              life(i) = auxlife(i)
 !
              mol(i) = newmol(i)
@@ -1361,7 +1373,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use xdr,         only:  xtcfile
        use omp_lib
 !
-       use properties,  only:  pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,volu
 !
        use omp_var
        use datatypes
@@ -1835,7 +1847,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call cpu_time(tinlife)
            call system_clock(t1life)                  
 !
-           call calclife(avlife,nlife,nnode,life,nsize,nagg,iagg,      &
+           call calclife(nmax,avlife,nlife,nnode,life,nsize,nagg,iagg,      &
                          magg,iwont)
 !
 ! Analyzing aggregates by their connectivity
@@ -2103,6 +2115,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable            ::  nmol     !  
        integer,dimension(:),allocatable            ::  imol     !  
        integer                                     ::  nsize    !  Actual maximum aggregate size
+       integer                                     ::  midx     !  Actual maximum aggregate identifier
        integer                                     ::  magg     !  Actual number of chemical species
 !
 ! Local variables
@@ -2189,7 +2202,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Block-diagonalizing the adjacency matrix
 !
            call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,      &
-                           nagg,iagg,nmol,imol,magg,debug)
+                           nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Printing the population of every aggregate
 ! 
@@ -2335,8 +2348,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use omp_lib
 !
-       use systeminf,   only:  xtcf,rep,mnode,matms
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use systeminf,   only:  xtcf,rep,mtype,mnode,matms
+       use properties,  only:  nmon,nmax,pim,num,pop,frac,conc,prob,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
                                tcpuadj,tcpupim,tcpulife
@@ -2357,8 +2370,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Lifetimes calculation variables
 !
-       real(kind=8),dimension(mnode),intent(out)  ::  avlife    !
-       integer,dimension(mnode),intent(out)       ::  nlife     !
+       real(kind=8),dimension(nmax),intent(out)   ::  avlife    !
+       integer,dimension(nmax),intent(out)        ::  nlife     !
 !
 ! Trajectory control variables
 !     
@@ -2409,6 +2422,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable           ::  willmap   !
        integer                                    ::  nsize     !  Actual maximum aggregate size
        integer                                    ::  newsize   !  New maximum aggregate size
+       integer                                    ::  midx      !  Actual maximum aggregate identifier
+       integer                                    ::  newmidx   !  New maximum aggregate identifier
        integer                                    ::  magg      !  Actual number of chemical species
        integer                                    ::  newmagg   !  New number of chemical species
        integer                                    ::  actstep   !
@@ -2479,11 +2494,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(newnmol(nmax),newimol(nmax))
        allocate(newnagg(nmax),newiagg(nmax))
 !
-       allocate(iwill(mnode),iwont(mnode)) ! TODO: check if limit is nmax
+       allocate(iwill(mnode),iwont(mnode))
 !
-       allocate(willmap(mnode))            ! TODO: check if limit is nmax
+       allocate(willmap(mnode))           
 !
-       allocate(life(nmax),auxlife(nmax))  ! TODO: check if limit is nmax
+       allocate(life(mnode),auxlife(mnode))
 !
 ! Allocating variables depending on topological information 
 !
@@ -2506,16 +2521,26 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        actstep = xtcf%STEP
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(life,avlife,nlife)                            &
+!$omp             shared(life)                                         &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+       do i = 1, mnode
+         life(i)   = 0
+       end do
+! 
+!$omp end parallel do 
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(avlife,nlife)                                 &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunklife)
 !
        do i = 1, nmax
-         life(i)   = 0
          avlife(i) = 0.0d0
          nlife(i)  = 0
        end do
-! 
+!
 !$omp end parallel do 
 !
        call system_clock(t2read)
@@ -2538,7 +2563,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Block-diagonalizing the adjacency matrix of the first configuration
 !
         call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,         &
-                        nagg,iagg,nmol,imol,magg,debug)
+                        nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Reading the first new-configuration
 !
@@ -2572,7 +2597,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call cpu_time(tiadj)
            call system_clock(t1adj) 
 !
-           call nbuildadj(adj,newposi,xtcf%pos,box,neidis,buildadjmol)
+           call nbuildadj(adj,newposi,xtcf%pos,newbox,neidis,buildadjmol)
 !
            call cpu_time(tfadj)
            call system_clock(t2adj) 
@@ -2584,16 +2609,17 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call nblockdiag(adj,newmol,newtag,newagg,newidx,newntype,   &
                            newitype,newsize,newnagg,newiagg,newnmol,   &
-                           newimol,newmagg,debug)
+                           newimol,newmagg,newmidx,debug)
 !
 ! Finding aggregates present in the new and the actual configurations
 !
            call cpu_time(tilife)
            call system_clock(t1life)
 ! 
-!~            call ntracklife(nnode,newsize,newmol,nsize,mol,newnagg,      &
-!~                            newiagg,newnmol,newimol,nagg,iagg,imol,      &
-!~                            iwill,iwont,willmap)
+           call ntracklife(mtype,mnode,nmax,nmon,newmidx,newsize,      &
+                           newmol,midx,nsize,mol,newnagg,newiagg,      &
+                           newnmol,newimol,nagg,iagg,imol,iwill,       &
+                           iwont,willmap)
 !
            call cpu_time(tflife)
            call system_clock(t2life)
@@ -2647,8 +2673,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call cpu_time(tilife)
            call system_clock(t1life)
 ! 
-!~            call ncalclife(avlife,nlife,nnode,life,nsize,nagg,iagg,     &
-!~                           magg,iwont)
+           call ncalclife(mtype,mnode,nmax,avlife,nlife,life,nmax,     &
+                          nagg,iagg,magg,iwont)
 !
 ! Keeping track the adjacency matrix information
 !
@@ -2665,38 +2691,38 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !$omp end parallel do 
 !
-!~ !$omp parallel do num_threads(np)                                      &
-!~ !$omp             shared(nagg,willmap,life,auxlife)                    &
-!~ !$omp             private(i)                                           &
-!~ !$omp             schedule(dynamic,chunklife)
-!~ !
-!~            do i = nagg(1)+1, magg
-!~              if ( willmap(i) .ne. 0 ) auxlife(willmap(i)) = life(i)
-!~            end do
-!~ !
-!~ !$omp end parallel do 
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(nagg,willmap,life,auxlife)                    &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+!
+           do i = nagg(1)+1, magg
+             if ( willmap(i) .ne. 0 ) auxlife(willmap(i)) = life(i)
+           end do
+!
+!$omp end parallel do 
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(mol,agg,tag,newmol,newagg,newtag)             &
+!$omp             shared(life,auxlife,mol,agg,tag,newmol,              &
+!$omp                    newagg,newtag)                                &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunklife)
 !
            do i = 1, mnode
-             mol(i) = newmol(i)
-             agg(i) = newagg(i)
-             tag(i) = newtag(i)
+             life(i) = auxlife(i)
+             mol(i)  = newmol(i)
+             agg(i)  = newagg(i)
+             tag(i)  = newtag(i)
            end do
 !
 !$omp end parallel do                 
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(life,auxlife,nagg,iagg,nmol,imol,newnagg,     &
+!$omp             shared(nagg,iagg,nmol,imol,newnagg,                  &
 !$omp                    newiagg,newnmol,newimol)                      &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunklife)
            do i = 1, nmax
-             life(i) = auxlife(i)
-!
              nagg(i) = newnagg(i)
              iagg(i) = newiagg(i)
 !
@@ -2707,6 +2733,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !$omp end parallel do                 
 !
            magg    = newmagg
+           midx    = newmidx
            nsize   = newsize
 !
            actstep = newstep
@@ -2845,6 +2872,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable         ::  nmol     !  
        integer,dimension(:),allocatable         ::  imol     !  
        integer                                  ::  nsize    !  Actual maximum aggregate size
+       integer                                  ::  midx     !  Actual maximum aggregate index 
        integer                                  ::  magg     !  Actual number of chemical species
        integer                                  ::  actstep  !
        integer                                  ::  newstep  !
@@ -3050,7 +3078,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
            call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,      &
-                           nagg,iagg,nmol,imol,magg,debug)
+                           nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Printing the population of every aggregate
 ! 

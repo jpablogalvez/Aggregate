@@ -1,0 +1,86 @@
+! Input file for binary system 
+
+**MOLREP
+  .TITLE
+    Component1
+  *BODY
+    .GRP
+      Name = OH Atoms=1
+       12
+    .GRP
+      Name = HO Atoms=1
+       13
+  *BODY
+    .GRP
+      name = Cpi Atoms = 6
+       1 3 5 7 9 11
+    .SGRP
+      Name=Hpi atoms=5
+       2 4 6 8 10
+**END MOLREP
+
+**MOLREP
+  .TITLE
+    Component2 
+  *BODY
+    .GRP
+      Name = COH Atoms=1
+       12
+    .GRP
+      Name = CHO Atoms=1
+       13
+  *BODY
+    .GRP
+      name = C Atoms = 6
+       1 3 5 7 9 11
+    .SGRP
+      Name=H atoms=5
+       2 4 6 8 10
+**END MOLREP
+
+**THRESH !  Distances in nm
+  .THR      !  Initialize all the values at zero
+    0.0d0   !   this prevents counting H-pi...H-pi interactions, etc.
+  .VALUES
+    OH    HO    0.26d0
+    COH   HO    0.26d0
+    OH    CHO   0.26d0
+    COH   CHO   0.26d0
+    OH    Hpi   0.28d0
+    COH   Hpi   0.28d0
+    OH    H     0.28d0
+    COH   H     0.28d0
+    Cpi   Cpi   0.40d0
+    Cpi   C     0.40d0
+    C     C     0.40d0
+    Cpi   Hpi   0.30d0
+    Cpi   H     0.30d0
+    C     Hpi   0.30d0
+    C     H     0.30d0
+    Cpi   HO    0.30d0
+    Cpi   CHO   0.30d0
+    C     HO    0.30d0
+    C     CHO   0.30d0
+**END THRESH
+
+**ANGLES  ! Angles in degrees (maximum deviation from ideal angle)
+  .THR
+    0.0d0
+  .VALUES
+    OH   HO   45.0d0  ! 
+    OH   CHO  45.0d0  ! 
+    COH  HO   45.0d0  ! 
+    COH  CHO  45.0d0  ! 
+    OH   Hpi  60.0d0  ! 
+    OH   H    60.0d0  ! 
+    COH  Hpi  60.0d0  ! 
+    COH  H    60.0d0  ! 
+    Cpi  Hpi  60.0d0  ! 
+    Cpi  H    60.0d0  ! 
+    C    Hpi  60.0d0  ! 
+    C    H    60.0d0  ! 
+    Cpi  HO   45.0d0  ! 
+    Cpi  CHO  45.0d0  ! 
+    C    HO   45.0d0  ! 
+    C    CHO  45.0d0  ! 
+**END ANGLES

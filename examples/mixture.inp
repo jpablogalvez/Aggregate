@@ -1,0 +1,140 @@
+! Input file for binary system 
+
+**MOLREP
+  .TITLE
+    Component1
+  *BODY
+    .GRP
+      Name = OH Atoms=1
+       12
+    .GRP
+      Name = HO Atoms=1
+       13
+  *BODY
+    .GRP
+      name = Cpi Atoms = 6
+       1 3 5 7 9 11
+    .SGRP
+      Name=Hpi atoms=5
+       2 4 6 8 10
+**END MOLREP
+
+**MOLREP
+  .TITLE
+    Component2 
+  *BODY
+    .GRP
+      Name = COH Atoms=1
+       1
+    .GRP
+      Name = CHO Atoms=1
+       2
+  *BODY
+    .GRP
+      name = C Atoms = 1
+       3
+    .SGRP
+      Name=H atoms=3
+       4 5 6
+**END MOLREP
+
+**THRESH !  Distances in nm
+  .THR      !  Initialize all the values at zero
+    0.0d0   !   this prevents counting H-pi...H-pi interactions, etc.
+  .VALUES
+   OH  OH    0.011
+   OH  HO    0.01
+   OH  Cpi   0.02
+   OH  Hpi   0.03
+   OH  COH   0.04
+   OH  CHO   0.05
+   OH  C     0.06
+   OH  H     0.07
+   HO  HO    0.08
+   HO  Cpi   0.09
+   HO  Hpi   0.10
+   HO  COH   0.11
+   HO  CHO   0.12
+   HO  C     0.13
+   HO  H     0.14
+   Cpi Cpi   0.15
+   Cpi Hpi   0.16
+   Cpi COH   0.17
+   Cpi CHO   0.18
+   Cpi C     0.19
+   Cpi H     0.20
+   Hpi Hpi   0.21
+   Hpi COH   0.22
+   Hpi CHO   0.23
+   Hpi C     0.24
+   Hpi H     0.25
+   COH COH   0.26
+   COH CHO   0.27
+   COH C     0.28
+   COH H     0.29
+   CHO CHO   0.30
+   CHO C     0.31
+   CHO H     0.32
+   C   C     0.33
+   C   H     0.34
+   H   H     0.35
+**END THRESH
+
+**INTERTHRESH !  Distances in nm
+  .THR      !  Initialize all the values at zero
+    0.0d0   !   this prevents counting H-pi...H-pi interactions, etc.
+  .VALUES
+   OH  OH    0.011
+   OH  HO    0.01
+   OH  Cpi   0.02
+   OH  Hpi   0.03
+   OH  COH   0.04
+   OH  CHO   0.05
+   OH  C     0.06
+   OH  H     0.07
+   HO  HO    0.08
+   HO  Cpi   0.09
+   HO  Hpi   0.10
+   HO  COH   0.11
+   HO  CHO   0.12
+   HO  C     0.13
+   HO  H     0.14
+   Cpi Cpi   0.15
+   Cpi Hpi   0.16
+   Cpi COH   0.17
+   Cpi CHO   0.18
+   Cpi C     0.19
+   Cpi H     0.20
+   Hpi Hpi   0.21
+   Hpi COH   0.22
+   Hpi CHO   0.23
+   Hpi C     0.24
+   Hpi H     0.25
+   COH COH   0.26
+   COH CHO   0.27
+   COH C     0.28
+   COH H     0.29
+   CHO CHO   0.30
+   CHO C     0.31
+   CHO H     0.32
+   C   C     0.33
+   C   H     0.34
+   H   H     0.35
+**END INTERTHRESH
+
+**ANGLES  ! Angles in degrees (maximum deviation from ideal angle)
+!  .NEIGHBOUR
+!   0 12 0 1 3 5 7 9 0 1 0 3 3 3 
+  .THR
+    0.0d0
+  .VALUES
+    OH   HO   45.0d0  ! 
+    COH  HO   45.0d0  ! 
+    OH   CHO  45.0d0  ! 
+    COH  CHO  45.0d0  ! 
+    OH   Hpi  60.0d0  ! 
+    COH  Hpi  60.0d0  ! 
+    Cpi  Hpi  60.0d0  ! 
+    Cpi  HO   45.0d0  ! 
+    Cpi  CHO  45.0d0  ! 
+**END ANGLES

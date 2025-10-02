@@ -820,6 +820,47 @@
 !
 !======================================================================!
 !
+       subroutine nprint_info(i,n,A,B,C,D,E,F,str1,str2,str3,str4,str5,str6)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)               ::  i       !
+       integer,intent(in)               ::  n       !
+       integer,intent(in),dimension(n)  ::  A,B,C   !
+       integer,intent(in),dimension(n)  ::  D,E,F   !
+       character(len=*),intent(in)      ::  str1    !   
+       character(len=*),intent(in)      ::  str2    !   
+       character(len=*),intent(in)      ::  str3    !   
+       character(len=*),intent(in)      ::  str4    !   
+       character(len=*),intent(in)      ::  str5    !   
+       character(len=*),intent(in)      ::  str6    !   
+!
+! Local variables
+!
+       integer,parameter                ::  num=10  !
+       integer                          ::  ilower  !
+       integer                          ::  iupper  !
+       integer                          ::  j       !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str2,(B(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str3,(C(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str4,(D(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str5,(E(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str6,(F(j),j=ilower,iupper)
+         write(*,*)
+       end do
+!
+       return
+       end subroutine nprint_info
+!
+!======================================================================!
+!
        subroutine print_dictionary(i,n,A,m,B,str1,str2)
 !
        implicit none
