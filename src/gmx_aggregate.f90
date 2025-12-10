@@ -252,7 +252,7 @@
 !
          do i = 1, mtype
 !
-           allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+           allocate(rep(i)%adjatms(sys(i)%nat,sys(i)%nat))
 !
            call bonds2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
                           sys(i)%adj)
@@ -260,18 +260,6 @@
          end do
 !
        end if
-!
-! Opening output files
-!
-       if ( outp(len_trim(outp)-3:) .eq. '.dat' ) then 
-         outp = outp(:len_trim(outp)-4)
-       end if
-!
-       open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
-       open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
-       open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
-       open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
-       open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
 !
 ! Setting up system size information
 !
@@ -563,6 +551,18 @@
        neidis = neidis**2
 !
        thr(:,:)  = thr(:,:)**2
+!
+! Opening output files
+!
+       if ( outp(len_trim(outp)-3:) .eq. '.dat' ) then 
+         outp = outp(:len_trim(outp)-4)
+       end if
+!
+       open(unit=uniout+1,file=trim(outp)//'_pop.dat',action='write')
+       open(unit=uniout+2,file=trim(outp)//'_frac.dat',action='write')
+       open(unit=uniout+3,file=trim(outp)//'_conc.dat',action='write')
+       open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
+       open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
 !
 ! Computing the populations of the aggregates
 !
