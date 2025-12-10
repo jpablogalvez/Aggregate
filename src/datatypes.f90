@@ -38,6 +38,10 @@
          integer,dimension(:),allocatable                ::  isubg    !  Number of atoms in each subgroup
          integer,dimension(:),allocatable                ::  atms     !  Atoms identifier
          integer,dimension(:),allocatable                ::  neiang   !
+         logical,dimension(:,:),allocatable              ::  adjbody  !  Adjacency matrix in the N-body simplified representation
+         logical,dimension(:,:),allocatable              ::  adjgrps  !  Adjacency matrix in the groups representation
+         logical,dimension(:,:),allocatable              ::  adjsubg  !  Adjacency matrix in the subgroups representation
+         logical,dimension(:,:),allocatable              ::  adjatms  !  Adjacency matrix in the atoms representation
          integer                                         ::  mbody    !  Number of bodies
          integer                                         ::  mgrps    !  Number of groups
          integer                                         ::  msubg    !  Number of subgroups
