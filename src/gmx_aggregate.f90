@@ -30,7 +30,7 @@
        use utils,         only:  rndmseed
 !
        use aggtools,      only:  driver
-       use graphtools,    only:  bonds2adj
+       use graphtools,    only:  bonds2adj,adj2adjatms,reduceadj
        use mathtools,     only:  setidx
 !
        use input_section, only:  read_inp
@@ -236,31 +236,6 @@
          call print_end()
        end if
 !
-! Building adjacency matrix of the monomer
-!
-       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  ! TODO: guess adj from atomic radii, etc.
-!
-         stop 'Adjacency matrix from gro file is not yet implemented!'
-!
-!~          do i = 1, mtype
-!~            allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
-!~            call radii2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
-!~                           sys(i)%adj)
-!~          end do
-!
-       else if ( conf(len_trim(conf)-3:) .eq. '.top' ) then
-!
-         do i = 1, mtype
-!
-           allocate(rep(i)%adjatms(sys(i)%nat,sys(i)%nat))
-!
-           call bonds2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
-                          sys(i)%adj)
-!
-         end do
-!
-       end if
-!
 ! Setting up system size information
 !
        mnode = 0
@@ -415,6 +390,63 @@
          call print_end()
        end if
 !
+! Building adjacency matrix of the monomer in the canonical order
+!
+       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  ! TODO: guess adj from atomic radii, etc.
+!
+         stop 'Adjacency matrix from gro file is not yet implemented!'
+!
+!~          do i = 1, mtype
+!~            allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+!~            call radii2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
+!~                           sys(i)%adj)
+!~          end do
+!
+       else if ( conf(len_trim(conf)-3:) .eq. '.top' ) then
+!
+         do i = 1, mtype
+!
+           allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+!
+           call bonds2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
+                          sys(i)%adj)
+!
+         end do
+!
+       end if
+!
+! Building the adjacency matrix in the reference atom representation
+!
+       do i = 1, mtype
+         allocate(rep(i)%adjatms(rep(i)%matms,rep(i)%matms))
+         call adj2adjatms(sys(i)%nat,sys(i)%adj,rep(i)%matms,          &
+                          rep(i)%atms,rep(i)%adjatms)
+       end do
+!
+! Building the adjacency matrix in the subgroup based representation
+!
+       do i = 1, mtype
+         allocate(rep(i)%adjsubg(rep(i)%msubg,rep(i)%msubg))
+         call reduceadj(rep(i)%matms,rep(i)%adjatms,rep(i)%msubg,      &
+                        rep(i)%nsubg,rep(i)%isubg,rep(i)%adjsubg)
+       end do
+!
+! Building the adjacency matrix in the group based representation
+!
+       do i = 1, mtype
+         allocate(rep(i)%adjgrps(rep(i)%mgrps,rep(i)%mgrps))
+         call reduceadj(rep(i)%msubg,rep(i)%adjsubg,rep(i)%mgrps,      &
+                        rep(i)%ngrps,rep(i)%igrps,rep(i)%adjgrps)
+       end do
+!
+! Building the adjacency matrix in the N-body simplified representation
+!
+       do i = 1, mtype
+         allocate(rep(i)%adjbody(rep(i)%mbody,rep(i)%mbody))
+         call reduceadj(rep(i)%mgrps,rep(i)%adjgrps,rep(i)%mbody,      &
+                        rep(i)%nbody,rep(i)%ibody,rep(i)%adjbody)
+       end do
+!
 ! Setting up first neighbour index array
 !
        call setneiidx()
@@ -446,8 +478,8 @@
          write(*,*)
 !
          do itype = 1, mtype
-           write(*,'(A,I4)') 'Molecular system:',itype
-           write(*,'(A)')    '.....................'
+           write(*,'(2X,A,I4)') 'Molecular system:',itype
+           write(*,'(2X,A)')    '.....................'
            write(*,*)
            write(*,'(A,20I4)') 'mbody  ',rep(itype)%mbody
            write(*,'(A,20I4)') 'nbody  ',rep(itype)%nbody
@@ -466,6 +498,7 @@
            write(*,*)       
            write(*,'(A,20I4)') 'matms  ',rep(itype)%matms
            write(*,'(A,20I4)') 'atms   ',rep(itype)%atms
+           write(*,*)  
            write(*,'(A,20I4)') 'neiang ',rep(itype)%neiang
            write(*,*)  
            write(*,'(A,20I4)') 'nat    ',rep(itype)%nat
@@ -484,7 +517,7 @@
            end do
          end do
          write(*,*)
-!
+! TODO: print algles thresholds depending on the algorithm
          write(*,'(A)') 'Angles thresholds'
          write(*,'(A)') '-----------------'
          write(*,*)
@@ -497,7 +530,52 @@
          end do
          write(*,*)
 !
-       end if 
+         write(*,'(A)') 'Adjacency matrices of the monomers'
+         write(*,'(A)') '----------------------------------'
+         write(*,*)
+         do i = 1, mtype
+           write(*,'(2X,A,I4)') 'Molecular system:',i
+           write(*,'(2X,A)')    '.....................'
+           write(*,*)
+!
+           write(*,'(4X,A)') 'Adjacency matrix in canonical order'
+           write(*,'(4X,A)') '==================================='
+           do j = 1, sys(i)%nat 
+             write(*,*) (sys(i)%adj(j,k),k=1,j)
+           end do
+           write(*,*)
+!
+           write(*,'(4X,A)') 'Adjacency matrix for reference atoms'
+           write(*,'(4X,A)') '===================================='
+           do j = 1, rep(i)%matms 
+             write(*,*) (rep(i)%adjatms(j,k),k=1,j)
+           end do
+           write(*,*)
+!
+           write(*,'(4X,A)') 'Adjacency matrix in the subgroups representation'
+           write(*,'(4X,A)') '================================================'
+           do j = 1, rep(i)%msubg
+             write(*,*) (rep(i)%adjsubg(j,k),k=1,j)
+           end do
+           write(*,*)
+!
+           write(*,'(4X,A)') 'Adjacency matrix in the groups representation'
+           write(*,'(4X,A)') '============================================='
+           do j = 1, rep(i)%mgrps
+             write(*,*) (rep(i)%adjgrps(j,k),k=1,j)
+           end do
+           write(*,*)
+!
+           write(*,'(4X,A)') 'Adjacency matrix in the N-body simplified representation'
+           write(*,'(4X,A)') '========================================================'
+           do j = 1, rep(i)%mbody
+             write(*,*) (rep(i)%adjbody(j,k),k=1,j)
+           end do
+           write(*,*)
+!
+         end do
+!
+       end if
 !
 ! Computing the maximum number of aggregate identifiers + 1
 !

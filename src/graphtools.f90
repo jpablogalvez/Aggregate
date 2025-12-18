@@ -1347,6 +1347,101 @@
 !
 !======================================================================!
 !
+! ADJ2ADJATMS - ADJacency matrix in canonical order 
+!                TO ADJacency matrix of reference AToMS
+!
+! This subroutine 
+!
+       subroutine adj2adjatms(nat,inadj,matms,atms,outadj)
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(nat,nat),intent(in)       ::  inadj   !  Adjacency matrix
+       logical,dimension(matms,matms),intent(out)  ::  outadj  !  Adjacency matrix
+       integer,dimension(matms),intent(in)         ::  atms    !  Indexes of reference nodes
+       integer,intent(in)                          ::  nat     !  Number of nodes
+       integer,intent(in)                          ::  matms   !  Number of reference nodes
+!
+! Local variables
+!
+       integer                                     ::  i,j     !  Index
+!
+! Building adjacency matrix
+!
+       outadj(:,:) = .FALSE.
+!
+       do i = 1, matms-1
+         do j = i+1, matms
+           if ( inadj(atms(i),atms(j))                                 &
+                                      .or. (atms(i).eq.(atms(j))) ) then
+             outadj(i,j) = .TRUE.
+             outadj(j,i) = .TRUE.
+           end if
+         end do
+       end do
+!
+       return
+       end subroutine adj2adjatms
+!
+!======================================================================!
+!
+! REDUCEADJ - REDUCE ADJacency matrix to a lower representation
+!
+! This subroutine 
+!
+       subroutine reduceadj(matms,adjatms,msubg,nsubg,isubg,adjsubg)
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(matms,matms),intent(in)   ::  adjatms  !  Adjacency matrix
+       logical,dimension(msubg,msubg),intent(out)  ::  adjsubg  !  Adjacency matrix
+       integer,dimension(msubg),intent(in)         ::  nsubg    !  
+       integer,dimension(msubg),intent(in)         ::  isubg    !  
+       integer,intent(in)                          ::  matms    !  Number of reference nodes
+       integer,intent(in)                          ::  msubg    !  Number of reference nodes
+!
+! Local variables
+!
+       integer                                     ::  i,j      !  Index
+       integer                                     ::  ii,jj    !  Index
+       integer                                     ::  iisubg   !  Index
+       integer                                     ::  jjsubg   !  Index
+!
+! Building adjacency matrix
+!
+       adjsubg(:,:) = .FALSE.
+!
+       do i = 1, msubg-1
+         do j = i+1, msubg
+!
+           do iisubg = 1, nsubg(i)
+             ii = isubg(i) + iisubg
+             do jjsubg = 1, nsubg(j)
+               jj = isubg(j) + jjsubg
+!
+               if ( adjatms(ii,jj) ) then
+                 adjsubg(i,j) = .TRUE.
+                 adjsubg(j,i) = .TRUE.
+                 GOTO 1000
+               end if
+!
+             end do
+           end do
+!
+1000       continue
+!
+         end do
+       end do
+!
+       return
+       end subroutine reduceadj
+!
+!======================================================================!
+!
 ! CHKTREE - CHecK TREE
 !
 ! This function identifies wether an undirected unweighted graph of
