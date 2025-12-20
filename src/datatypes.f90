@@ -50,6 +50,12 @@
          integer                                         ::  iat      !  Starting atom
        end type repre
 !
+       type adjinf
+         character(len=256)                  ::  lab  !  
+         logical,dimension(:,:),allocatable  ::  adj  !
+         integer                             ::  n    !
+       end type adjinf
+!
        end module datatypes
 !
 !======================================================================!

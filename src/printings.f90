@@ -29,16 +29,16 @@
        character(len=lencmd)  ::  cmd  !  Command executed
 !
        write(*,'(1X,A)') 'Starting program at '//fdate()//             &
-                         ' on '//print_host() 
-       write(*,*)  
+                         ' on '//print_host()
+       write(*,*)
 !
        call print_version()
-       write(*,*)  
+       write(*,*)
 !
-       call get_command(cmd) 
+       call get_command(cmd)
        write(*,'(2X,A)') 'Command executed:'
        write(*,'(4X,A)') trim(cmd)
-       write(*,*)   
+       write(*,*)
 !
        return
        end subroutine print_start
@@ -52,7 +52,7 @@
        write(*,'(1X,A)') 'Finishing program at '//fdate()//' on '//    &
                                                             print_host()
        write(*,*)
-!     
+!
        call exit(0)
 !
        return
@@ -66,11 +66,11 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  key      !
        real(kind=8),intent(in)      ::  time     !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
 !
 ! Local variables
 !
@@ -92,7 +92,7 @@
        write(uni,fmt1) key,int(time/(60*60*24)),'days',                &
                               int(time/(60*60)),'h',                   &
                            mod(int(time/60),60),'min',                 &
-                              mod(int(time),60),'sec',                 &  
+                              mod(int(time),60),'sec',                 &
                       int(100*(time-int(time))),'msec'
 !
        return
@@ -106,12 +106,12 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  key      !
        real(kind=8),intent(in)      ::  time     !
        real(kind=8),intent(in)      ::  cputime  !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
 !
 ! Local variables
 !
@@ -136,7 +136,7 @@
        write(uni,fmt1) key,int(time/(60*60*24)),'days',                &
                               int(time/(60*60)),'h',                   &
                            mod(int(time/60),60),'min',                 &
-                              mod(int(time),60),'sec',                 &  
+                              mod(int(time),60),'sec',                 &
                       int(100*(time-int(time))),'msec (',speed,')'
 !
        return
@@ -198,7 +198,7 @@
        write(*,aux)
 !
        do
-         read(uni,'(A)',iostat=io) line 
+         read(uni,'(A)',iostat=io) line
          if ( io /= 0 ) exit
          write(*,'(A)') trim(line)
        end do
@@ -219,14 +219,14 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
-       character(len=*),intent(in)  ::  sizedp   !  
-       character(len=*),intent(in)  ::  sep      !    
+       character(len=*),intent(in)  ::  key      !
+       character(len=*),intent(in)  ::  sizedp   !
+       character(len=*),intent(in)  ::  sep      !
        real(kind=4),intent(in)      ::  sval     !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
-       integer,intent(in)           ::  lenfin   !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
+       integer,intent(in)           ::  lenfin   !
 !
 ! Local variables
 !
@@ -248,16 +248,16 @@
        fmt1 = trim(fmt1)//trim(straux)//'X,("'//sep//'"),'
 !
        io = scan(sizedp,'.')
-       if ( io .eq. 0 ) then 
+       if ( io .eq. 0 ) then
           write(*,*)
           write(*,'(2X,68("="))')
           write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DP called inc'//  &
                                                               'orrectly'
-          write(*,*) 
+          write(*,*)
           write(*,'(3X,A)') 'Error while printing information'
           write(*,'(2X,68("="))')
-          write(*,*) 
-          call print_end() 
+          write(*,*)
+          call print_end()
        end if
 !
        iaux = io - 2
@@ -285,14 +285,14 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
-       character(len=*),intent(in)  ::  sizedp   !  
-       character(len=*),intent(in)  ::  sep      !    
+       character(len=*),intent(in)  ::  key      !
+       character(len=*),intent(in)  ::  sizedp   !
+       character(len=*),intent(in)  ::  sep      !
        real(kind=8),intent(in)      ::  dval     !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
-       integer,intent(in)           ::  lenfin   !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
+       integer,intent(in)           ::  lenfin   !
 !
 ! Local variables
 !
@@ -314,16 +314,16 @@
        fmt1 = trim(fmt1)//trim(straux)//'X,("'//sep//'"),'
 !
        io = scan(sizedp,'.')
-       if ( io .eq. 0 ) then 
+       if ( io .eq. 0 ) then
           write(*,*)
           write(*,'(2X,68("="))')
           write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DP called inc'//  &
                                                               'orrectly'
-          write(*,*) 
+          write(*,*)
           write(*,'(3X,A)') 'Error while printing information'
           write(*,'(2X,68("="))')
-          write(*,*) 
-          call print_end() 
+          write(*,*)
+          call print_end()
        end if
 !
        iaux = io - 2
@@ -352,16 +352,16 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)              ::  key      !   
-       character(len=*),intent(in)              ::  sizedp   !  
-       character(len=*),intent(in)              ::  sep      !    
+       character(len=*),intent(in)              ::  key      !
+       character(len=*),intent(in)              ::  sizedp   !
+       character(len=*),intent(in)              ::  sep      !
        real(kind=8),dimension(ndim),intent(in)  ::  dvec     !
-       integer,intent(in)                       ::  ndim     !   
-       integer,intent(in)                       ::  blnk     !   
-       integer,intent(in)                       ::  vecblnk  !   
-       integer,intent(in)                       ::  uni      !   
-       integer,intent(in)                       ::  lenin    !   
-       integer,intent(in)                       ::  lenfin   !   
+       integer,intent(in)                       ::  ndim     !
+       integer,intent(in)                       ::  blnk     !
+       integer,intent(in)                       ::  vecblnk  !
+       integer,intent(in)                       ::  uni      !
+       integer,intent(in)                       ::  lenin    !
+       integer,intent(in)                       ::  lenfin   !
 !
 ! Local variables
 !
@@ -383,16 +383,16 @@
        fmt1 = trim(fmt1)//trim(straux)//'X,("'//sep//'"),'
 !
        io = scan(sizedp,'.')
-       if ( io .eq. 0 ) then 
+       if ( io .eq. 0 ) then
          write(*,*)
          write(*,'(2X,68("="))')
          write(*,'(3X,A)') 'ERROR:  Subroutine LINE_DVEC called in'//  &
                                                              'correctly'
-         write(*,*) 
+         write(*,*)
          write(*,'(3X,A)') 'Error while printing information'
          write(*,'(2X,68("="))')
-         write(*,*) 
-         call print_end() 
+         write(*,*)
+         call print_end()
        end if
 !
        iaux = io - 2
@@ -431,16 +431,16 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)         ::  key      !   
-       character(len=*),intent(in)         ::  sizeint  !  
-       character(len=*),intent(in)         ::  sep      !    
+       character(len=*),intent(in)         ::  key      !
+       character(len=*),intent(in)         ::  sizeint  !
+       character(len=*),intent(in)         ::  sep      !
        integer,dimension(ndim),intent(in)  ::  ivec     !
-       integer,intent(in)                  ::  ndim     !   
-       integer,intent(in)                  ::  blnk     !   
-       integer,intent(in)                  ::  vecblnk  !   
-       integer,intent(in)                  ::  uni      !   
-       integer,intent(in)                  ::  lenin    !   
-       integer,intent(in)                  ::  lenfin   !   
+       integer,intent(in)                  ::  ndim     !
+       integer,intent(in)                  ::  blnk     !
+       integer,intent(in)                  ::  vecblnk  !
+       integer,intent(in)                  ::  uni      !
+       integer,intent(in)                  ::  lenin    !
+       integer,intent(in)                  ::  lenfin   !
 !
 ! Local variables
 !
@@ -491,14 +491,14 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
-       character(len=*),intent(in)  ::  sizeint  !   
-       character(len=*),intent(in)  ::  sep      !   
+       character(len=*),intent(in)  ::  key      !
+       character(len=*),intent(in)  ::  sizeint  !
+       character(len=*),intent(in)  ::  sep      !
        integer,intent(in)           ::  ival     !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
-       integer,intent(in)           ::  lenfin   !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
+       integer,intent(in)           ::  lenfin   !
 !
 ! Local variables
 !
@@ -538,13 +538,13 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  key      !
        character(len=*),intent(in)  ::  strval   !
        character(len=*),intent(in)  ::  sep      !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
-       integer,intent(in)           ::  lenfin   !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
+       integer,intent(in)           ::  lenfin   !
 !
 ! Local variables
 !
@@ -583,13 +583,13 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  key      !
        character(len=*),intent(in)  ::  sep      !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
-       integer,intent(in)           ::  lenin    !   
-       integer,intent(in)           ::  lenfin   !  
-       logical,intent(in)           ::  logval   ! 
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
+       integer,intent(in)           ::  lenin    !
+       integer,intent(in)           ::  lenfin   !
+       logical,intent(in)           ::  logval   !
 !
        if ( logval ) then
          call line_str(uni,blnk,key,lenin,sep,'YES',lenfin)
@@ -608,10 +608,10 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
+       character(len=*),intent(in)  ::  key      !
        character(len=*),intent(in)  ::  sub      !
-       integer,intent(in)           ::  blnk     !   
-       integer,intent(in)           ::  uni      !   
+       integer,intent(in)           ::  blnk     !
+       integer,intent(in)           ::  uni      !
 !
 ! Local variables
 !
@@ -651,13 +651,13 @@
 !
 ! Input/output variables
 !
-       character(len=*),intent(in)  ::  key      !   
-       character(len=*),intent(in)  ::  sizeint  !   
+       character(len=*),intent(in)  ::  key      !
+       character(len=*),intent(in)  ::  sizeint  !
        character(len=*),intent(in)  ::  sub      !
-       integer,intent(in)           ::  blnk1    !   
-       integer,intent(in)           ::  blnk2    !   
-       integer,intent(in)           ::  ival     !   
-       integer,intent(in)           ::  uni      !   
+       integer,intent(in)           ::  blnk1    !
+       integer,intent(in)           ::  blnk2    !
+       integer,intent(in)           ::  ival     !
+       integer,intent(in)           ::  uni      !
 !
 ! Local variables
 !
@@ -795,9 +795,9 @@
        integer,intent(in)               ::  i       !
        integer,intent(in)               ::  n       !
        integer,intent(in),dimension(n)  ::  A,B,C   !
-       character(len=*),intent(in)      ::  str1    !   
-       character(len=*),intent(in)      ::  str2    !   
-       character(len=*),intent(in)      ::  str3    !   
+       character(len=*),intent(in)      ::  str1    !
+       character(len=*),intent(in)      ::  str2    !
+       character(len=*),intent(in)      ::  str3    !
 !
 ! Local variables
 !
@@ -820,7 +820,8 @@
 !
 !======================================================================!
 !
-       subroutine nprint_info(i,n,A,B,C,D,E,F,str1,str2,str3,str4,str5,str6)
+       subroutine nprint_info(i,n,A,B,C,D,E,F,G,str1,str2,str3,str4,   &
+                              str5,str6,str7)
 !
        implicit none
 !
@@ -830,12 +831,14 @@
        integer,intent(in)               ::  n       !
        integer,intent(in),dimension(n)  ::  A,B,C   !
        integer,intent(in),dimension(n)  ::  D,E,F   !
-       character(len=*),intent(in)      ::  str1    !   
-       character(len=*),intent(in)      ::  str2    !   
-       character(len=*),intent(in)      ::  str3    !   
-       character(len=*),intent(in)      ::  str4    !   
-       character(len=*),intent(in)      ::  str5    !   
-       character(len=*),intent(in)      ::  str6    !   
+       integer,intent(in),dimension(n)  ::  G       !
+       character(len=*),intent(in)      ::  str1    !
+       character(len=*),intent(in)      ::  str2    !
+       character(len=*),intent(in)      ::  str3    !
+       character(len=*),intent(in)      ::  str4    !
+       character(len=*),intent(in)      ::  str5    !
+       character(len=*),intent(in)      ::  str6    !
+       character(len=*),intent(in)      ::  str7    !
 !
 ! Local variables
 !
@@ -853,6 +856,7 @@
          write(*,'(1X,A10,10(X,I6))') str4,(D(j),j=ilower,iupper)
          write(*,'(1X,A10,10(X,I6))') str5,(E(j),j=ilower,iupper)
          write(*,'(1X,A10,10(X,I6))') str6,(F(j),j=ilower,iupper)
+         write(*,'(1X,A10,10(X,I6))') str7,(G(j),j=ilower,iupper)
          write(*,*)
        end do
 !
@@ -872,8 +876,8 @@
        integer,intent(in)                 ::  m       !
        integer,intent(in),dimension(n)    ::  A       !
        integer,intent(in),dimension(m,n)  ::  B       !
-       character(len=*),intent(in)        ::  str1    !   
-       character(len=*),intent(in)        ::  str2    !   
+       character(len=*),intent(in)        ::  str1    !
+       character(len=*),intent(in)        ::  str2    !
 !
 ! Local variables
 !
@@ -884,16 +888,116 @@
 !
        do ilower = 1, n, num
          iupper = min(ilower + num - 1,n)
-         write(*,'(11X,10(X,I6))')    (i+j,j=ilower,iupper)
-         write(*,'(1X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         write(*,'(15X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(5X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
          do k = 1, m
-           write(*,'(1X,A10,10(X,I6))') str2,(B(k,j),j=ilower,iupper)
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str2,                  &
+                                                (B(k,j),j=ilower,iupper)
          end do
          write(*,*)
        end do
 !
        return
        end subroutine print_dictionary
+!
+!======================================================================!
+!
+       subroutine print_moninfo(i,n,m,A,B,C,str1,str2,str3)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                 ::  i       !
+       integer,intent(in)                 ::  n       !
+       integer,intent(in)                 ::  m       !
+       integer,intent(in),dimension(n)    ::  A       !
+       integer,intent(in),dimension(m,n)  ::  B,C     !
+       character(len=*),intent(in)        ::  str1    !
+       character(len=*),intent(in)        ::  str2    !
+       character(len=*),intent(in)        ::  str3    !
+!
+! Local variables
+!
+       integer,parameter                  ::  num=10  !
+       integer                            ::  ilower  !
+       integer                            ::  iupper  !
+       integer                            ::  j,k     !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(15X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(5X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str2,                  &
+                                                (B(k,j),j=ilower,iupper)
+         end do
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str3,                  &
+                                                (C(k,j),j=ilower,iupper)
+         end do
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_moninfo
+!
+!======================================================================!
+!
+       subroutine print_agginfo(i,n,m,A,B,C,D,E,F,str1,str2,str3,      &
+                                str4,str5,str6)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                 ::  i       !
+       integer,intent(in)                 ::  n       !
+       integer,intent(in)                 ::  m       !
+       integer,intent(in),dimension(n)    ::  A,D     !
+       integer,intent(in),dimension(m,n)  ::  B,C     !
+       integer,intent(in),dimension(m,n)  ::  E,F     !
+       character(len=*),intent(in)        ::  str1    !
+       character(len=*),intent(in)        ::  str2    !
+       character(len=*),intent(in)        ::  str3    !
+       character(len=*),intent(in)        ::  str4    !
+       character(len=*),intent(in)        ::  str5    !
+       character(len=*),intent(in)        ::  str6    !
+!
+! Local variables
+!
+       integer,parameter                  ::  num=10  !
+       integer                            ::  ilower  !
+       integer                            ::  iupper  !
+       integer                            ::  j,k     !
+!
+       do ilower = 1, n, num
+         iupper = min(ilower + num - 1,n)
+         write(*,'(15X,10(X,I6))')    (i+j,j=ilower,iupper)
+         write(*,'(5X,A10,10(X,I6))') str1,(A(j),j=ilower,iupper)
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str2,                  &
+                                                (B(k,j),j=ilower,iupper)
+         end do
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str3,                  &
+                                                (C(k,j),j=ilower,iupper)
+         end do
+         write(*,*)
+         write(*,'(5X,A10,10(X,I6))') str4,(D(j),j=ilower,iupper)
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str5,                  &
+                                                (E(k,j),j=ilower,iupper)
+         end do
+         do k = 1, m
+           write(*,'(1X,I3,1X,A10,10(X,I6))') k,str6,                  &
+                                                (F(k,j),j=ilower,iupper)
+         end do
+         write(*,*)
+       end do
+!
+       return
+       end subroutine print_agginfo
 !
 !======================================================================!
 !
@@ -908,10 +1012,10 @@
        integer,intent(in)               ::  m       !
        integer,intent(in),dimension(n)  ::  A       !
        integer,intent(in),dimension(m)  ::  B,C,D   !
-       character(len=*),intent(in)      ::  str1    !   
-       character(len=*),intent(in)      ::  str2    !   
-       character(len=*),intent(in)      ::  str3    !   
-       character(len=*),intent(in)      ::  str4    !   
+       character(len=*),intent(in)      ::  str1    !
+       character(len=*),intent(in)      ::  str2    !
+       character(len=*),intent(in)      ::  str3    !
+       character(len=*),intent(in)      ::  str4    !
 !
 ! Local variables
 !

@@ -2105,6 +2105,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        logical,dimension(:,:),allocatable          ::  adj      !  Adjacency matrix
        integer,dimension(:),allocatable            ::  mol      !  Molecules identifier
+       integer,dimension(:),allocatable            ::  node     !  Molecules identifier
        integer,dimension(:),allocatable            ::  tag      !  Aggregates identifier
        integer,dimension(:),allocatable            ::  agg      !  Aggregates size 
        integer,dimension(:),allocatable            ::  idx      !  Aggregate identifier 
@@ -2159,7 +2160,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(adj(mnode,mnode))
 !
-       allocate(mol(mnode),tag(mnode),agg(mnode))
+       allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
 !
        allocate(nmol(nmax),imol(nmax))
@@ -2201,8 +2202,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Block-diagonalizing the adjacency matrix
 !
-           call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,      &
-                           nagg,iagg,nmol,imol,magg,midx,debug)
+           call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,       &
+                           nsize,nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Printing the population of every aggregate
 ! 
@@ -2348,8 +2349,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use omp_lib
 !
-       use systeminf,   only:  xtcf,rep,mtype,mnode,matms
-       use properties,  only:  nmon,nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon
+       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
                                tcpuadj,tcpupim,tcpulife
@@ -2400,12 +2401,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:),allocatable           ::  iwill     !
        logical,dimension(:),allocatable           ::  iwont     !
        integer,dimension(:),allocatable           ::  mol       !  Molecules identifier
+       integer,dimension(:),allocatable           ::  node      !  Molecules identifier
        integer,dimension(:),allocatable           ::  tag       !  Aggregates identifier
        integer,dimension(:),allocatable           ::  agg       !  Aggregates size 
        integer,dimension(:),allocatable           ::  idx       !  Aggregate identifier 
        integer,dimension(:),allocatable           ::  ntype     !   
        integer,dimension(:),allocatable           ::  itype     !   
        integer,dimension(:),allocatable           ::  newmol    !  Molecules identifier
+       integer,dimension(:),allocatable           ::  newnode   !  Molecules identifier
        integer,dimension(:),allocatable           ::  newtag    !  Aggregates identifier
        integer,dimension(:),allocatable           ::  newagg    !  Aggregates size 
        integer,dimension(:),allocatable           ::  newidx    !  Aggregate identifier 
@@ -2482,10 +2485,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(adj(mnode,mnode))
 !
-       allocate(mol(mnode),tag(mnode),agg(mnode))
+       allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
 !
-       allocate(newmol(mnode),newtag(mnode),newagg(mnode))
+       allocate(newmol(mnode),newnode(mnode))
+       allocate(newtag(mnode),newagg(mnode))
        allocate(newidx(mnode),newntype(mnode),newitype(mnode))
 !
        allocate(nmol(nmax),imol(nmax))
@@ -2562,7 +2566,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Block-diagonalizing the adjacency matrix of the first configuration
 !
-        call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,         &
+        call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,nsize,    &
                         nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Reading the first new-configuration
@@ -2607,16 +2611,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
-           call nblockdiag(adj,newmol,newtag,newagg,newidx,newntype,   &
-                           newitype,newsize,newnagg,newiagg,newnmol,   &
-                           newimol,newmagg,newmidx,debug)
+           call nblockdiag(adj,newmol,newnode,newtag,newagg,newidx,    &
+                           newntype,newitype,newsize,newnagg,newiagg,  &
+                           newnmol,newimol,newmagg,newmidx,debug)
 !
 ! Finding aggregates present in the new and the actual configurations
 !
            call cpu_time(tilife)
            call system_clock(t1life)
 ! 
-           call ntracklife(mtype,mnode,nmax,nmon,newmidx,newsize,      &
+           call ntracklife(mtype,mnode,nmax,mmon,newmidx,newsize,      &
                            newmol,midx,nsize,mol,newnagg,newiagg,      &
                            newnmol,newimol,nagg,iagg,imol,iwill,       &
                            iwont,willmap)
@@ -2862,6 +2866,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable       ::  oldadj   !  Adjacency matrix
        logical,dimension(:,:),allocatable       ::  newadj   !  Adjacency matrix
        integer,dimension(:),allocatable         ::  mol      !  Molecules identifier
+       integer,dimension(:),allocatable         ::  node     !  Molecules identifier
        integer,dimension(:),allocatable         ::  tag      !   Aggregates identifier
        integer,dimension(:),allocatable         ::  agg      !  Aggregates size 
        integer,dimension(:),allocatable         ::  idx      !  Aggregate identifier 
@@ -2926,7 +2931,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(adj(mnode,mnode))
        allocate(oldadj(mnode,mnode),newadj(mnode,mnode))
 !
-       allocate(mol(mnode),tag(mnode),agg(mnode))
+       allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
 !
        allocate(nmol(nmax),imol(nmax))
@@ -3077,8 +3082,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
-           call nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,      &
-                           nagg,iagg,nmol,imol,magg,midx,debug)
+           call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,       &
+                           nsize,nagg,iagg,nmol,imol,magg,midx,debug)
 !
 ! Printing the population of every aggregate
 ! 

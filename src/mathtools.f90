@@ -61,29 +61,39 @@
 !
 ! This subroutine 
 !
-       subroutine setidx(msize,mtype,nmax,nmon,imon)
+       subroutine setidx(msize,mtype,nmax,mmon,nmon,imon,mgrpsmon,     & 
+                         ngrpsmon,igrpsmon,mbodymon,nbodymon,ibodymon)
+!
+       use systeminf,  only:  rep
 !
        implicit none
 !
 ! Input/output variables
 !
-       integer,dimension(nmax),intent(out)        ::  nmon   !
-       integer,dimension(mtype,nmax),intent(out)  ::  imon   !
-       integer,intent(in)                         ::  mtype  !
-       integer,intent(in)                         ::  msize  !
-       integer,intent(in)                         ::  nmax   !
+       integer,dimension(nmax),intent(out)        ::  mmon      !
+       integer,dimension(nmax),intent(out)        ::  mgrpsmon  !
+       integer,dimension(nmax),intent(out)        ::  mbodymon  !
+       integer,dimension(mtype,nmax),intent(out)  ::  nmon      !
+       integer,dimension(mtype,nmax),intent(out)  ::  imon      !
+       integer,dimension(mtype,nmax),intent(out)  ::  ngrpsmon  !
+       integer,dimension(mtype,nmax),intent(out)  ::  igrpsmon  !
+       integer,dimension(mtype,nmax),intent(out)  ::  nbodymon  !
+       integer,dimension(mtype,nmax),intent(out)  ::  ibodymon  !
+       integer,intent(in)                         ::  mtype     !
+       integer,intent(in)                         ::  msize     !
+       integer,intent(in)                         ::  nmax      !
 !
 ! Local variables
 !
-       integer,dimension(mtype)                   ::  ntype  !
-       integer                                    ::  num    !
-       integer                                    ::  fact   !
-       integer                                    ::  itype  !
-       integer                                    ::  i,j    !
+       integer,dimension(mtype)                   ::  ntype     !
+       integer                                    ::  num       !
+       integer                                    ::  fact      !
+       integer                                    ::  itype     !
+       integer                                    ::  i,j       !
 !
 ! Setting the number of monomer molecules for each aggregate identifier 
 !
-       nmon(:) = -1
+       mmon(:) = -1
 !
        j = 0
        do i = 1, msize
@@ -96,17 +106,61 @@
          end do
          num = num/fact
 !
-         nmon(j+1:j+num) = i
+         mmon(j+1:j+num) = i
          j = j + num
 !
        end do
 !
 ! Generating all possible n-tuples from combinations with repetition 
 !
-       imon(:,:) = -1
+       nmon(:,:) = -1
        ntype(:)  = 0
 !
-       call genntuples(1,mtype,ntype,msize,nmax,imon)
+       call genntuples(1,mtype,ntype,msize,nmax,nmon)
+!
+! Setting the information of the aggregates size
+!
+       mgrpsmon(:) = -1
+       mbodymon(:) = -1
+!
+       ngrpsmon(:,:) = -1
+       nbodymon(:,:) = -1
+!
+       igrpsmon(:,:) = -1
+       ibodymon(:,:) = -1
+!
+       do i = 1, nmax-1
+!
+         mgrpsmon(i) = 0
+         mbodymon(i) = 0
+!
+         igrpsmon(1,i) = 0
+         ibodymon(1,i) = 0 
+!
+         imon(1,i) = 0        
+!
+         do j = 1, mtype-1
+!
+           ngrpsmon(j,i) = nmon(j,i)*rep(j)%mgrps
+           nbodymon(j,i) = nmon(j,i)*rep(j)%mbody 
+!
+           mgrpsmon(i) = mgrpsmon(i) + ngrpsmon(j,i)
+           mbodymon(i) = mbodymon(i) + nbodymon(j,i)
+!
+           igrpsmon(j+1,i) = igrpsmon(j,i) + ngrpsmon(j,i)
+           ibodymon(j+1,i) = ibodymon(j,i) + nbodymon(j,i) 
+!
+           imon(j+1,i) = imon(j,i) + nmon(j,i)
+!
+         end do
+!
+         ngrpsmon(mtype,i) = nmon(mtype,i)*rep(mtype)%mgrps
+         nbodymon(mtype,i) = nmon(mtype,i)*rep(mtype)%mbody
+!
+         mgrpsmon(i) = mgrpsmon(i) + ngrpsmon(mtype,i)
+         mbodymon(i) = mbodymon(i) + nbodymon(mtype,i)
+! 
+       end do
 !    
        return
        end subroutine setidx

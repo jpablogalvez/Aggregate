@@ -4,11 +4,13 @@
 !
        use omp_lib
 !
-       use systeminf,     only:  sys,rep,xtcf,mtype,nnode,inode,mnode, &
-                                 natms,iatms,matms,nat,iat,maxat,mat,  &
-                                 ngrps,igrps,mgrps
+       use systeminf,     only:  sys,rep,adjgrps,adjbody,xtcf,mtype,   &
+                                 nnode,inode,mnode,natms,iatms,matms,  &
+                                 nat,iat,maxat,mat,ngrps,igrps,mgrps,  &
+                                 mmon,nmon,imon,mgrpsmon,mbodymon,     &
+                                 ngrpsmon,nbodymon,igrpsmon,ibodymon
        use properties,    only:  msize,nmax,pim,num,pop,frac,conc,     &
-                                 prob,nmon,imon,cin,volu
+                                 prob,cin,volu
        use filenames,     only:  inp,conf,traj,outp,weight
        use thresholds,    only:  neidis,thr,thrang,neiang
 !
@@ -25,8 +27,9 @@
        use printings,     only:  print_start,print_end,print_inp,      &
                                  print_title,line_str,line_sp,         &
                                  line_dp,line_dvec,line_int,line_log,  &
-                                 print_time,print_speed,print_ivec,    &
-                                 print_dvec,print_evec,print_dictionary
+                                 print_ivec,print_dvec,print_evec,     &
+                                 print_dictionary,print_agginfo,       &
+                                 print_moninfo,print_time,print_speed
        use utils,         only:  rndmseed
 !
        use aggtools,      only:  driver
@@ -396,11 +399,11 @@
 !
          stop 'Adjacency matrix from gro file is not yet implemented!'
 !
-!~          do i = 1, mtype
-!~            allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
-!~            call radii2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
-!~                           sys(i)%adj)
-!~          end do
+!         do i = 1, mtype
+!           allocate(sys(i)%adj(sys(i)%nat,sys(i)%nat))
+!           call radii2adj(sys(i)%nbond,sys(i)%ibond,sys(i)%nat,        &
+!                          sys(i)%adj)
+!         end do
 !
        else if ( conf(len_trim(conf)-3:) .eq. '.top' ) then
 !
@@ -605,24 +608,82 @@
        end do
        nmax = nmax/j
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on the maximum number of aggregates 
 !
        allocate(pim(mgrps,mgrps,nmax-1))
        allocate(pop(nmax),conc(nmax),frac(nmax))
        allocate(prob(nmax),num(nmax))
 !
-       allocate(nmon(nmax),imon(mtype,nmax))
+       allocate(adjgrps(nmax),adjbody(nmax))
+!
+       allocate(mmon(nmax),nmon(mtype,nmax),imon(mtype,nmax))
+       allocate(mgrpsmon(nmax),mbodymon(nmax))
+       allocate(ngrpsmon(mtype,nmax),nbodymon(mtype,nmax))
+       allocate(igrpsmon(mtype,nmax),ibodymon(mtype,nmax))
 !
        if ( dolife ) allocate(avlife(nmax),nlife(nmax))
 !
-! Setting the information of the aggregate identifiers
+! Setting the information of the aggregates identifiers
 !
-       call setidx(msize,mtype,nmax,nmon,imon)
+       call setidx(msize,mtype,nmax,mmon,nmon,imon,mgrpsmon,ngrpsmon,  &
+                   igrpsmon,mbodymon,nbodymon,ibodymon)
 !
-       write(*,*) 'Aggregate stoichiometry identifiers'
-       write(*,*) '-----------------------------------'
-       write(*,*)
-       call print_dictionary(0,nmax,nmon,mtype,imon,'nmon','imon')
+       if ( debug ) then
+         write(*,*) 'Aggregate stoichiometry identifiers'
+         write(*,*) '-----------------------------------'
+         write(*,*)
+         call print_moninfo(0,nmax,mtype,mmon,nmon,imon,               &
+                           'mmon','nmon','imon')
+!
+         write(*,'(A)') 'Aggregates size information'
+         write(*,'(A)') '---------------------------'
+         write(*,*)
+         call print_agginfo(0,nmax,mtype,mgrpsmon,ngrpsmon,igrpsmon,   &
+                            mbodymon,nbodymon,ibodymon,'mgrpsmon',     &
+                            'ngrpsmon','igrpsmon','mbodymon',          &
+                            'nbodymon','ibodymon')
+       else
+         write(*,*) 'Aggregate stoichiometry identifiers'
+         write(*,*) '-----------------------------------'
+         write(*,*) 
+         call print_dictionary(0,nmax,mmon,mtype,nmon,'mmon','nmon')
+       end if
+!
+! Generating templates for the adjacency matrices of the aggregates
+!
+       call templateadj()
+!
+       if ( debug ) then
+!
+         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  & 
+                                    'e N-body simplified representation'
+         write(*,'(75("-"))') 
+         write(*,*)
+         do i = mtype+1, nmax-1
+           write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
+                                                           ':',nmon(:,i)
+           write(*,'(2X,A)')              '.....................'
+           do j = 1, adjbody(i)%n
+             write(*,*) (adjbody(i)%adj(j,k),k=1,adjbody(i)%n)
+           end do
+           write(*,*)
+         end do
+!
+         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  & 
+                                               'e groups representation'
+         write(*,'(64("-"))') 
+         write(*,*)
+         do i = mtype+1, nmax-1
+           write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
+                                                           ':',nmon(:,i)
+           write(*,'(2X,A)')              '.....................'
+           do j = 1, adjgrps(i)%n
+             write(*,*) (adjgrps(i)%adj(j,k),k=1,adjgrps(i)%n)
+           end do
+           write(*,*)
+         end do
+!
+       end if
 !
 ! Setting distance variables
 !
@@ -764,7 +825,11 @@
        deallocate(pop,conc,frac,prob,num)
        deallocate(pim)
 !
-       deallocate(nmon,imon)
+       deallocate(adjgrps,adjbody)
+!
+       deallocate(mmon,nmon,imon)
+       deallocate(mgrpsmon,ngrpsmon,igrpsmon)
+       deallocate(mbodymon,nbodymon,ibodymon)
 !
        if ( dolife ) deallocate(avlife,nlife)
 !
@@ -1286,6 +1351,91 @@
 !
 !======================================================================!
 !
+! TEMPLATEADJ - generate TEMPLATEs of the ADJacency matrices
+!
+! This subroutine 
+!
+       subroutine templateadj()
+!
+       use systeminf,   only:  mtype,nmon,rep,adjgrps,adjbody,         &
+                               mgrpsmon,mbodymon,igrpsmon,ibodymon
+       use properties,  only:  nmax
+!
+       implicit none
+!
+! Input/output variables
+!
+
+!
+! Local variables
+!
+       integer  ::  iagg    !  Indexes
+       integer  ::  iitype  !  Indexes
+       integer  ::  iimon   !  Indexes
+       integer  ::  iigrps  !  Indexes
+       integer  ::  iibody  !  Indexes
+       integer  ::  k,kk    !  Indexes
+!
+! Generating templates for the adjacency matrices of the aggregates
+! -----------------------------------------------------------------
+!
+       do iagg = mtype+1, nmax-1
+!
+         adjgrps(iagg)%n = mgrpsmon(iagg)
+         adjbody(iagg)%n = mbodymon(iagg)
+!
+         allocate(adjgrps(iagg)%adj(mgrpsmon(iagg),mgrpsmon(iagg)))
+         allocate(adjbody(iagg)%adj(mbodymon(iagg),mbodymon(iagg)))
+!
+! Filling the adjacency matrix in the groups presentation
+!
+         adjgrps(iagg)%adj(:,:) = .FALSE.         
+!
+         do iitype = 1, mtype
+           do iimon = 1, nmon(iitype,iagg)
+!
+             kk = igrpsmon(iitype,iagg) + (iimon-1)*rep(iitype)%mgrps
+!
+             do iigrps = 1, rep(iitype)%mgrps
+!
+               k = kk + iigrps
+! 
+               adjgrps(iagg)%adj(kk+1:kk+rep(iitype)%mgrps,k) =        &
+                                           rep(iitype)%adjgrps(:,iigrps)
+!
+             end do
+!
+           end do
+         end do
+!
+! Filling the adjacency matrix in the N-body simplified presentation
+!
+         adjbody(iagg)%adj(:,:) = .FALSE.         
+!
+         do iitype = 1, mtype
+           do iimon = 1, nmon(iitype,iagg)
+!
+             kk = ibodymon(iitype,iagg) + (iimon-1)*rep(iitype)%mbody
+!
+             do iibody = 1, rep(iitype)%mbody
+!
+               k = kk + iibody
+! 
+               adjbody(iagg)%adj(kk+1:kk+rep(iitype)%mbody,k) =        &
+                                           rep(iitype)%adjbody(:,iibody)
+!
+             end do
+!
+           end do
+         end do
+!
+       end do
+!
+       return
+       end subroutine templateadj
+!
+!======================================================================!
+!
 ! BUILDADJ - BUILD ADJacency matrix
 !
 ! This subroutine builds the adjacency matrix in the molecule-based
@@ -1705,15 +1855,15 @@
 !  sorting the blocks by size and identifier, and then the molecules
 !  forming the aggregate according to their canonical order.
 !
-       subroutine nblockdiag(adj,mol,tag,agg,idx,ntype,itype,nsize,    &
-                             nagg,iagg,nmol,imol,magg,nidx,debug)
+       subroutine nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,     &
+                             nsize,nagg,iagg,nmol,imol,magg,nidx,debug)
 !
-       use systeminf,   only:  mtype,mnode
-       use properties,  only:  nmax,nmon
+       use systeminf,   only:  mtype,mnode,mmon
+       use properties,  only:  nmax
        use timings,     only:  count_rate,tbfs,tsort,tcpubfs,tcpusort
 !
        use graphtools,  only:  nfindcompundir
-       use sorting,     only:  ivvvvvqsort,ivvvqsort,ivvqsort
+       use sorting,     only:  ivvvvvvqsort,ivvvvqsort,ivvvqsort
 !
        use printings,   only:  nprint_info
 !
@@ -1726,6 +1876,7 @@
        integer,dimension(mnode),intent(out)       ::  ntype   !  
        integer,dimension(mnode),intent(out)       ::  itype   !  
        integer,dimension(mnode),intent(out)       ::  mol     !  Molecules identifier
+       integer,dimension(mnode),intent(out)       ::  node    !  Molecules identifier
        integer,dimension(mnode),intent(out)       ::  tag     !  Aggregates identifier
        integer,dimension(mnode),intent(out)       ::  agg     !  Aggregates size
        integer,dimension(nmax),intent(out)        ::  nagg    !  Number of aggregates of each size
@@ -1758,7 +1909,7 @@
        call cpu_time(tibfs)
        call system_clock(t1bfs)     
 !
-       call nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,nagg,       &
+       call nfindcompundir(adj,mol,node,tag,agg,idx,itype,ntype,nagg,  &
                            magg,nsize,nidx)
 !
        call cpu_time(tfbfs)
@@ -1779,7 +1930,7 @@
        imol(1) = 0
        do i = 1, nmax-1
          iagg(i+1) = iagg(i) + nagg(i)
-         nmol(i)   = nmon(i)*nagg(i) 
+         nmol(i)   = mmon(i)*nagg(i) 
          imol(i+1) = imol(i) + nmol(i)
        end do
        nmol(nmax) = mnode - imol(nmax)
@@ -1805,20 +1956,22 @@
 !  aggregate identifier
 !
 !~ write(*,*) 'sorting based on idx from',1,'to',mnode
-       call ivvvvvqsort(mnode,idx,agg,tag,mol,ntype,itype,1,mnode)
+       call ivvvvvvqsort(mnode,idx,agg,tag,mol,ntype,itype,node,1,mnode)
 !
 ! Sorting molecules based on their aggregate tag
 !
        do i = mtype+1, nmax-1
          if ( nagg(i) .gt. 1 ) then
 ! write(*,*) 'sorting based on tag from',imol(i)+1,'to',imol(i+1)
-           call ivvvqsort(mnode,tag,mol,ntype,itype,imol(i)+1,imol(i+1))
+           call ivvvvqsort(mnode,tag,mol,ntype,itype,node,             &
+                           imol(i)+1,imol(i+1))
          end if
        end do
 !
        if ( nagg(nmax) .gt. 1 )                                        &
 ! write(*,*) 'final sorting based on tag from',imol(nmax)+1,'to',mnode
-         call ivvvqsort(mnode,tag,mol,ntype,itype,imol(nmax)+1,mnode)
+         call ivvvvqsort(mnode,tag,mol,ntype,itype,node,               &
+                         imol(nmax)+1,mnode)
 !
 ! Sorting molecules based on their canonical order
 !
@@ -1827,9 +1980,9 @@
 !
            k = imol(i)
            do j = 1, nagg(i)
-! write(*,*) 'sorting based on mol from',k+1,'to',k+nmon(i),':',imol(i),k,nmon(i)
-             call ivvqsort(mnode,mol,ntype,itype,k+1,k+nmon(i))
-             k = k + nmon(i)
+! write(*,*) 'sorting based on mol from',k+1,'to',k+mmon(i),':',imol(i),k,mmon(i)
+             call ivvvqsort(mnode,mol,ntype,itype,node,k+1,k+mmon(i))
+             k = k + mmon(i)
            end do
 !
          end if  
@@ -1840,7 +1993,7 @@
          k = imol(nmax)
          do j = 1, nagg(nmax)
 ! write(*,*) 'final sorting based on mol from',k+1,'to',k+agg(k+1)
-           call ivvqsort(mnode,mol,ntype,itype,k+1,k+agg(k+1))  ! FIXME: check if aggregates > msize are correct
+           call ivvvqsort(mnode,mol,ntype,itype,node,k+1,k+agg(k+1))  ! FIXME: check if aggregates > msize are correct
            k = k + agg(k+1)
          end do
 !
@@ -1852,10 +2005,10 @@
        tcpusort = tcpusort + tfsort - tisort
        tsort    = tsort    + dble(t2sort-t1sort)/dble(count_rate)
 !
-       if ( debug ) then
-         call nprint_info(0,mnode,agg,tag,mol,ntype,itype,idx, &
-                          'agg','tag','mol','ntype','itype','idx')
-       end if
+!~        if ( debug ) then
+!~          call nprint_info(0,mnode,agg,tag,mol,node,ntype,itype,idx,    &
+!~                          'agg','tag','mol','node','ntype','itype','idx')
+!~        end if
 !
        return
        end subroutine nblockdiag
