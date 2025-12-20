@@ -269,6 +269,21 @@
 !
        end do
 !
+! Fatal error check
+!
+       if ( maxat .ne. xtcf%NAtoms ) then
+         write(*,*)
+         write(*,'(2X,68("="))')
+         write(*,'(3X,A)') 'ERROR:  Total number of atoms does not match'
+         write(*,*) 
+         write(*,'(3X,A,I6)') 'Number of atoms in the topology file:   ',maxat
+         write(*,'(3X,A,I6)') 'Number of atoms in the trajectory file: ',xtcf%natoms
+         write(*,'(3X,A)')    'Please, check your topology file, '//trim(conf)
+         write(*,'(2X,68("="))')
+         write(*,*) 
+         call print_end()
+       end if
+!
 ! Allocating variables depending on system size
 !
        allocate(thr(mat,mat),thrang(mat,mat))
@@ -329,7 +344,8 @@
          k = 1
          do i = 1, rep(itype)%mgrps
            if ( i .lt. rep(itype)%mgrps ) then
-             rep(itype)%igrps(i+1) = rep(itype)%igrps(i) + rep(itype)%ngrps(i)
+             rep(itype)%igrps(i+1) = rep(itype)%igrps(i) +             &
+                                                     rep(itype)%ngrps(i)
            end if
 !
            do j = 1, rep(itype)%ngrps(i)
@@ -341,7 +357,8 @@
 ! Setting up isubg and nsubg arrays
 !
          do i = 1, rep(itype)%msubg-1
-           rep(itype)%isubg(i+1) = rep(itype)%isubg(i) + rep(itype)%nsubg(i)
+           rep(itype)%isubg(i+1) = rep(itype)%isubg(i) +               &
+                                                     rep(itype)%nsubg(i)
          end do
 !
          do i = 1, rep(itype)%mgrps
@@ -356,7 +373,8 @@
 ! Setting up ibody and nbody arrays
 !
          do i = 1, rep(itype)%mbody-1
-           rep(itype)%ibody(i+1) = rep(itype)%ibody(i) + rep(itype)%nbody(i)
+           rep(itype)%ibody(i+1) = rep(itype)%ibody(i) +               &
+                                                     rep(itype)%nbody(i)
          end do
 !
          do i = 1, rep(itype)%mbody
@@ -379,20 +397,17 @@
          igrps(itype) = igrps(itype-1) + ngrps(itype-1)
        end do
 !
-! Fatal error checking
+! Setting up the tag of the bodies as the tag of the first group
 !
-       if ( maxat .ne. xtcf%NAtoms ) then
-         write(*,*)
-         write(*,'(2X,68("="))')
-         write(*,'(3X,A)') 'ERROR:  Total number of atoms does not match'
-         write(*,*) 
-         write(*,'(3X,A,I6)') 'Number of atoms in the topology file:   ',maxat
-         write(*,'(3X,A,I6)') 'Number of atoms in the trajectory file: ',xtcf%natoms
-         write(*,'(3X,A)')    'Please, check your topology file, '//trim(conf)
-         write(*,'(2X,68("="))')
-         write(*,*) 
-         call print_end()
-       end if
+       do i = 1, mtype
+         do j = 1, rep(i)%mbody
+!
+           k = rep(i)%ibody(j) + 1
+!
+           rep(i)%bodytag(j) = rep(i)%grptag(k)
+!
+         end do
+       end do
 !
 ! Building adjacency matrix of the monomer in the canonical order
 !
@@ -464,10 +479,10 @@
          write(*,'(A)') '-----------------------'
          write(*,*)
          write(*,'(A,20I5)') 'mnode  ',mnode
-         write(*,'(A,20I5)') 'mat    ',mat
          write(*,'(A,20I5)') 'nnode  ',nnode(:)
          write(*,'(A,20I5)') 'inode  ',inode(:)
          write(*,*)
+         write(*,'(A,20I5)') 'mat    ',mat
          write(*,'(A,20I5)') 'mgrps  ',mgrps
          write(*,'(A,20I5)') 'ngrps  ',ngrps(:)
          write(*,'(A,20I5)') 'igrps  ',igrps(:)
@@ -664,6 +679,7 @@
            write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
                                                            ':',nmon(:,i)
            write(*,'(2X,A)')              '.....................'
+           write(*,*) trim(adjbody(i)%lab)
            do j = 1, adjbody(i)%n
              write(*,*) (adjbody(i)%adj(j,k),k=1,adjbody(i)%n)
            end do
@@ -678,6 +694,7 @@
            write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
                                                            ':',nmon(:,i)
            write(*,'(2X,A)')              '.....................'
+           write(*,*) trim(adjgrps(i)%lab)
            do j = 1, adjgrps(i)%n
              write(*,*) (adjgrps(i)%adj(j,k),k=1,adjgrps(i)%n)
            end do
@@ -1364,10 +1381,6 @@
 !
        implicit none
 !
-! Input/output variables
-!
-
-!
 ! Local variables
 !
        integer  ::  iagg    !  Indexes
@@ -1391,6 +1404,7 @@
 ! Filling the adjacency matrix in the groups presentation
 !
          adjgrps(iagg)%adj(:,:) = .FALSE.         
+         adjgrps(iagg)%lab = ''
 !
          do iitype = 1, mtype
            do iimon = 1, nmon(iitype,iagg)
@@ -1398,6 +1412,9 @@
              kk = igrpsmon(iitype,iagg) + (iimon-1)*rep(iitype)%mgrps
 !
              do iigrps = 1, rep(iitype)%mgrps
+!
+               adjgrps(iagg)%lab = trim(adjgrps(iagg)%lab)//' '//      &
+                               trim(adjustl(rep(iitype)%grptag(iigrps)))
 !
                k = kk + iigrps
 ! 
@@ -1412,6 +1429,7 @@
 ! Filling the adjacency matrix in the N-body simplified presentation
 !
          adjbody(iagg)%adj(:,:) = .FALSE.         
+         adjbody(iagg)%lab = ''
 !
          do iitype = 1, mtype
            do iimon = 1, nmon(iitype,iagg)
@@ -1419,6 +1437,9 @@
              kk = ibodymon(iitype,iagg) + (iimon-1)*rep(iitype)%mbody
 !
              do iibody = 1, rep(iitype)%mbody
+!
+               adjbody(iagg)%lab = trim(adjbody(iagg)%lab)//' '//      &
+                              trim(adjustl(rep(iitype)%bodytag(iibody)))
 !
                k = kk + iibody
 ! 
@@ -1702,7 +1723,7 @@
 !  sorting the blocks by size and identifier, and then the molecules
 !  forming the aggregate according to their canonical order.
 !
-       subroutine blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg, &
+       subroutine blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg,     &
                             nmol,imol,magg,debug)
 !
        use omp_lib

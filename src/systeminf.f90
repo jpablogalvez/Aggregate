@@ -37,9 +37,9 @@
        integer                                ::  mtype     !  Number of molecule types
        integer                                ::  mnode     !  Total number of molecules
        integer                                ::  maxat     !  Total number of atoms in the system
-       integer                                ::  mat       !  Total number of atoms in the molecules
-       integer                                ::  matms     !  Total number of subgroups in the molecules
-       integer                                ::  mgrps     !  Total number of representations
+       integer                                ::  mat       !  Total number of atoms in the monomers
+       integer                                ::  matms     !  Total number of groups in the system
+       integer                                ::  mgrps     !  Total number of groups in the monomers
 !
        end module systeminf
 !
