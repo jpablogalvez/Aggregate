@@ -56,11 +56,12 @@
 ! 
          do i = 1, rep(j)%nat
            write(rep(j)%grptag(i),'(I8)') i
-           rep(j)%grptag(i) = 'Atom-'//trim(adjustl(rep(j)%grptag(i)))
-           rep(j)%body(i)   = i
-           rep(j)%grps(i)   = i
-           rep(j)%subg(i)   = i
-           rep(j)%atms(i)   = i
+           rep(j)%grptag(i)  = 'Atom-'//trim(adjustl(rep(j)%grptag(i)))
+           rep(j)%bodytag(i) = 'Body-'//trim(adjustl(rep(j)%grptag(i)))
+           rep(j)%body(i)    = i
+           rep(j)%grps(i)    = i
+           rep(j)%subg(i)    = i
+           rep(j)%atms(i)    = i
          end do
 !
        end do
@@ -107,7 +108,8 @@
                               rep(imol)%mbody,rep(imol)%mgrps,         &
                               rep(imol)%msubg,rep(imol)%matms)      
 !            
-             grptag(itag+1:itag+rep(imol)%mgrps) = rep(imol)%grptag(:rep(imol)%mgrps)
+             grptag(itag+1:itag+rep(imol)%mgrps) =                     &
+                                      rep(imol)%grptag(:rep(imol)%mgrps)
 !
              msubg = msubg + rep(imol)%msubg
              itag  = itag  + rep(imol)%mgrps
@@ -120,7 +122,8 @@
 !
              call findline(line,'blck','**THRESHOLD')
 !
-             call read_threshold(line,'**THRESHOLD',mat,thr,itag,grptag(:itag))
+             call read_threshold(line,'**THRESHOLD',mat,thr,           &
+                                 itag,grptag(:itag))
 !
            case ('**INTERTHRESH','**INTERTHRESHOLD')
 !~              write(*,*) 
@@ -139,8 +142,9 @@
 !
              call findline(line,'blck','**ANGLES')
 !
-             call read_angles(line,'**ANGLES',mat,thrang,itag,grptag(:itag),msubg)
-!
+             call read_angles(line,'**ANGLES',mat,thrang,              &
+                              itag,grptag(:itag),msubg)
+! 
            case default
              write(*,*)
              write(*,'(2X,68("="))')
@@ -152,7 +156,9 @@
              call print_end()
          end select  
        end do
+!
 ! Closing the input file     
+!
        close(uniinp)
 !
        return
@@ -292,8 +298,8 @@
 !~              write(*,*) '    Reading .GRP option'
 !~              write(*,*)
 !
-             call read_grps('.GRP',nat,grptag,grps,subg,atms,mgrps,    &
-                            msubg,matms)
+             call read_grps('.GRP',nat,grptag,grps,subg,atms,          &
+                            mgrps,msubg,matms)
 !
              call findline(key,'sect',sect)
              if ( key(1:1) .eq. '*' ) return
@@ -304,8 +310,8 @@
 !~              write(*,*) 
 !~              write(*,*) '    Reading .SGRP option'
 !~              write(*,*)
-             call read_grps('.SGRP',nat,grptag,grps,subg,atms,mgrps,   &
-                            msubg,matms)
+             call read_grps('.SGRP',nat,grptag,grps,subg,atms,         &
+                            mgrps,msubg,matms)
 !
              call findline(key,'sect',sect)
              if ( key(1:1) .eq. '*' ) return
@@ -483,23 +489,25 @@
 !
                caux1 = key(:posi-1)
                iaux1 = findcv(ntag,grptag,caux1)
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,'.VALUES')
+               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
                iaux2 = findcv(ntag,grptag,caux2)
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,'.VALUES')
+               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
                posi  = scan(key,' ') 
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
@@ -596,23 +604,25 @@
 !
                caux1 = key(:posi-1)
                iaux1 = findcv(ntag,grptag,caux1)  
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,'.VALUES')
+               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
                iaux2 = findcv(ntag,grptag,caux2)  
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,'.VALUES')
+               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
                posi  = scan(key,' ') 
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
@@ -721,12 +731,13 @@
 !
                caux1 = key(:posi-1) 
                iaux1 = findcv(ntag,grptag,caux1)
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,'.VALUES')
+               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
 ! Extract position of second label
 !
@@ -734,12 +745,13 @@
 !
                caux2 = key(:posi-1)
                iaux2 = findcv(ntag,grptag,caux2)
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,'.VALUES')
+               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
+                                                              '.VALUES')
 !
                key   = key(posi+1:)   
                key   = adjustl(key)
                if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                       '.VALUES')
+                                                              '.VALUES')
 !
 ! Extract threshold value
 !

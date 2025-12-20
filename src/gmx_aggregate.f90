@@ -290,6 +290,7 @@
          allocate(rep(i)%subg(sys(i)%nat))
 !
          allocate(rep(i)%grptag(sys(i)%nat))
+         allocate(rep(i)%bodytag(sys(i)%nat))
          allocate(rep(i)%atms(sys(i)%nat))
 ! 
          allocate(rep(i)%neiang(sys(i)%nat))
