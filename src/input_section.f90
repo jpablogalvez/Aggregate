@@ -56,8 +56,9 @@
 ! 
          do i = 1, rep(j)%nat
            write(rep(j)%grptag(i),'(I8)') i
+           write(rep(j)%bodytag(i),'(I8)') i
            rep(j)%grptag(i)  = 'Atom-'//trim(adjustl(rep(j)%grptag(i)))
-           rep(j)%bodytag(i) = 'Body-'//trim(adjustl(rep(j)%grptag(i)))
+           rep(j)%bodytag(i) = 'Body-'//trim(adjustl(rep(j)%bodytag(i)))
            rep(j)%body(i)    = i
            rep(j)%grps(i)    = i
            rep(j)%subg(i)    = i
