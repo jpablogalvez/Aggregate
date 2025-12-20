@@ -29,13 +29,13 @@
        integer,dimension(3),intent(in)                 ::  ncell   !
        integer,dimension(natms),intent(in)             ::  list    !
        integer,dimension(nhead),intent(in)             ::  head    !
-       integer,dimension(mgrps),intent(in)             ::  ngrps   !  
-       integer,dimension(mgrps),intent(in)             ::  igrps   ! 
-       integer,dimension(msubg),intent(in)             ::  grps    ! 
+       integer,dimension(mgrps),intent(in)             ::  ngrps   !
+       integer,dimension(mgrps),intent(in)             ::  igrps   !
+       integer,dimension(msubg),intent(in)             ::  grps    !
        integer,intent(in)                              ::  msubg   !
        integer,intent(in)                              ::  mgrps   !  Number of subgroups
        integer,intent(in)                              ::  nnode   !  Number of residues
-       integer,intent(in)                              ::  natms   ! 
+       integer,intent(in)                              ::  natms   !
        integer,intent(in)                              ::  nhead   !
 !
 ! Local variables
@@ -59,7 +59,7 @@
 ! Building the adjacency matrix in the molecule-based representation
 ! ------------------------------------------------------------------
 !
-       adj(:,:) = .FALSE. 
+       adj(:,:) = .FALSE.
 !
        do iinode = 1, nnode
          innode = (iinode-1)*msubg
@@ -71,7 +71,7 @@
 !
              icell  = 1 + int(posi(1,ni)/box(1)*ncell(1))              &
                      + int(posi(2,ni)/box(2)*ncell(2))*ncell(1)        &
-                     + int(posi(3,ni)/box(3)*ncell(3))*ncell(1)*ncell(2) 
+                     + int(posi(3,ni)/box(3)*ncell(3))*ncell(1)*ncell(2)
 !
 ! Loop over all atoms below atom NI in the current cell
 !
@@ -131,8 +131,9 @@
 !
 !======================================================================!
 !
-! BUILDADJMOLBUB - BUILD ADJacency matrix in the MOLecule-based 
-!                   representation using BUBles
+! BUILDADJMOLBUB - BUILD ADJacency matrix
+!                   in the MOLecule-based representation
+!                   using BUBles
 !
        subroutine buildadjmolbub(nnode,adj,neidis,msubg,mgrps,nat,     &
                                  ngrps,igrps,natms,posi,box)
@@ -152,13 +153,13 @@
        real(kind=4),dimension(3,natms),intent(in)  ::  posi    !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=4),intent(in)                     ::  neidis  !
-       integer,dimension(nat),intent(in)           ::  ngrps   !  
-       integer,dimension(nat),intent(in)           ::  igrps   ! 
+       integer,dimension(nat),intent(in)           ::  ngrps   !
+       integer,dimension(nat),intent(in)           ::  igrps   !
        integer,intent(in)                          ::  msubg   !
        integer,intent(in)                          ::  mgrps   !  Number of subgroups
        integer,intent(in)                          ::  nnode   !  Number of residues
-       integer,intent(in)                          ::  natms   ! 
-       integer,intent(in)                          ::  nat     ! 
+       integer,intent(in)                          ::  natms   !
+       integer,intent(in)                          ::  nat     !
 !
 ! Local variables
 !
@@ -185,10 +186,10 @@
 !$omp             schedule(dynamic,chunkadj)
 !
        do i = 1, nnode
-           adj(:,i) = .FALSE. 
+           adj(:,i) = .FALSE.
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(adj,posi,box,thr,neidis,igrps,ngrps)          &
@@ -200,15 +201,15 @@
          innode = (iinode-1)*msubg
          do jinode = iinode+1, nnode
            jnnode = (jinode-1)*msubg
-           do ingrps = 1, mgrps           
-             i = innode + igrps(ingrps)  
+           do ingrps = 1, mgrps
+             i = innode + igrps(ingrps)
              do iigrps = 1, ngrps(ingrps)
                ni = i + iigrps
                do jngrps = 1, mgrps
 !
-                 mindis = thr(jngrps,ingrps)   
+                 mindis = thr(jngrps,ingrps)
 !
-                 if ( mindis .gt. 1.0e-6 ) then 
+                 if ( mindis .gt. 1.0e-6 ) then
                    j = jnnode + igrps(jngrps)
 !
                    do jigrps = 1, ngrps(jngrps)
@@ -232,19 +233,20 @@
               end do       !  jngrps
              end do        !  iigrps
            end do          !  ingrps
-1000       continue           
+1000       continue
          end do            !  jinode
        end do              !  iinode
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
        return
        end subroutine buildadjmolbub
 !
 !======================================================================!
 !
-! NBUILDADJMOLBUB - N-components BUILD ADJacency matrix in the  
-!                    MOLecule-based representation using BUBles
+! NBUILDADJMOLBUB - N-components BUILD ADJacency matrix
+!                    in the MOLecule-based representation
+!                    using BUBles
 !
        subroutine nbuildadjmolbub(mnode,adj,matms,posi,neidis,box)
 !
@@ -299,10 +301,10 @@
 !$omp             schedule(dynamic,chunkadj)
 !
        do i = 1, mnode
-         adj(:,i) = .FALSE. 
+         adj(:,i) = .FALSE.
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 ! Interactions within the same moleculetype
 ! .........................................
@@ -324,8 +326,8 @@
            do jinode = iinode+1, nnode(ii)
              jnnode = iiatms + (jinode-1)*rep(ii)%msubg
 !
-             do ingrps = 1, rep(ii)%mgrps           
-               i = innode + rep(ii)%igrps(ingrps)  
+             do ingrps = 1, rep(ii)%mgrps
+               i = innode + rep(ii)%igrps(ingrps)
                do iigrps = 1, rep(ii)%ngrps(ingrps)
                  ni = i + iigrps
 !
@@ -333,7 +335,7 @@
 !
                    mindis = thr(ithr+jngrps,ithr+ingrps)
 !
-                   if ( mindis .gt. 1.0e-6 ) then 
+                   if ( mindis .gt. 1.0e-6 ) then
                      j = jnnode + rep(ii)%igrps(jngrps)
 !
                      do jigrps = 1, rep(ii)%ngrps(jngrps)
@@ -359,14 +361,14 @@
                end do        !  iigrps
              end do          !  ingrps
 !
-1000         continue   
-!        
+1000         continue
+!
            end do            !  jinode
          end do              !  iinode
 !
-!$omp end parallel do      
+!$omp end parallel do
 !
-      end do                 !  ii             
+      end do                 !  ii
 !
 ! Interactions within different moleculetypes
 ! ...........................................
@@ -380,7 +382,7 @@
 !$omp             shared(adj,posi,box,thr,neidis,rep,nnode,ii,         &
 !$omp                    iiatms,ithr,iadj)                             &
 !$omp             private(r,dis,mindis,iinode,innode,jinode,jnnode,    &
-!$omp                     iigrps,ingrps,jigrps,jngrps,jiatms,jthr,     & 
+!$omp                     iigrps,ingrps,jigrps,jngrps,jiatms,jthr,     &
 !$omp                     jadj,ni,jj,i,j)                              &
 !$omp             schedule(dynamic,chunkadj)
 !
@@ -394,8 +396,8 @@
              do jinode = 1, nnode(jj)
                jnnode = jiatms + (jinode-1)*rep(jj)%msubg
 !
-               do ingrps = 1, rep(ii)%mgrps           
-                 i = innode + rep(ii)%igrps(ingrps)  
+               do ingrps = 1, rep(ii)%mgrps
+                 i = innode + rep(ii)%igrps(ingrps)
                  do iigrps = 1, rep(ii)%ngrps(ingrps)
                    ni = i + iigrps
 !
@@ -403,12 +405,12 @@
 !
                      mindis = thr(jthr+jngrps,ithr+ingrps)
 !
-                     if ( mindis .gt. 1.0e-6 ) then 
+                     if ( mindis .gt. 1.0e-6 ) then
                        j = jnnode + rep(jj)%igrps(jngrps)
 !
                        do jigrps = 1, rep(jj)%ngrps(jngrps)
 !
-                         r   = sminimgvec(posi(:,ni),posi(:,j+jigrps),box)
+                         r = sminimgvec(posi(:,ni),posi(:,j+jigrps),box)
                          dis = dot_product(r,r)
 !
                          if ( dis .le. mindis ) then
@@ -429,14 +431,14 @@
                  end do        !  iigrps
                end do          !  ingrps
 !
-2000           continue   
-!        
+2000           continue
+!
              end do            !  jinode
            end do              !  jj
 !
          end do                !  iinode
 !
-!$omp end parallel do      
+!$omp end parallel do
 !
        end do                  !  ii
 !
@@ -445,8 +447,9 @@
 !
 !======================================================================!
 !
-! BUILDADJMOLANG - BUILD ADJacency matrix in the MOLecule-based 
-!                   representation using bubles and ANGle restraints
+! BUILDADJMOLANG - BUILD ADJacency matrix
+!                   in the MOLecule-based representation
+!                   using bubles and ANGle restraints
 !
        subroutine buildadjmolang(nnode,adj,neidis,msubg,mgrps,nat,     &
                                  ngrps,igrps,natms,posi,box)
@@ -469,13 +472,13 @@
        real(kind=4),dimension(3,natms),intent(in)  ::  posi    !  Subgroup coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=4),intent(in)                     ::  neidis  !
-       integer,dimension(nat),intent(in)           ::  ngrps   !  
+       integer,dimension(nat),intent(in)           ::  ngrps   !
        integer,dimension(nat),intent(in)           ::  igrps   !
        integer,intent(in)                          ::  msubg   !
        integer,intent(in)                          ::  mgrps   !  Number of subgroups
        integer,intent(in)                          ::  nnode   !  Number of residues
        integer,intent(in)                          ::  natms   !  Number of subgroups in the system
-       integer,intent(in)                          ::  nat     ! 
+       integer,intent(in)                          ::  nat     !
 !
 ! Local variables
 !
@@ -511,10 +514,10 @@
 !$omp             schedule(dynamic,chunkadj)
 !
        do i = 1, nnode
-         adj(:,i) = .FALSE. 
+         adj(:,i) = .FALSE.
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(adj,posi,box,thr,thrang,neiang,neidis,igrps,  &
@@ -535,9 +538,9 @@
            jnnode = (jinode-1)*msubg
            jnnei  = (jinode-1)*nat
 !
-           do ingrps = 1, mgrps     
-!      
-             i = innode + igrps(ingrps)  
+           do ingrps = 1, mgrps
+!
+             i = innode + igrps(ingrps)
 !
              do iigrps = 1, ngrps(ingrps)
 !
@@ -546,11 +549,11 @@
 !
                do jngrps = 1, mgrps
 !
-                 mindis = thr(jngrps,ingrps)   
+                 mindis = thr(jngrps,ingrps)
 !
-                 if ( mindis .gt. zero ) then 
+                 if ( mindis .gt. zero ) then
 !
-                   minang = thrang(jngrps,ingrps)   
+                   minang = thrang(jngrps,ingrps)
 !
                    j = jnnode + igrps(jngrps)
 !
@@ -566,7 +569,7 @@
 !
                        doang = .TRUE.
 !
-                       if ( minang .gt. zero ) then 
+                       if ( minang .gt. zero ) then
 !
                          if ( neiang(jneiang) .ne. 0 ) then
 !
@@ -602,20 +605,20 @@
               end do       !  jngrps
              end do        !  iigrps
            end do          !  ingrps
-1000       continue           
+1000       continue
          end do            !  jinode
        end do              !  iinode
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
        return
        end subroutine buildadjmolang
 !
 !======================================================================!
 !
-! NBUILDADJMOLANG - N-components BUILD ADJacency matrix in the  
-!                    MOLecule-based representation using bubles 
-!                    and ANGle restraints
+! NBUILDADJMOLANG - N-components BUILD ADJacency matrix
+!                    in the MOLecule-based representation
+!                    using bubles and ANGle restraints
 !
        subroutine nbuildadjmolang(mnode,adj,matms,posi,neidis,box)
 !
@@ -647,7 +650,7 @@
        real(kind=4),dimension(3)                   ::  v23      !  Minimum image vector !FLAG: kind=8 to kind=4
        real(kind=4)                                ::  dis1     !  Minimum image distance
        real(kind=4)                                ::  dis2     !  Minimum image distance
-       real(kind=4)                                ::  angle    !  
+       real(kind=4)                                ::  angle    !
        real(kind=4)                                ::  mindis   !  Distance threshold between groups
        real(kind=4)                                ::  minang   !  Angle threshold between groups
        integer                                     ::  iinode   !
@@ -658,8 +661,8 @@
        integer                                     ::  ingrps   !
        integer                                     ::  jigrps   !
        integer                                     ::  jngrps   !
-       integer                                     ::  ineiang  !
-       integer                                     ::  jneiang  !
+       integer                                     ::  inei     !
+       integer                                     ::  jnei     !
        integer                                     ::  innei    !
        integer                                     ::  jnnei    !
        integer                                     ::  iiat     !
@@ -684,10 +687,10 @@
 !$omp             schedule(dynamic,chunkadj)
 !
        do i = 1, mnode
-         adj(:,i) = .FALSE. 
+         adj(:,i) = .FALSE.
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 ! Interactions within the same moleculetype
 ! .........................................
@@ -704,8 +707,8 @@
 !$omp                    iiat,iiatms,ithr,iadj)                        &
 !$omp             private(v21,v23,dis1,dis2,angle,minang,mindis,       &
 !$omp                     iinode,innode,jinode,jnnode,iigrps,ingrps,   &
-!$omp                     jigrps,jngrps,ineiang,jneiang,innei,jnnei,   &
-!$omp                     doang,ni,nj,i,j)                             &
+!$omp                     jigrps,jngrps,inei,jnei,innei,jnnei,doang,   &
+!$omp                     ni,nj,i,j)                                   &
 !$omp             schedule(dynamic,chunkadj)
 !
          do iinode = 1, nnode(ii)-1
@@ -718,29 +721,29 @@
              jnnode = iiatms + (jinode-1)*rep(ii)%msubg
              jnnei  = iiat   + (jinode-1)*rep(ii)%nat
 !
-             do ingrps = 1, rep(ii)%mgrps     
-!      
-               i = innode + rep(ii)%igrps(ingrps)  
+             do ingrps = 1, rep(ii)%mgrps
+!
+               i = innode + rep(ii)%igrps(ingrps)
 !
                do iigrps = 1, rep(ii)%ngrps(ingrps)
 !
-                 ni = i + iigrps
-                 ineiang = rep(ii)%igrps(ingrps) + iigrps
+                 ni   = i + iigrps
+                 inei = rep(ii)%igrps(ingrps) + iigrps
 !
                  do jngrps = 1, rep(ii)%mgrps
 !
-                   mindis = thr(ithr+jngrps,ithr+ingrps)   
+                   mindis = thr(ithr+jngrps,ithr+ingrps)
 !
-                   if ( mindis .gt. zero ) then 
+                   if ( mindis .gt. zero ) then
 !
-                     minang = thrang(ithr+jngrps,ithr+ingrps)   
+                     minang = thrang(ithr+jngrps,ithr+ingrps)
 !
                      j = jnnode + rep(ii)%igrps(jngrps)
 !
                      do jigrps = 1, rep(ii)%ngrps(jngrps)
 !
-                       nj = j + jigrps
-                       jneiang = rep(ii)%igrps(jngrps) + jigrps
+                       nj   = j + jigrps
+                       jnei = rep(ii)%igrps(jngrps) + jigrps
 !
                        v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
                        dis1 = dot_product(v21,v21)
@@ -749,19 +752,21 @@
 !
                          doang = .TRUE.
 !
-                         if ( minang .gt. zero ) then 
+                         if ( minang .gt. zero ) then
 !
-                           if ( rep(ii)%neiang(jneiang) .ne. 0 ) then
+                           if ( rep(ii)%neiang(jnei) .ne. 0 ) then
 !
                              v21(:) = -v21(:)
 !
-                             doang = chkangle(v21,dis1,posi(:,nj),       &
-                             xtcf%pos(:,jnnei+rep(ii)%neiang(jneiang)),box,minang)
+                             doang = chkangle(v21,dis1,posi(:,nj),     &
+                              xtcf%pos(:,jnnei+rep(ii)%neiang(jnei)),  &
+                                                             box,minang)
 !
-                           else if ( rep(ii)%neiang(ineiang) .ne. 0 ) then
+                           else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
-                             doang = chkangle(v21,dis1,posi(:,ni),       &
-                             xtcf%pos(:,innei+rep(ii)%neiang(ineiang)),box,minang)
+                             doang = chkangle(v21,dis1,posi(:,ni),     &
+                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                                             box,minang)
 !
                            end if
 !
@@ -772,7 +777,7 @@
                            adj(iadj+jinode,iadj+iinode) = .TRUE.
                            GO TO 1000
                          end if
-! 
+!
                        end if
 !
                        if ( dis1 .gt. neidis ) then
@@ -786,12 +791,12 @@
                end do        !  iigrps
              end do          !  ingrps
 !
-1000         continue           
+1000         continue
 !
            end do            !  jinode
          end do              !  iinode
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
        end do                !  ii
 !
@@ -810,8 +815,8 @@
 !$omp                    iiat,iiatms,ithr,iadj)                        &
 !$omp             private(v21,v23,dis1,dis2,angle,minang,mindis,       &
 !$omp                     iinode,innode,jinode,jnnode,iigrps,ingrps,   &
-!$omp                     jigrps,jngrps,ineiang,jneiang,innei,jnnei,   &
-!$omp                     doang,ni,nj,i,j,jj,jiat,jiatms,jthr,jadj)    &
+!$omp                     jigrps,jngrps,inei,jnei,innei,jnnei,doang,   &
+!$omp                     ni,nj,i,j,jj,jiat,jiatms,jthr,jadj)          &
 !$omp             schedule(dynamic,chunkadj)
 !
          do iinode = 1, nnode(ii)
@@ -826,87 +831,89 @@
              jthr   = igrps(jj)
              jadj   = inode(jj)
 !
-             do jinode = 1, nnode(jj)
+           do jinode = 1, nnode(jj)
 !
-               jnnode = jiatms + (jinode-1)*rep(jj)%msubg
-               jnnei  = jiat   + (jinode-1)*rep(jj)%nat
+             jnnode = jiatms + (jinode-1)*rep(jj)%msubg
+             jnnei  = jiat   + (jinode-1)*rep(jj)%nat
 !
-               do ingrps = 1, rep(ii)%mgrps     
-!      
-                 i = innode + rep(ii)%igrps(ingrps)  
+             do ingrps = 1, rep(ii)%mgrps
 !
-                 do iigrps = 1, rep(ii)%ngrps(ingrps)
+               i = innode + rep(ii)%igrps(ingrps)
 !
-                   ni = i + iigrps
-                   ineiang = rep(ii)%igrps(ingrps) + iigrps
+               do iigrps = 1, rep(ii)%ngrps(ingrps)
 !
-                   do jngrps = 1, rep(jj)%mgrps
+                 ni   = i + iigrps
+                 inei = rep(ii)%igrps(ingrps) + iigrps
 !
-                     mindis = thr(jthr+jngrps,ithr+ingrps)   
+                 do jngrps = 1, rep(jj)%mgrps
 !
-                     if ( mindis .gt. zero ) then 
+                   mindis = thr(jthr+jngrps,ithr+ingrps)
 !
-                       minang = thrang(jthr+jngrps,ithr+ingrps)   
+                   if ( mindis .gt. zero ) then
 !
-                       j = jnnode + rep(jj)%igrps(jngrps)
+                     minang = thrang(jthr+jngrps,ithr+ingrps)
 !
-                       do jigrps = 1, rep(jj)%ngrps(jngrps)
+                     j = jnnode + rep(jj)%igrps(jngrps)
 !
-                         nj = j + jigrps
-                         jneiang = rep(jj)%igrps(jngrps) + jigrps
+                     do jigrps = 1, rep(jj)%ngrps(jngrps)
 !
-                         v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
-                         dis1 = dot_product(v21,v21)
+                       nj   = j + jigrps
+                       jnei = rep(jj)%igrps(jngrps) + jigrps
 !
-                         if ( dis1 .le. mindis ) then
+                       v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
+                       dis1 = dot_product(v21,v21)
 !
-                           doang = .TRUE.
+                       if ( dis1 .le. mindis ) then
 !
-                           if ( minang .gt. zero ) then 
+                         doang = .TRUE.
 !
-                             if ( rep(jj)%neiang(jneiang) .ne. 0 ) then
+                         if ( minang .gt. zero ) then
 !
-                               v21(:) = -v21(:)
+                           if ( rep(jj)%neiang(jnei) .ne. 0 ) then
 !
-                               doang = chkangle(v21,dis1,posi(:,nj),       &
-                               xtcf%pos(:,jnnei+rep(jj)%neiang(jneiang)),box,minang)
+                             v21(:) = -v21(:)
 !
-                             else if ( rep(ii)%neiang(ineiang) .ne. 0 ) then
+                             doang = chkangle(v21,dis1,posi(:,nj),     &
+                              xtcf%pos(:,jnnei+rep(jj)%neiang(jnei)),  &
+                                                             box,minang)
 !
-                               doang = chkangle(v21,dis1,posi(:,ni),       &
-                               xtcf%pos(:,innei+rep(ii)%neiang(ineiang)),box,minang)
+                           else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
-                             end if
+                             doang = chkangle(v21,dis1,posi(:,ni),     &
+                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                                             box,minang)
 !
                            end if
 !
-                           if ( doang ) then
-                             adj(iadj+iinode,jadj+jinode) = .TRUE.
-                             adj(jadj+jinode,iadj+iinode) = .TRUE.
-                             GO TO 2000
-                           end if
-! 
                          end if
 !
-                         if ( dis1 .gt. neidis ) then
+                         if ( doang ) then
+                           adj(iadj+iinode,jadj+jinode) = .TRUE.
+                           adj(jadj+jinode,iadj+iinode) = .TRUE.
                            GO TO 2000
                          end if
 !
-                       end do  !  jigrps
-                     end if
+                       end if
 !
-                   end do      !  jngrps
-                 end do        !  iigrps
-               end do          !  ingrps
+                       if ( dis1 .gt. neidis ) then
+                         GO TO 2000
+                       end if
 !
-2000           continue           
+                     end do    !  jigrps
+                   end if
 !
-             end do            !  jinode
-           end do              !  jj 
+                 end do        !  jngrps
+               end do          !  iigrps
+             end do            !  ingrps
+!
+2000         continue
+!
+           end do              !  jinode
+           end do              !  jj
 !
          end do                !  iinode
 !
-!$omp end parallel do      
+!$omp end parallel do
 !
        end do                  !  ii
 !
@@ -916,11 +923,338 @@
 !
 !======================================================================!
 !
+! NBUILDADJBODYANG - N-components BUILD ADJacency matrix
+!                     in the n-BODY simplified representation
+!                     using bubles and ANGle restraints
+!
+       subroutine nbuildadjbodyang(mnode,node,madj,adj,matms,posi,     &
+                                   neidis,box,nnode,ibodymon)
+!
+       use omp_lib
+!
+       use systeminf,  only:  xtcf,rep,mtype,inode,iat,iatms,igrps
+!
+       use thresholds, only:  thr,thrang
+       use parameters, only:  zero
+!
+       use geometry,   only:  sminimgvec
+!
+       use omp_var,    only:  np,chunkadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj       !  Adjacency matrix
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi      !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)        ::  box       !  Simulation box !FLAG: kind=8 to kind=4
+       real(kind=4),intent(in)                     ::  neidis    !
+       integer,dimension(mnode),intent(in)         ::  node      !
+       integer,dimension(mtype),intent(in)         ::  nnode     !
+       integer,dimension(mtype),intent(in)         ::  ibodymon  !
+       integer,intent(in)                          ::  madj      !
+       integer,intent(in)                          ::  mnode     !
+       integer,intent(in)                          ::  matms     !
+!
+! Local variables
+!
+       real(kind=4),dimension(3)                   ::  v21        !  Minimum image vector !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3)                   ::  v23        !  Minimum image vector !FLAG: kind=8 to kind=4
+       real(kind=4)                                ::  dis1       !  Minimum image distance
+       real(kind=4)                                ::  dis2       !  Minimum image distance
+       real(kind=4)                                ::  angle      !
+       real(kind=4)                                ::  mindis     !  Distance threshold between groups
+       real(kind=4)                                ::  minang     !  Angle threshold between groups
+       integer                                     ::  iinode     !
+       integer                                     ::  innode     !
+       integer                                     ::  jinode     !
+       integer                                     ::  jnnode     !
+       integer                                     ::  ibody      !
+       integer                                     ::  iibody     !
+       integer                                     ::  inbody     !
+       integer                                     ::  jbody      !
+       integer                                     ::  jibody     !
+       integer                                     ::  jnbody     !
+       integer                                     ::  iigrps     !
+       integer                                     ::  ingrps     !
+       integer                                     ::  jigrps     !
+       integer                                     ::  jngrps     !
+       integer                                     ::  inei       !
+       integer                                     ::  jnei       !
+       integer                                     ::  innei      !
+       integer                                     ::  jnnei      !
+       integer                                     ::  iiat       !
+       integer                                     ::  jiat       !
+       integer                                     ::  iiatms     !
+       integer                                     ::  jiatms     !
+       integer                                     ::  ithr       !
+       integer                                     ::  jthr       !
+       integer                                     ::  iadj       !
+       integer                                     ::  jadj       !
+       integer                                     ::  i,j        !
+       integer                                     ::  ii,jj      !
+       integer                                     ::  ni,nj      !
+       logical                                     ::  doang      !
+!
+! Building the adjacency matrix in the molecule-based representation
+! ------------------------------------------------------------------
+!
+! Interactions within the same moleculetype
+! .........................................
+!
+       do ii = 1, mtype
+!
+         iiatms = iatms(ii)
+         iiat   = iat(ii)
+         ithr   = igrps(ii)
+         ibody  = ibodymon(ii)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(node,adj,posi,box,thr,thrang,rep,neidis,      &
+!$omp                    nnode,ii,iiatms,iiat,ithr,ibody)              &
+!$omp             private(v21,v23,dis1,dis2,angle,minang,mindis,       &
+!$omp                     iinode,innode,jinode,jnnode,iigrps,ingrps,   &
+!$omp                     jigrps,jngrps,inei,jnei,innei,jnnei,doang,   &
+!$omp                     inbody,iibody,jnbody,jibody,                 &
+!$omp                     iadj,jadj,ni,nj,i,j)                         &
+!$omp             schedule(dynamic,chunkadj)
+!
+         do iinode = 1, nnode(ii)-1
+!
+           innode = iiatms + (node(inode(ii)+iinode)-1)*rep(ii)%msubg
+           innei  = iiat   + (node(inode(ii)+iinode)-1)*rep(ii)%nat
+           iadj   = ibody  + (iinode-1)*rep(ii)%mbody
+!
+           do jinode = iinode+1, nnode(ii)
+!
+             jnnode = iiatms + (node(inode(ii)+jinode)-1)*rep(ii)%msubg
+             jnnei  = iiat   + (node(inode(ii)+jinode)-1)*rep(ii)%nat
+             jadj   = ibody  + (jinode-1)*rep(ii)%mbody
+!
+             do inbody = 1, rep(ii)%mbody
+             do iibody = 1, rep(ii)%nbody(inbody)
+!
+               ingrps = rep(ii)%ibody(inbody) + iibody
+!
+               i = innode + rep(ii)%igrps(ingrps)
+!
+               do iigrps = 1, rep(ii)%ngrps(ingrps)
+!
+                 ni   = i + iigrps
+                 inei = rep(ii)%igrps(ingrps) + iigrps
+!
+                 do jnbody = 1, rep(ii)%mbody
+                 do jibody = 1, rep(ii)%nbody(jnbody)
+!
+                   jngrps = rep(ii)%ibody(jnbody) + jibody
+!
+                   mindis = thr(ithr+jngrps,ithr+ingrps)
+!
+                   if ( mindis .gt. zero ) then
+!
+                     minang = thrang(ithr+jngrps,ithr+ingrps)
+!
+                     j = jnnode + rep(ii)%igrps(jngrps)
+!
+                     do jigrps = 1, rep(ii)%ngrps(jngrps)
+!
+                       nj   = j + jigrps
+                       jnei = rep(ii)%igrps(jngrps) + jigrps
+!
+                       v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
+                       dis1 = dot_product(v21,v21)
+!
+                       if ( dis1 .le. mindis ) then
+!
+                         doang = .TRUE.
+!
+                         if ( minang .gt. zero ) then
+!
+                           if ( rep(ii)%neiang(jnei) .ne. 0 ) then
+!
+                             v21(:) = -v21(:)
+!
+                             doang = chkangle(v21,dis1,posi(:,nj),     &
+                              xtcf%pos(:,jnnei+rep(ii)%neiang(jnei)),  &
+                                                             box,minang)
+!
+                           else if ( rep(ii)%neiang(inei) .ne. 0 ) then
+!
+                             doang = chkangle(v21,dis1,posi(:,ni),     &
+                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                                             box,minang)
+!
+                           end if
+!
+                         end if
+!
+                         if ( doang ) then
+                           adj(iadj+inbody,jadj+jnbody) = .TRUE.
+                           adj(jadj+jnbody,iadj+inbody) = .TRUE.
+                           GO TO 1000
+                         end if
+!
+                       end if
+!
+                     end do  !  jigrps
+                   end if
+!
+                 end do      !  jibody
+!
+1000             continue
+!
+                 end do      !  jnbody
+!
+               end do        !  iigrps
+             end do          !  iibody
+             end do          !  jnbody
+!
+           end do            !  jinode
+         end do              !  iinode
+!
+!$omp end parallel do
+!
+       end do                !  ii
+!
+! Interactions within different moleculetypes
+! ...........................................
+!
+       do ii = 1, mtype-1
+!
+         iiatms = iatms(ii)
+         iiat   = iat(ii)
+         ithr   = igrps(ii)
+         ibody  = ibodymon(ii)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(node,adj,posi,box,thr,thrang,rep,neidis,      &
+!$omp                    nnode,iatms,iat,igrps,ibodymon,ii,iiatms,     &
+!$omp                    iiat,ithr,ibody)                              &
+!$omp             private(v21,v23,dis1,dis2,angle,minang,mindis,       &
+!$omp                     iinode,innode,jinode,jnnode,iigrps,ingrps,   &
+!$omp                     jigrps,jngrps,inei,jnei,innei,jnnei,doang,   &
+!$omp                     inbody,iibody,jnbody,jibody,                 &
+!$omp                     iadj,jadj,ni,nj,i,j,jj,jiatms,jiat,          &
+!$omp                     jthr,jbody)                                  &
+!$omp             schedule(dynamic,chunkadj)
+!
+         do iinode = 1, nnode(ii)
+!
+           innode = iiatms + (node(inode(ii)+iinode)-1)*rep(ii)%msubg
+           innei  = iiat   + (node(inode(ii)+iinode)-1)*rep(ii)%nat
+           iadj   = ibody  + (iinode-1)*rep(ii)%mbody
+!
+           do jj = ii+1, mtype
+!
+             jiatms = iatms(jj)
+             jiat   = iat(jj)
+             jthr   = igrps(jj)
+             jbody  = ibodymon(jj)
+!
+           do jinode = 1, nnode(jj)
+!
+             jnnode = jiatms + (node(inode(jj)+jinode)-1)*rep(jj)%msubg
+             jnnei  = jiat   + (node(inode(jj)+jinode)-1)*rep(jj)%nat
+             jadj   = jbody  + (jinode-1)*rep(jj)%mbody
+!
+             do inbody = 1, rep(ii)%mbody
+             do iibody = 1, rep(ii)%nbody(inbody)
+!
+               ingrps = rep(ii)%ibody(inbody) + iibody
+!
+               i = innode + rep(ii)%igrps(ingrps)
+!
+               do iigrps = 1, rep(ii)%ngrps(ingrps)
+!
+                 ni   = i + iigrps
+                 inei = rep(ii)%igrps(ingrps) + iigrps
+!
+                 do jnbody = 1, rep(jj)%mbody
+                 do jibody = 1, rep(jj)%nbody(jnbody)
+!
+                   jngrps = rep(jj)%ibody(jnbody) + jibody
+!
+                   mindis = thr(jthr+jngrps,ithr+ingrps)
+!
+                   if ( mindis .gt. zero ) then
+!
+                     minang = thrang(jthr+jngrps,ithr+ingrps)
+!
+                     j = jnnode + rep(jj)%igrps(jngrps)
+!
+                     do jigrps = 1, rep(jj)%ngrps(jngrps)
+!
+                       nj   = j + jigrps
+                       jnei = rep(jj)%igrps(jngrps) + jigrps
+!
+                       v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
+                       dis1 = dot_product(v21,v21)
+!
+                       if ( dis1 .le. mindis ) then
+!
+                         doang = .TRUE.
+!
+                         if ( minang .gt. zero ) then
+!
+                           if ( rep(jj)%neiang(jnei) .ne. 0 ) then
+!
+                             v21(:) = -v21(:)
+!
+                             doang = chkangle(v21,dis1,posi(:,nj),     &
+                              xtcf%pos(:,jnnei+rep(jj)%neiang(jnei)),  &
+                                                             box,minang)
+!
+                           else if ( rep(ii)%neiang(inei) .ne. 0 ) then
+!
+                             doang = chkangle(v21,dis1,posi(:,ni),     &
+                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                                             box,minang)
+!
+                           end if
+!
+                         end if
+!
+                         if ( doang ) then
+                           adj(iadj+inbody,jadj+jnbody) = .TRUE.
+                           adj(jadj+jnbody,iadj+inbody) = .TRUE.
+                           GO TO 2000
+                         end if
+!
+                       end if
+!
+                     end do    !  jigrps
+                   end if
+!
+                 end do        !  jibody
+!
+2000             continue
+!
+                 end do        !  jnbody
+!
+               end do          !  iigrps
+             end do            !  iibody
+             end do            !  inbody
+!
+           end do              !  jinode
+           end do              !  jj
+!
+         end do                !  iinode
+!
+!$omp end parallel do
+!
+       end do                  !  ii
+!
+!
+       return
+       end subroutine nbuildadjbodyang
+!
+!======================================================================!
+!
 ! FINDCOMPUNDIR - FIND COMPonents UNDIRected
 !
-! This subroutine finds the connected components in an undirected 
-!  unweighted graph of NNODE vertices given as an adjacency matrix 
-!  representaion ADJ(NODE,NODE) using Breadth First Search.  
+! This subroutine finds the connected components in an undirected
+!  unweighted graph of NNODE vertices given as an adjacency matrix
+!  representaion ADJ(NODE,NODE) using Breadth First Search.
 !
        subroutine findcompundir(nnode,adj,mol,tag,agg,maxagg,nagg,magg)
 !
@@ -957,7 +1291,7 @@
 ! Marking all the vertices as not visited
        notvis(:) = .TRUE.
 ! Initializing the molecules information
-       mol(:)  = 0   
+       mol(:)  = 0
        nnmol   = 1
 ! Initializing the aggregates information
        ntag    = 0
@@ -967,7 +1301,7 @@
 ! Initializing the size information
        magg    = 0
        tag(:)  = 0
-! 
+!
        maxagg  = 1
 !
 ! Outer loop over each node
@@ -1040,12 +1374,12 @@
 !
 ! NFINDCOMPUNDIR - N-components FIND COMPonents UNDIRected
 !
-! This subroutine finds the connected components in an undirected 
-!  unweighted graph of NNODE vertices given as an adjacency matrix 
-!  representaion ADJ(NODE,NODE) using Breadth First Search.  
+! This subroutine finds the connected components in an undirected
+!  unweighted graph of NNODE vertices given as an adjacency matrix
+!  representaion ADJ(NODE,NODE) using Breadth First Search.
 !
-       subroutine nfindcompundir(adj,mol,tag,agg,idx,itype,ntype,      &
-                                 nagg,magg,maxagg,maxidx)
+       subroutine nfindcompundir(adj,mol,node,tag,agg,idx,itype,       &
+                                 ntype,nagg,magg,maxagg,maxidx)
 !
        use systeminf,   only:  mtype,nnode,inode,mnode
        use properties,  only:  msize,nmax
@@ -1058,24 +1392,26 @@
 !
        logical,dimension(mnode,mnode),intent(in)  ::  adj     !  Adjacency matrix
        integer,dimension(mnode),intent(out)       ::  mol     !  Molecules identifier
+       integer,dimension(mnode),intent(out)       ::  node    !  Molecules identifier
        integer,dimension(mnode),intent(out)       ::  tag     !  Aggregates identifier
        integer,dimension(mnode),intent(out)       ::  agg     !  Aggregates size
-       integer,dimension(mnode),intent(out)       ::  idx     !  
-       integer,dimension(mnode),intent(out)       ::  itype   !  
-       integer,dimension(mnode),intent(out)       ::  ntype   !  
+       integer,dimension(mnode),intent(out)       ::  idx     !
+       integer,dimension(mnode),intent(out)       ::  itype   !
+       integer,dimension(mnode),intent(out)       ::  ntype   !
        integer,dimension(nmax),intent(out)        ::  nagg    !  Number of aggregates of each size
-       integer,intent(out)                        ::  magg    !  Number of aggregates  
+       integer,intent(out)                        ::  magg    !  Number of aggregates
        integer,intent(out)                        ::  maxagg  !  Maximum aggregate size
        integer,intent(out)                        ::  maxidx  !  Maximum aggregate identifier
 !
 ! Local variables
 !
        logical,dimension(mnode)                   ::  notvis  !  Nodes visited
-       integer,dimension(mnode,mtype)             ::  tmp     !  
-       integer,dimension(mtype)                   ::  nntype  !  
+       integer,dimension(mnode,mtype)             ::  tmp     !
+       integer,dimension(mnode,mtype)             ::  tmpnode !
+       integer,dimension(mtype)                   ::  nntype  !
        integer,dimension(mnode)                   ::  queue   !  Queue of connected nodes
-       integer,dimension(mnode)                   ::  qtype   !  
-       integer,dimension(mnode)                   ::  qnode   !  
+       integer,dimension(mnode)                   ::  qtype   !
+       integer,dimension(mnode)                   ::  qnode   !
        integer                                    ::  iinode  !  Node index
        integer                                    ::  jinode  !  Node index
        integer                                    ::  kinode  !  Node index
@@ -1102,8 +1438,9 @@
        ntype(:) = 0
        itype(:) = 0
 ! Initializing the molecules information
-       mol(:)  = 0   
-       nnmol   = 1
+       mol(:)   = -1
+       node(:)  = -1
+       nnmol    = 1
 ! Initializing the aggregates information
        ntag    = 0
        nntag   = 0
@@ -1112,7 +1449,7 @@
 ! Initializing the size information
        magg    = 0
        tag(:)  = 0
-! 
+!
        maxagg  = 1
        maxidx  = 1
 !
@@ -1129,10 +1466,11 @@
              notvis(ni) = .FALSE.
 ! Updating the system information
              magg       = magg + 1
-             tag(nnmol) = magg
+             tag(nnmol) = magg     ! TODO: check if needed
 !
-             mol(nnmol) = ni
-             nnmol      = nnmol + 1
+             mol(nnmol)  = ni      ! TODO: check if needed
+             node(nnmol) = iinode  ! TODO: check if needed
+             nnmol       = nnmol + 1
 !
              ntag       = 1
 ! Initializing queue
@@ -1148,11 +1486,13 @@
 ! Setting the next position in the queue
              nqueue = 2
 ! Initializing temporary variables
-             tmp(:,:)  = 0
-             nntype(:) = 0
+             tmp(:,:)      = 0
+             tmpnode(:,:)  = 0
+             nntype(:)     = 0
 !
              nntype(ii) = nntype(ii) + 1
              tmp(nntype(ii),ii) = ni
+             tmpnode(nntype(ii),ii) = iinode
 !
 ! Inner loop over the queue elements
 ! ..................................
@@ -1188,6 +1528,7 @@
 !
                    nntype(ii) = nntype(ii) + 1
                    tmp(nntype(ii),ii) = nj
+                   tmpnode(nntype(ii),ii) = jinode
 ! Marking the node connected to node k as visited
                    notvis(nj) = .FALSE.
 ! Adding to the queue the node connected to node k
@@ -1218,6 +1559,7 @@
 !
                      nntype(jj) = nntype(jj) + 1
                      tmp(nntype(jj),jj) = nj
+                     tmpnode(nntype(jj),jj) = jinode
 ! Marking the node connected to node k as visited
                      notvis(nj) = .FALSE.
 ! Adding to the queue the node connected to node k
@@ -1249,6 +1591,7 @@
              do i = 1, mtype
 !
                mol(nntag+1:nntag+nntype(i))   = tmp(:nntype(i),i)
+               node(nntag+1:nntag+nntype(i))  = tmpnode(:nntype(i),i)
                itype(nntag+1:nntag+nntype(i)) = i
                ntype(nntag+1:nntag+nntype(i)) = nntype(i)
 !~ if (ntag.gt.1) write(*,*) 'mol',tmp(:nntype(i),i)
@@ -1257,7 +1600,7 @@
              end do
 ! Update the number of aggregates of each size
              if ( ntag .gt. maxagg ) maxagg = ntag
-             if ( iidx .gt. maxidx ) maxidx = iidx 
+             if ( iidx .gt. maxidx ) maxidx = iidx
 !
              if ( ntag .le. msize ) then
                nagg(iidx) = nagg(iidx) + 1
@@ -1279,7 +1622,7 @@
 ! CALCDEGUNDIR - CALCulate DEGrees UNDIRected
 !
 ! This function calculates the degree of the NNODE vertices in an undi-
-!  rected unweighted graph given as an adjacency matrix representaion 
+!  rected unweighted graph given as an adjacency matrix representaion
 !  ADJ(NODE,NODE) and stores them in the array DEGREE(NNODE)
 !
        function calcdegundir(nnode,adj) result(degree)
@@ -1302,13 +1645,13 @@
 !
        do inode = 1, nnode
          degree(inode) = 0
-! Traversing through row/column of each vertex 
+! Traversing through row/column of each vertex
          do jnode = 1, nnode
 ! If a path from this vertex to other exists then increment the degree
            if ( adj(jnode,inode) ) degree(inode) = degree(inode) + 1
          end do
        end do
-!    
+!
        return
        end function calcdegundir
 !
@@ -1316,7 +1659,7 @@
 !
 ! BONDS2ADJ - BOND termS TO ADJacency matrix
 !
-! This subroutine 
+! This subroutine
 !
        subroutine bonds2adj(nbond,ibond,nat,adj)
 !
@@ -1347,10 +1690,10 @@
 !
 !======================================================================!
 !
-! ADJ2ADJATMS - ADJacency matrix in canonical order 
+! ADJ2ADJATMS - ADJacency matrix in canonical order
 !                TO ADJacency matrix of reference AToMS
 !
-! This subroutine 
+! This subroutine
 !
        subroutine adj2adjatms(nat,inadj,matms,atms,outadj)
 !
@@ -1389,7 +1732,7 @@
 !
 ! REDUCEADJ - REDUCE ADJacency matrix to a lower representation
 !
-! This subroutine 
+! This subroutine
 !
        subroutine reduceadj(matms,adjatms,msubg,nsubg,isubg,adjsubg)
 !
@@ -1399,8 +1742,8 @@
 !
        logical,dimension(matms,matms),intent(in)   ::  adjatms  !  Adjacency matrix
        logical,dimension(msubg,msubg),intent(out)  ::  adjsubg  !  Adjacency matrix
-       integer,dimension(msubg),intent(in)         ::  nsubg    !  
-       integer,dimension(msubg),intent(in)         ::  isubg    !  
+       integer,dimension(msubg),intent(in)         ::  nsubg    !
+       integer,dimension(msubg),intent(in)         ::  isubg    !
        integer,intent(in)                          ::  matms    !  Number of reference nodes
        integer,intent(in)                          ::  msubg    !  Number of reference nodes
 !
@@ -1463,7 +1806,7 @@
        integer                              ::  degsum  !  Sum of all degrees
        integer                              ::  i       !
 !
-! Checking if the input graph is a tree 
+! Checking if the input graph is a tree
 ! -------------------------------------
 !
        chktree = .FALSE.
@@ -1474,7 +1817,7 @@
        end do
 ! Graph is tree if the sum of all the degrees is equal to 2(n-1) (Handshaking Lemma)
        if ( degsum .eq. 2*(nnode-1) ) chktree = .TRUE.
-!    
+!
        return
        end function chktree
 !
@@ -1482,8 +1825,8 @@
 !
 ! CHKLTREE - CHecK Linear TREE
 !
-! This function identifies wether an undirected unweighted graph of 
-!  NNODE vertices is a linear tree based on the DEGREE(NNODE) of each 
+! This function identifies wether an undirected unweighted graph of
+!  NNODE vertices is a linear tree based on the DEGREE(NNODE) of each
 !  of its vertices
 !
 ! Seen on: https://www.geeksforgeeks.org/check-if-a-given-tree-graph-is-linear-or-not/
@@ -1502,7 +1845,7 @@
        integer                              ::  numdeg  !  Number of nodes with degree two
        integer                              ::  i       !  Indexes
 !
-! Checking if the input graph is a linear tree 
+! Checking if the input graph is a linear tree
 ! --------------------------------------------
 !
        chkltree = .FALSE.
@@ -1512,10 +1855,10 @@
          if ( degree(i) .gt. 2 ) return
          if ( degree(i) .eq. 2 ) numdeg = numdeg + 1
        end do
-! The given tree would be linear only if NNODE-2 of its nodes have 
-!  DEGREE=2 or the number of nodes is 1 
+! The given tree would be linear only if NNODE-2 of its nodes have
+!  DEGREE=2 or the number of nodes is 1
        if ( numdeg .eq. nnode-2 ) chkltree = .TRUE.
-!    
+!
        return
        end function chkltree
 !
@@ -1523,7 +1866,7 @@
 !
 ! CHKSCYCLE - CHecK Simple CYCLE
 !
-! This function identifies wether an undirected unweighted graph of 
+! This function identifies wether an undirected unweighted graph of
 !  NNODE vertices is a simple cycle based on the DEGREE(NNODE) of each
 !  of its vertices
 !
@@ -1540,7 +1883,7 @@
 !
        integer                              ::  i       !  Indexes
 !
-! Checking if the input graph is a single cycle 
+! Checking if the input graph is a single cycle
 ! ---------------------------------------------
 !
        chkscycle = .FALSE.
@@ -1548,10 +1891,10 @@
        do i = 1, nnode
          if ( degree(i) .ne. 2 ) return
        end do
-! The given graph would be a simple cycle only if all the vertices 
+! The given graph would be a simple cycle only if all the vertices
 !  are having DEGREE=2
        chkscycle = .TRUE.
-!    
+!
        return
        end function chkscycle
 !
@@ -1570,18 +1913,18 @@
 !
 ! Input/output variables
 !
-       real(kind=4),dimension(3),intent(in)  ::  v21     !  
-       real(kind=4),dimension(3),intent(in)  ::  r2      !  
-       real(kind=4),dimension(3),intent(in)  ::  r3      !  
-       real(kind=4),dimension(3),intent(in)  ::  box     !  
-       real(kind=4),intent(in)               ::  dis1    !  
-       real(kind=4),intent(in)               ::  minang  !  
+       real(kind=4),dimension(3),intent(in)  ::  v21     !
+       real(kind=4),dimension(3),intent(in)  ::  r2      !
+       real(kind=4),dimension(3),intent(in)  ::  r3      !
+       real(kind=4),dimension(3),intent(in)  ::  box     !
+       real(kind=4),intent(in)               ::  dis1    !
+       real(kind=4),intent(in)               ::  minang  !
 !
 ! Local variables
 !
-       real(kind=4),dimension(3)             ::  v23     !  
-       real(kind=4)                          ::  dis2    !  
-       real(kind=4)                          ::  angle   !  
+       real(kind=4),dimension(3)             ::  v23     !
+       real(kind=4)                          ::  dis2    !
+       real(kind=4)                          ::  angle   !
 !
 !
 !
@@ -1596,7 +1939,7 @@
        angle = acos(angle)
 !
        if ( angle .gt. minang ) chkangle = .TRUE.
-!    
+!
        return
        end function chkangle
 !
