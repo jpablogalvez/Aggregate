@@ -956,7 +956,7 @@
 !
        inp     = 'aggregate.inp'
        traj    = 'md.xtc'
-       conf    = 'conf.gro'
+       conf    = 'topol.top'
        weight  = '[none]'
        outp    = '[none]'
 !
@@ -1946,7 +1946,7 @@
 !
        integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
        integer,dimension(nmax),intent(in)          ::  imol    !  
-       integer,dimension(nmax),intent(in)          ::  node    !  Molecules identifier
+       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
        real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
 !
