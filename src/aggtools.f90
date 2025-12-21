@@ -16,8 +16,8 @@
 !  This subroutine defines the execution architecture of the algorithm
 !
        subroutine driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,   &
-                         avlife,nlife,dopim,doconf,schm,scrn,doscrn,   &
-                         dolife,debug)
+                         avlife,nlife,dopim,doconf,schm,scrn,cconf,    &
+                         doscrn,dolife,debug)
 !
        use systeminf,   only:  mnode,rep,xtcf,mtype,nnode,natms
        use properties,  only:  nmax,msize,cin
@@ -25,7 +25,8 @@
        use lengths,     only:  lenschm
 !
        use graphtools,  only:  buildadjmolbub,buildadjmolang,          &
-                               nbuildadjmolbub,nbuildadjmolang
+                               nbuildadjmolbub,nbuildadjmolang,        &
+                               nbuildadjbodybub,nbuildadjbodyang
        use screening,   only:  scrnint,scrnosc,scrncol
 !
        implicit none
@@ -50,6 +51,7 @@
 !
        character(len=lenschm),intent(inout)        ::  schm     !  Calculation scheme flag
        character(len=lenschm),intent(in)           ::  scrn     !  Calculation screening flag
+       character(len=lenschm),intent(in)           ::  cconf    !  Calculation conformations flag
        logical,intent(in)                          ::  doscrn   !  Screening calculation flag
        logical,intent(in)                          ::  dolife   !  Lifetimes calculation flag
        logical,intent(in)                          ::  dopim    !  PIM calculation flag
@@ -83,7 +85,7 @@
        integer,intent(in)                          ::  natms   ! 
        integer,intent(in)                          ::  nat     ! 
 !
-       end subroutine
+       end subroutine subadj
 !
        subroutine nsubadj(mnode,adj,matms,posi,neidis,box)
 !
@@ -94,8 +96,25 @@
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
 !
-       end subroutine
+       end subroutine nsubadj
 !
+       subroutine nsubadjrep(mnode,node,madj,adj,matms,posi,           &
+                             box,mtype,nnode,inode,ibodymon)
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj       !  Adjacency matrix
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi      !  Atomic coordinates !FLAG: kind=8 to kind=4
+       real(kind=4),dimension(3),intent(in)        ::  box       !  Simulation box !FLAG: kind=8 to kind=4
+       integer,dimension(mnode),intent(in)         ::  node      !
+       integer,dimension(mtype),intent(in)         ::  nnode     !
+       integer,dimension(mtype),intent(in)         ::  inode     !
+       integer,dimension(mtype),intent(in)         ::  ibodymon  !
+       integer,intent(in)                          ::  madj      !
+       integer,intent(in)                          ::  mnode     !
+       integer,intent(in)                          ::  mtype     !
+       integer,intent(in)                          ::  matms     !
+!
+       end subroutine nsubadjrep
+! 
        subroutine subscrn(nnode,oldadj,adj,newadj)
 !
        logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
@@ -103,13 +122,14 @@
        logical,dimension(nnode,nnode),intent(in)     ::  newadj  !  Adjacency matrix of the next snapshot
        integer,intent(in)                            ::  nnode   !  Number of molecules
 !
-       end subroutine
+       end subroutine subscrn
 !
        end interface
 !
-       procedure(subadj),pointer    ::  subbuildadj  => null()
-       procedure(nsubadj),pointer   ::  subnbuildadj => null()
-       procedure(subscrn),pointer   ::  subscrnint   => null()
+       procedure(subadj),pointer      ::  subbuildadj     => null()
+       procedure(nsubadj),pointer     ::  subnbuildadj    => null()
+       procedure(nsubadjrep),pointer  ::  subnbuildadjrep => null()
+       procedure(subscrn),pointer     ::  subscrnint      => null()
 !
 ! Selection of the aggregation algorithm ! FIXME: count reading time in this section
 ! --------------------------------------
@@ -190,16 +210,31 @@
 !!!       else
 !
          if ( trim(schm) .eq. 'distances' ) then
-           subnbuildadj => nbuildadjmolbub
+           subnbuildadj     => nbuildadjmolbub
          else if ( trim(schm) .eq. 'angles' ) then
-           subnbuildadj => nbuildadjmolang
+           subnbuildadj     => nbuildadjmolang
          end if
+!
+!~          if ( trim(cconf) .eq. 'body' ) then
+           if ( trim(schm) .eq. 'distances' ) then
+             subnbuildadjrep => nbuildadjbodybub
+           else if ( trim(schm) .eq. 'angles' ) then
+             subnbuildadjrep => nbuildadjbodyang
+           end if
+!~          else if ( trim(cconf) .eq. 'grps' ) then
+!~            if ( trim(schm) .eq. 'distances' ) then
+!~              subnbuildadjrep => nbuildadjgrpsbub
+!~            else if ( trim(schm) .eq. 'angles' ) then
+!~              subnbuildadjrep => nbuildadjgrpsang
+!~            end if
+!~          end if
 !
          select case (trim(ch))
            case ('original')
 !
              call naggdist(neidis,nsteps,nprint,minstep,maxstep,       &
-                           nsolv,dopim,doconf,subnbuildadj,debug)
+                           nsolv,dopim,doconf,subnbuildadj,            &
+                           subnbuildadjrep,debug)
 !
            case ('life')
 !
@@ -2064,7 +2099,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  is obtained from the number of blocks of each size.
 !
        subroutine naggdist(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,buildadjmol,debug)
+                           dopim,doconf,buildadjmol,buildadjbody,debug)
 !
        use systeminf,   only:  xtcf,mnode,matms
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
@@ -2100,6 +2135,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! External functions
 !
        external                                    ::  buildadjmol
+       external                                    ::  buildadjbody
 !
 ! Aggregates information in the molecule-based representation
 !
@@ -2205,6 +2241,19 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,       &
                            nsize,nagg,iagg,nmol,imol,magg,midx,debug)
 !
+! Analyzing aggregates by their connectivity
+!
+           if ( doconf ) then
+             call system_clock(t1conf)
+!     
+             call printadjbody(nagg,imol,node,posi,box,buildadjbody)
+!             call isomorphism()
+!
+             call system_clock(t2conf)     
+!
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
+           end if     
+!
 ! Printing the population of every aggregate
 ! 
            call system_clock(t1read)
@@ -2232,19 +2281,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
              tcpupim = tcpupim + tfpim - tipim
              tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
-!
-! Analyzing aggregates by their connectivity
-!
-           if ( doconf ) then
-             call system_clock(t1conf)
-!     
-!             call isomorphism()
-!
-             call system_clock(t2conf)     
-!
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
-           end if      
+           end if       
 !
            call system_clock(t1read)
 !
@@ -2635,7 +2672,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! 
            call system_clock(t1read)
 !         
-           call nprintpop(xtcf%STEP,box,nagg,magg,nsolv,uniout)
+           call nprintpop(actstep,box,nagg,magg,nsolv,uniout)
 !
 !           if ( debug ) then
 !             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
@@ -3089,7 +3126,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! 
            call system_clock(t1read)
 !         
-           call nprintpop(xtcf%STEP,box,nagg,magg,nsolv,uniout)
+           call nprintpop(actstep,box,nagg,magg,nsolv,uniout)
 !
 !           if ( debug ) then
 !             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)

@@ -13,6 +13,8 @@
        type(repre),dimension(:),allocatable    ::  rep      !  Topological representations
        type(adjinf),dimension(:),allocatable   ::  adjgrps  !  Templates in the grps representations
        type(adjinf),dimension(:),allocatable   ::  adjbody  !  Templates in the bodies representations
+       type(adjinf),dimension(:),allocatable   ::  tmpgrps  !  Templates in the grps representations
+       type(adjinf),dimension(:),allocatable   ::  tmpbody  !  Templates in the bodies representations
        type(xtcfile)                           ::  xtcf     !  Trajectory information
 !
 ! System size information

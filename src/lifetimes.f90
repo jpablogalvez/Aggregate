@@ -428,8 +428,6 @@
 !
        real(kind=8),dimension(nmax),intent(inout)   ::  avlife   !  Average lifetimes
        integer,dimension(nmax),intent(inout)        ::  nlife    !  
-       integer,dimension(nmax)        ::  tmpavlife    !  
-       integer,dimension(nmax)        ::  tmpnlife    !  
        integer,dimension(nnode),intent(inout)       ::  life     !
        integer,dimension(nmax),intent(in)           ::  nagg     !
        integer,dimension(nmax),intent(in)           ::  iagg     !
@@ -445,7 +443,6 @@
        integer                                      ::  iiagg    !   
        integer                                      ::  inagg    !   
        integer                                      ::  isize    !   
-integer :: i,j,k
 !
 ! Averaging lifetimes
 !

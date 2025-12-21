@@ -2,7 +2,7 @@
 !
        module datatypes
 !
-       use lengths,  only:  leninp,lentag
+       use lengths,  only:  leninp,lenout,lentag
 !
        implicit none
 !
@@ -10,7 +10,7 @@
          character(len=32)                          ::  fname   !  Input file
          character(len=72)                          ::  title   !  Title
          integer                                    ::  nat     !  Number of atoms
-         real(kind=8)                               ::  totm    !  Total mass 
+         real(kind=8)                               ::  totm    !  Total mass
          integer,dimension(:),allocatable           ::  renum   !  Residue number
          character(len=5),dimension(:),allocatable  ::  rename  !  Residue name
          character(len=5),dimension(:),allocatable  ::  atname  !  Atom name
@@ -22,7 +22,7 @@
          integer,dimension(:,:),allocatable         ::  ibond   !  Bond information
          integer                                    ::  nbond   !  Number of bonds
          logical,dimension(:,:),allocatable         ::  adj     !  Adjacency matrix
-       end type groinp  
+       end type groinp
 !
        type repre
          character(len=leninp)                           ::  tgrp     !  Groups file title
@@ -52,9 +52,10 @@
        end type repre
 !
        type adjinf
-         character(len=256)                  ::  lab  !  
-         logical,dimension(:,:),allocatable  ::  adj  !
-         integer                             ::  n    !
+         character(len=256)                  ::  lab   !
+         character(len=lenout)               ::  outp  !
+         logical,dimension(:,:),allocatable  ::  adj   !
+         integer                             ::  n     !
        end type adjinf
 !
        end module datatypes

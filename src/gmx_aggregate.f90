@@ -8,7 +8,8 @@
                                  nnode,inode,mnode,natms,iatms,matms,  &
                                  nat,iat,maxat,mat,ngrps,igrps,mgrps,  &
                                  mmon,nmon,imon,mgrpsmon,mbodymon,     &
-                                 ngrpsmon,nbodymon,igrpsmon,ibodymon
+                                 ngrpsmon,nbodymon,igrpsmon,ibodymon,  &
+                                 tmpgrps,tmpbody
        use properties,    only:  msize,nmax,pim,num,pop,frac,conc,     &
                                  prob,cin,volu
        use filenames,     only:  inp,conf,traj,outp,weight
@@ -42,7 +43,7 @@
        implicit none
 !
 ! Trajectory control variables
-!     
+!
        integer                                ::  nprint   !  Populations printing interval
        integer                                ::  minstep  !  First step for analysis
        integer                                ::  maxstep  !  Last step for analysis
@@ -54,7 +55,7 @@
        integer,dimension(:),allocatable       ::  nlife    !
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer                                ::  nsolv    !
 !
 ! Declaration of time control variables
@@ -69,6 +70,7 @@
 !
        character(len=lenschm)                 ::  schm     !  Calculation scheme flag
        character(len=lenschm)                 ::  scrn     !  Calculation screening flag
+       character(len=lenschm)                 ::  cconf    !  Calculation conformations flag
        logical                                ::  doscrn   !  Screening calculation flag
        logical                                ::  dolife   !  Lifetimes calculation flag
        logical                                ::  doconf   !  Conformational analysis flag
@@ -83,8 +85,8 @@
 !
 ! Auxiliary variables
 !
-       integer                                ::  lin      !  
-       integer                                ::  lfin     ! 
+       integer                                ::  lin      !
+       integer                                ::  lfin     !
        integer                                ::  io       !  Status
        integer                                ::  itype    !  Index
        integer                                ::  i,j,k    !  Indexes
@@ -104,8 +106,8 @@
        call cpu_time(tin)
 !
        call system_clock(count_max=count_max,count_rate=count_rate)
-       call system_clock(t1)  
-       call system_clock(t1read)        
+       call system_clock(t1)
+       call system_clock(t1read)
 !
        tcpu  = 0.0d0
        twall = 0.0d0
@@ -127,13 +129,13 @@
 !
 ! Reading command line options
 !
-       call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    & 
-                         msize,neidis,schm,scrn,dopim,doconf,dolife,   &
-                         doscrn,seed,np,chunkadj,chunkscrn,chunklife,  &
-                         weight,nsolv,debug)
+       call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    &
+                         msize,neidis,schm,scrn,cconf,dopim,doconf,    &
+                         dolife,doscrn,seed,np,chunkadj,chunkscrn,     &
+                         chunklife,weight,nsolv,debug)
 !
 !
-! 
+!
        if ( trim(outp) .eq. '[none]' ) outp = inp(:len_trim(inp)-4)//'.dat'
 !
 ! Printing the number of threads available
@@ -199,7 +201,7 @@
 !
 ! Opening trajectory file
 !
-       if ( traj(len_trim(traj)-3:) .eq. '.xtc' ) then 
+       if ( traj(len_trim(traj)-3:) .eq. '.xtc' ) then
          call xtcf%init(trim(traj))
          call xtcf%read
        else
@@ -210,12 +212,12 @@
 !
 ! Processing monomer configuration input file
 !
-       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  
+       if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then
 !
          allocate(sys(1),rep(1))
          allocate(nnode(1))        ! TODO: only reads 1 gro file, only one molecule type
 !                                  !        input # gro files and # number of molecules
-         call read_gro(uniinp,conf,sys(1))  
+         call read_gro(uniinp,conf,sys(1))
 !
          nnode(1) = xtcf%natoms/sys(1)%nat
 !
@@ -231,7 +233,7 @@
          allocate(natms(mtype),iatms(mtype))
          allocate(ngrps(mtype),igrps(mtype))
 !
-         call top_parser(uniinp,conf,mtype,nnode)  
+         call top_parser(uniinp,conf,mtype,nnode)
 !
        else
          write(*,*) 'Incorrect extension!' !  TODO: Input .gro .top .xyz ...
@@ -254,7 +256,7 @@
          maxat      = maxat + sys(itype)%nat*nnode(itype)
 !
          rep(itype)%nat = sys(itype)%nat
-         rep(itype)%iat = 0 
+         rep(itype)%iat = 0
 !
        end do
 !
@@ -275,12 +277,12 @@
          write(*,*)
          write(*,'(2X,68("="))')
          write(*,'(3X,A)') 'ERROR:  Total number of atoms does not match'
-         write(*,*) 
+         write(*,*)
          write(*,'(3X,A,I6)') 'Number of atoms in the topology file:   ',maxat
          write(*,'(3X,A,I6)') 'Number of atoms in the trajectory file: ',xtcf%natoms
          write(*,'(3X,A)')    'Please, check your topology file, '//trim(conf)
          write(*,'(2X,68("="))')
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -307,7 +309,7 @@
          allocate(rep(i)%grptag(sys(i)%nat))
          allocate(rep(i)%bodytag(sys(i)%nat))
          allocate(rep(i)%atms(sys(i)%nat))
-! 
+!
          allocate(rep(i)%neiang(sys(i)%nat))
 !
        end do
@@ -317,7 +319,7 @@
        call read_inp(inp,mtype,rep,mat,thr,thrang)
 !
 ! Setting up topological information
-!         
+!
        ngrps(:) = 0
 !
        matms = 0
@@ -365,7 +367,7 @@
            do j = 1, rep(itype)%ngrps(i)
              io = rep(itype)%igrps(i) + j
              do k = 1, rep(itype)%nsubg(io)
-               rep(itype)%subg(rep(itype)%isubg(io)+k) = i 
+               rep(itype)%subg(rep(itype)%isubg(io)+k) = i
              end do
            end do
          end do
@@ -388,7 +390,7 @@
 !
        end do
 !
-! Setting up global iatms and igrps 
+! Setting up global iatms and igrps
 !
        igrps(:) = 0
        iatms(:) = 0
@@ -504,22 +506,22 @@
            write(*,'(A,20I4)') 'nbody  ',rep(itype)%nbody
            write(*,'(A,20I4)') 'ibody  ',rep(itype)%ibody
            write(*,'(A,20I4)') 'body   ',rep(itype)%body
-           write(*,*) 
+           write(*,*)
            write(*,'(A,20I4)') 'mgrps  ',rep(itype)%mgrps
            write(*,'(A,20I4)') 'ngrps  ',rep(itype)%ngrps
            write(*,'(A,20I4)') 'igrps  ',rep(itype)%igrps
            write(*,'(A,20I4)') 'grps   ',rep(itype)%grps
-           write(*,*) 
+           write(*,*)
            write(*,'(A,20I4)') 'msubg  ',rep(itype)%msubg
            write(*,'(A,20I4)') 'nsubg  ',rep(itype)%nsubg
            write(*,'(A,20I4)') 'isubg  ',rep(itype)%isubg
            write(*,'(A,20I4)') 'subg   ',rep(itype)%subg
-           write(*,*)       
+           write(*,*)
            write(*,'(A,20I4)') 'matms  ',rep(itype)%matms
            write(*,'(A,20I4)') 'atms   ',rep(itype)%atms
-           write(*,*)  
+           write(*,*)
            write(*,'(A,20I4)') 'neiang ',rep(itype)%neiang
-           write(*,*)  
+           write(*,*)
            write(*,'(A,20I4)') 'nat    ',rep(itype)%nat
            write(*,'(A,20I4)') 'iat    ',rep(itype)%iat
            write(*,*)
@@ -531,7 +533,7 @@
          write(*,'(12X,25(2X,A10))') (rep(i)%grptag(:rep(i)%mgrps),i=1,mtype)
          do i = 1, mtype
            do k = 1, rep(i)%mgrps
-             io = igrps(i) + k 
+             io = igrps(i) + k
              write(*,'(2X,A10,25(2X,F10.2))') rep(i)%grptag(k),(thr(io,j),j=1,io)
            end do
          end do
@@ -543,7 +545,7 @@
          write(*,'(12X,25(2X,A10))') (rep(i)%grptag(:rep(i)%mgrps),i=1,mtype)
          do i = 1, mtype
            do k = 1, rep(i)%mgrps
-             io = igrps(i) + k 
+             io = igrps(i) + k
              write(*,'(2X,A10,25(2X,F10.2))') rep(i)%grptag(k),(thrang(io,j)*180.0/pi,j=1,io)
            end do
          end do
@@ -559,14 +561,14 @@
 !
            write(*,'(4X,A)') 'Adjacency matrix in canonical order'
            write(*,'(4X,A)') '==================================='
-           do j = 1, sys(i)%nat 
+           do j = 1, sys(i)%nat
              write(*,*) (sys(i)%adj(j,k),k=1,j)
            end do
            write(*,*)
 !
            write(*,'(4X,A)') 'Adjacency matrix for reference atoms'
            write(*,'(4X,A)') '===================================='
-           do j = 1, rep(i)%matms 
+           do j = 1, rep(i)%matms
              write(*,*) (rep(i)%adjatms(j,k),k=1,j)
            end do
            write(*,*)
@@ -624,13 +626,14 @@
        end do
        nmax = nmax/j
 !
-! Allocating variables depending on the maximum number of aggregates 
+! Allocating variables depending on the maximum number of aggregates
 !
        allocate(pim(mgrps,mgrps,nmax-1))
        allocate(pop(nmax),conc(nmax),frac(nmax))
        allocate(prob(nmax),num(nmax))
 !
        allocate(adjgrps(nmax),adjbody(nmax))
+       allocate(tmpgrps(nmax),tmpbody(nmax))
 !
        allocate(mmon(nmax),nmon(mtype,nmax),imon(mtype,nmax))
        allocate(mgrpsmon(nmax),mbodymon(nmax))
@@ -661,7 +664,7 @@
        else
          write(*,*) 'Aggregate stoichiometry identifiers'
          write(*,*) '-----------------------------------'
-         write(*,*) 
+         write(*,*)
          call print_dictionary(0,nmax,mmon,mtype,nmon,'mmon','nmon')
        end if
 !
@@ -671,9 +674,9 @@
 !
        if ( debug ) then
 !
-         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  & 
+         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  &
                                     'e N-body simplified representation'
-         write(*,'(75("-"))') 
+         write(*,'(75("-"))')
          write(*,*)
          do i = mtype+1, nmax-1
            write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
@@ -686,9 +689,9 @@
            write(*,*)
          end do
 !
-         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  & 
+         write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  &
                                                'e groups representation'
-         write(*,'(64("-"))') 
+         write(*,'(64("-"))')
          write(*,*)
          do i = mtype+1, nmax-1
            write(*,'(2X,A,I4,1X,A,10I3)') 'Aggregate identifier:',i,   &
@@ -711,7 +714,7 @@
 !
 ! Opening output files
 !
-       if ( outp(len_trim(outp)-3:) .eq. '.dat' ) then 
+       if ( outp(len_trim(outp)-3:) .eq. '.dat' ) then
          outp = outp(:len_trim(outp)-4)
        end if
 !
@@ -723,7 +726,7 @@
 !
 ! Computing the populations of the aggregates
 !
-       write(*,'(1X,A)') 'Computing the populations of the aggrega'//  & 
+       write(*,'(1X,A)') 'Computing the populations of the aggrega'//  &
                                               'tes along the trajectory'
        write(*,'(1X,A)') 'Please wait, this may take a while...'
        write(*,*)
@@ -731,19 +734,20 @@
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate)      
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        call driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,avlife,  &
-                   nlife,dopim,doconf,schm,scrn,doscrn,dolife,debug)
+                   nlife,dopim,doconf,schm,scrn,cconf,doscrn,dolife,   &
+                   debug)
 !
-       call system_clock(t1read)        
+       call system_clock(t1read)
 !
 ! Closing the trajectory file
 !
        call xtcf%close
 !
 ! Averaging pairwise interaction matrix
-!  
+!
 !       if ( dopim ) then
 !         pim(:,:,:) = pim(:,:,:)/nsteps ! FLAG: not need this operation
 !
@@ -777,7 +781,7 @@
        if ( dolife ) then
          do i = 1, nmax
            if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
-         end do 
+         end do
        end if
 !
 ! Printing summary of the results
@@ -795,34 +799,34 @@
 !
        write(*,'(1X,A)')   'Global populations    : '
        call print_dvec(0,nmax,pop)
-       write(*,*) 
+       write(*,*)
 !
        write(*,'(1X,A)')   'Global probabilities  : '
        call print_dvec(0,nmax,prob)
-       write(*,*) 
+       write(*,*)
 !
        write(*,'(1X,A)')   'Global fractions      : '
        call print_evec(0,nmax,frac)
-       write(*,*) 
+       write(*,*)
 !
        write(*,'(1X,A)')   'Global concentrations : '
        call print_evec(0,nmax,conc)
-       write(*,*) 
+       write(*,*)
 !
        write(*,'(1X,A)')   'Number of samples     : '
        call print_ivec(0,nmax,num)
-       write(*,*) 
+       write(*,*)
        if ( dolife ) then
          write(*,'(1X,A)') 'Average lifetimes     : '
          call print_evec(0,nmax,avlife(:nmax))
-         write(*,*) 
+         write(*,*)
        end if
 !
 !       if ( dopim ) then
 !         do i = 1, msize-1
 !           write(*,'(3X,A,X,I3)') 'Printing PIM for aggregates bel'//  &
 !                                                    'onging to type',i+1
-!           write(*,'(3X,50("-"))') 
+!           write(*,'(3X,50("-"))')
 !           write(*,'(8X,20(X,A8))') (adjustr(grptag(j)),j=1,mgrps)
 !           do j = 1, mgrps
 !             write(*,'(A8,20(X,F8.2))') adjustr(grptag(j)),            &
@@ -844,6 +848,7 @@
        deallocate(pim)
 !
        deallocate(adjgrps,adjbody)
+       deallocate(tmpgrps,tmpbody)
 !
        deallocate(mmon,nmon,imon)
        deallocate(mgrpsmon,ngrpsmon,igrpsmon)
@@ -867,21 +872,21 @@
        tcpu  = tfin - tin
        twall = dble(t2-t1)/dble(count_rate)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
-       call print_time(6,1,'Total CPU time',35,tcpu) 
-       call print_speed(6,1,'Total wall time',35,twall,tcpu) 
+       call print_time(6,1,'Total CPU time',35,tcpu)
+       call print_speed(6,1,'Total wall time',35,twall,tcpu)
        write(*,'(1X,68("-"))')
 !
        call print_time(6,1,'Total reading time',35,tread)
        call print_speed(6,1,'Total building time',35,tadj,tcpuadj)
-!       
+!
        if ( doscrn ) call print_speed(6,1,'Total screening time',35,   &
                                       tscrn,tcpuscrn)
 !
        call print_time(6,1,'Total BFS time',35,tbfs)
        call print_time(6,1,'Total sorting time',35,tsort)
-!       
+!
        if ( dolife ) call print_speed(6,1,'Total lifetimes calcula'//  &
                                      'tion time',35,tlife,tcpulife)
 !
@@ -890,8 +895,8 @@
 !
        write(*,*)
 !
-! Printing finishing date 
-!    
+! Printing finishing date
+!
        call print_end()
 !
        end program aggregate
@@ -899,9 +904,10 @@
 !======================================================================!
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
-                               maxstep,msize,neidis,schm,scrn,dopim,   &
-                               doconf,dolife,doscrn,seed,np,chunkadj,  &
-                               chunkscrn,chunklife,weight,nsolv,debug)
+                               maxstep,msize,neidis,schm,scrn,cconf,   &
+                               dopim,doconf,dolife,doscrn,seed,np,     &
+                               chunkadj,chunkscrn,chunklife,weight,    &
+                               nsolv,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
@@ -918,13 +924,14 @@
        character(len=leninp),intent(out)         ::  conf       !  Structure file name
        character(len=lenschm),intent(out)        ::  schm       !  Calculation scheme flag
        character(len=lenschm),intent(out)        ::  scrn       !  Calculation screening flag
+       character(len=lenschm),intent(out)        ::  cconf      !  Calculation conformations flag
        character(len=leninp),intent(out)         ::  weight     !  Weights file name
        real(kind=4),intent(out)                  ::  neidis     !  Screening distance
        integer,intent(out)                       ::  np         !
        integer,intent(out)                       ::  chunkadj   !
        integer,intent(out)                       ::  chunkscrn  !
        integer,intent(out)                       ::  chunklife  !
-       integer,intent(out)                       ::  nsolv      !  
+       integer,intent(out)                       ::  nsolv      !
        integer,intent(out)                       ::  msize      !  Maximum aggregate size
        integer,intent(out)                       ::  nprint     !  Populations printing steps interval
        integer,intent(out)                       ::  minstep    !  First step for analysis
@@ -973,8 +980,10 @@
 !
        neidis  = 1.5d0
 !
-       dopim   = .FALSE.
+       cconf = 'body'
+!
        doconf  = .FALSE.
+       dopim   = .FALSE.
 !
        seed    = .FALSE.
        debug   = .FALSE.
@@ -1005,7 +1014,7 @@
          if ( len_trim(arg) == 0 ) exit
          i = i+1
          select case ( arg )
-           case ('-schm','--schm','--scheme') 
+           case ('-schm','--schm','--scheme')
              call get_command_argument(i,next,status=io)
              call check_arg(next,io,arg,cmd)
              next = lowercase(next)
@@ -1078,7 +1087,7 @@
 !
              i = i + 1
 !
-           case ('-r','--restraint','--restraints') 
+           case ('-r','--restraint','--restraints')
              call get_command_argument(i,next,status=io)
              call check_arg(next,io,arg,cmd)
              next = lowercase(next)
@@ -1105,7 +1114,7 @@
 !
              i = i + 1
 !
-           case ('-s','--screen-scheme','--screening-scheme') 
+           case ('-s','--screen-scheme','--screening-scheme')
              call get_command_argument(i,next,status=io)
              call check_arg(next,io,arg,cmd)
              next = lowercase(next)
@@ -1120,7 +1129,7 @@
                case default
                  write(*,'(2X,68("="))')
                  write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
-                                            'ed for --restraints option'
+                                      'ed for --screening-scheme option'
                  write(*,*)
                  write(*,'(3X,A)') 'Unrecognised value     : '//       &
                                                               trim(next)
@@ -1132,26 +1141,58 @@
                  call print_end()
              end select
 !
+             doscrn = .TRUE.
+!
              i = i + 1
 !
-           case ('-f','-file','--file','-i','-inp','--inp','--input') 
+           case ('--conf-rep','--conformations-rep','--conf-repre',    &
+                 '--conformations-repre')
+             call get_command_argument(i,next,status=io)
+             call check_arg(next,io,arg,cmd)
+             next = lowercase(next)
+!
+             select case (trim(next))
+               case ('body','bodies')
+                 scrn = 'body'
+               case ('grps','groups','grp','group')
+                 scrn = 'grps'
+               case default
+                 write(*,'(2X,68("="))')
+                 write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
+                                  'ed for --conformations-scheme option'
+                 write(*,*)
+                 write(*,'(3X,A)') 'Unrecognised value     : '//       &
+                                                              trim(next)
+                 write(*,*)
+                 write(*,'(3X,A)') 'Please, choose between:  "body'//  &
+                                                           '" or "grps"'
+                 write(*,'(2X,68("="))')
+                 write(*,*)
+                 call print_end()
+             end select
+!
+             doconf = .TRUE.
+!
+             i = i + 1
+!
+           case ('-f','-file','--file','-i','-inp','--inp','--input')
              call get_command_argument(i,inp,status=io)
              call check_arg(inp,io,arg,cmd)
              i = i + 1
-           case ('-w','-lw','--log-weights','--log-weight','--weight','--weights') 
+           case ('-w','-lw','--log-weights','--log-weight','--weight','--weights')
              call get_command_argument(i,weight,status=io)
              call check_arg(weight,io,arg,cmd)
              i = i + 1
-           case ('-t','-traj','--traj','--trajectory') 
+           case ('-t','-traj','--traj','--trajectory')
              call get_command_argument(i,traj,status=io)
              call check_arg(traj,io,arg,cmd)
              if ( len_trim(outp) .eq. 0 ) then
                io = index(traj,'.')
                if ( io .eq. 0 ) then
                  outp = trim(traj)
-               else 
+               else
                  outp = traj(:len_trim(traj)-4)
-               end if             
+               end if
              end if
              i = i + 1
            case ('-c','-p','-config','-top','--config','--top',        &
@@ -1208,6 +1249,7 @@
            case ('-nopim','--nopim','--no-pim')
              dopim = .FALSE.
            case ('-conf','--conf','--do-conf')
+             cconf  = 'body'
              doconf = .TRUE.
            case ('-noconf','--noconf','--no-conf')
              doconf = .FALSE.
@@ -1295,16 +1337,18 @@
                                                          'ier algorithm'
        write(*,*)
        write(*,'(2X,A)') '-r,--restraints       Interaction criter'//  &
-                                       'ia algorithm [distances,angles]'
+                                       'ia algorithm [distances|angles]'
        write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
-                                  'm [complete,collisions,oscillations]'
+                                  'm [complete|collisions|oscillations]'
+       write(*,'(2X,A)') '--conf-repre          Representation for'//  &
+                              ' the conformational analysis [body|grps]'
        write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
-       write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
-                                                     'nteraction matrix'
        write(*,'(2X,A)') '-[no]conf             Perform conformati'//  &
                                                          'onal analysis'
+       write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
+                                                     'nteraction matrix'
        write(*,*)
        write(*,'(2X,A)') '-np,--num-proc        Number of procesor'//  &
                                                      's per node to use'
@@ -1325,7 +1369,7 @@
 !
 ! SETNEIIDX - SET first NEIghbour InDeX array
 !
-! This subroutine 
+! This subroutine
 !
        subroutine setneiidx()
 !
@@ -1343,7 +1387,7 @@
 !
        do i = 1, mtype
 !
-         rep(i)%neiang(:) = 0      
+         rep(i)%neiang(:) = 0
 !
          do j = 1, rep(i)%msubg
            if ( rep(i)%nsubg(j) .eq. 1 )  then
@@ -1371,24 +1415,29 @@
 !
 ! TEMPLATEADJ - generate TEMPLATEs of the ADJacency matrices
 !
-! This subroutine 
+! This subroutine
 !
        subroutine templateadj()
 !
        use systeminf,   only:  mtype,nmon,rep,adjgrps,adjbody,         &
-                               mgrpsmon,mbodymon,igrpsmon,ibodymon
+                               mgrpsmon,mbodymon,igrpsmon,ibodymon,    &
+                               tmpgrps,tmpbody
        use properties,  only:  nmax
+!
+       use lengths,     only:  lenout
+       use filenames,   only:  outp
 !
        implicit none
 !
 ! Local variables
 !
-       integer  ::  iagg    !  Indexes
-       integer  ::  iitype  !  Indexes
-       integer  ::  iimon   !  Indexes
-       integer  ::  iigrps  !  Indexes
-       integer  ::  iibody  !  Indexes
-       integer  ::  k,kk    !  Indexes
+       character(len=lenout)  ::  aux     !  Auxiliary string
+       integer                ::  iagg    !  Indexes
+       integer                ::  iitype  !  Indexes
+       integer                ::  iimon   !  Indexes
+       integer                ::  iigrps  !  Indexes
+       integer                ::  iibody  !  Indexes
+       integer                ::  k,kk    !  Indexes
 !
 ! Generating templates for the adjacency matrices of the aggregates
 ! -----------------------------------------------------------------
@@ -1401,9 +1450,20 @@
          allocate(adjgrps(iagg)%adj(mgrpsmon(iagg),mgrpsmon(iagg)))
          allocate(adjbody(iagg)%adj(mbodymon(iagg),mbodymon(iagg)))
 !
+         allocate(tmpgrps(iagg)%adj(mgrpsmon(iagg),mgrpsmon(iagg)))
+         allocate(tmpbody(iagg)%adj(mbodymon(iagg),mbodymon(iagg)))
+!
+! Saving the name of the output files
+!
+         write(aux,*) iagg
+         aux = adjustl(aux)
+!
+         adjbody(iagg)%outp = trim(outp)//'_adjbody_'//trim(aux)//'.txt'
+         adjgrps(iagg)%outp = trim(outp)//'_adjgrps_'//trim(aux)//'.txt'
+!
 ! Filling the adjacency matrix in the groups presentation
 !
-         adjgrps(iagg)%adj(:,:) = .FALSE.         
+         adjgrps(iagg)%adj(:,:) = .FALSE.
          adjgrps(iagg)%lab = ''
 !
          do iitype = 1, mtype
@@ -1417,7 +1477,7 @@
                                trim(adjustl(rep(iitype)%grptag(iigrps)))
 !
                k = kk + iigrps
-! 
+!
                adjgrps(iagg)%adj(kk+1:kk+rep(iitype)%mgrps,k) =        &
                                            rep(iitype)%adjgrps(:,iigrps)
 !
@@ -1428,7 +1488,7 @@
 !
 ! Filling the adjacency matrix in the N-body simplified presentation
 !
-         adjbody(iagg)%adj(:,:) = .FALSE.         
+         adjbody(iagg)%adj(:,:) = .FALSE.
          adjbody(iagg)%lab = ''
 !
          do iitype = 1, mtype
@@ -1442,7 +1502,7 @@
                               trim(adjustl(rep(iitype)%bodytag(iibody)))
 !
                k = kk + iibody
-! 
+!
                adjbody(iagg)%adj(kk+1:kk+rep(iitype)%mbody,k) =        &
                                            rep(iitype)%adjbody(:,iibody)
 !
@@ -1476,25 +1536,25 @@
 ! Input/output variables
 !
        logical,dimension(nnode,nnode),intent(out)   ::  adj     !  Adjacency matrix
-       real(kind=4),dimension(3,natms),intent(out)  ::  posi    !  
+       real(kind=4),dimension(3,natms),intent(out)  ::  posi    !
        real(kind=4),dimension(3,matms),intent(in)   ::  inposi  !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)         ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=4),intent(in)                      ::  neidis  !
-       integer,dimension(nat),intent(in)            ::  ngrps   !  
-       integer,dimension(nat),intent(in)            ::  igrps   ! 
-       integer,dimension(nat),intent(in)            ::  nsubg   !  
-       integer,dimension(nat),intent(in)            ::  isubg   ! 
-       integer,dimension(nat),intent(in)            ::  atms    ! 
+       integer,dimension(nat),intent(in)            ::  ngrps   !
+       integer,dimension(nat),intent(in)            ::  igrps   !
+       integer,dimension(nat),intent(in)            ::  nsubg   !
+       integer,dimension(nat),intent(in)            ::  isubg   !
+       integer,dimension(nat),intent(in)            ::  atms    !
        integer,intent(in)                           ::  nnode   !  Number of molecules
        integer,intent(in)                           ::  matms   !
-       integer,intent(in)                           ::  natms   ! 
-       integer,intent(in)                           ::  nat     ! 
+       integer,intent(in)                           ::  natms   !
+       integer,intent(in)                           ::  nat     !
        integer,intent(in)                           ::  msubg   !
        integer,intent(in)                           ::  mgrps   !  Number of subgroups
 !
 ! External functions
 !
-       external                                     ::  buildadjmol  
+       external                                     ::  buildadjmol
 !
 ! Building the adjacency matrix for the current snapshot
 !
@@ -1527,14 +1587,14 @@
 ! Input/output variables
 !
        logical,dimension(mnode,mnode),intent(out)   ::  adj     !  Adjacency matrix
-       real(kind=4),dimension(3,matms),intent(out)  ::  posi    !  
+       real(kind=4),dimension(3,matms),intent(out)  ::  posi    !
        real(kind=4),dimension(3,maxat),intent(in)   ::  inposi  !  Atomic coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)         ::  box     !  Simulation box !FLAG: kind=8 to kind=4
        real(kind=4),intent(in)                      ::  neidis  !
 !
 ! External functions
 !
-       external                                     ::  buildadjmol  
+       external                                     ::  buildadjmol
 !
 ! Building the adjacency matrix for the current snapshot
 !
@@ -1565,13 +1625,13 @@
        real(kind=4),dimension(3,natsys),intent(in)  ::  rcoord   !  Input coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3,natms),intent(out)  ::  fcoord   !  Output coordinates !FLAG: kind=8 to kind=4
        real(kind=4),dimension(3),intent(in)         ::  box      !  Simulation box !FLAG: kind=8 to kind=4
-       integer,dimension(natmol),intent(in)         ::  nsubg    !  
-       integer,dimension(natmol),intent(in)         ::  isubg    !   
+       integer,dimension(natmol),intent(in)         ::  nsubg    !
+       integer,dimension(natmol),intent(in)         ::  isubg    !
        integer,dimension(natmol),intent(in)         ::  atms     !  Atoms identifier
        integer,intent(in)                           ::  msubg    !  Number of subgroups
        integer,intent(in)                           ::  nnode    !  Number of residues
        integer,intent(in)                           ::  natsys   !  Total number of atoms
-       integer,intent(in)                           ::  natms    ! 
+       integer,intent(in)                           ::  natms    !
        integer,intent(in)                           ::  natmol   !  Atoms per residue
 !
 ! Local variables
@@ -1614,24 +1674,24 @@
 !
              fcoord(:,j) = scenvec(3,nsubg(insubg),                    &
                                    atcoord(:,:nsubg(insubg)))
-!           
+!
            else
 !
              fcoord(:,j) = rcoord(:,innode+atms(isubg(insubg)+1))
 !
-           end if    
+           end if
          end do
 !
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
        return
        end subroutine setcoord
 !
 !======================================================================!
 !
-! NSETCOORD - N-components SET COORDinates based on the subgroup-based 
+! NSETCOORD - N-components SET COORDinates based on the subgroup-based
 !              representation
 !
        subroutine nsetcoord(fcoord,rcoord,box)
@@ -1695,18 +1755,18 @@
 !
                fcoord(:,j) = scenvec(3,rep(i)%nsubg(insubg),           &
                                      atcoord(:,:rep(i)%nsubg(insubg)))
-!           
+!
              else
 !
                fcoord(:,j) = rcoord(:,innode+rep(i)%atms(rep(i)%isubg(insubg)+1))
 !
-             end if    
+             end if
            end do
 !
          end do
        end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
        return
        end subroutine nsetcoord
@@ -1715,7 +1775,7 @@
 !
 ! BLOCKDIAG - BLOCK DIAGonalization
 !
-! This subroutine block diagonalizes an input adjacency matrix 
+! This subroutine block diagonalizes an input adjacency matrix
 !  ADJ(NNODE,NNODE) of an undirected unweighted graph of NNODE vertices.
 ! The subroutine FINDCOMPUNDIR is employed to find the connected compo-
 !  nents of the graph using BFS and the QUICKSHORT algorithm is used to
@@ -1750,10 +1810,10 @@
        integer,intent(in)                          ::  nnode     !  Number of molecules
        integer,intent(out)                         ::  nsize     !  Maximum aggregate size
        integer,intent(out)                         ::  magg      !  Number of aggregates
-       logical,intent(out)                         ::  debug     !  
+       logical,intent(out)                         ::  debug     !
 !
 ! Local variables
-! 
+!
        integer                                     ::  i,j,k     !  Indexes
 !
 ! Declaration of time control variables
@@ -1765,17 +1825,17 @@
        integer                                     ::  t1bfs     !  Initial BFS time
        integer                                     ::  t2bfs     !  Final BFS time
        integer                                     ::  t1sort    !  Initial sorting time
-       integer                                     ::  t2sort    !  Final sorting time  
+       integer                                     ::  t2sort    !  Final sorting time
 !
-! Block-diagonalizing the adjacency matrix 
+! Block-diagonalizing the adjacency matrix
 !
        call cpu_time(tinbfs)
-       call system_clock(t1bfs)     
+       call system_clock(t1bfs)
 !
        call findcompundir(nnode,adj,mol,tag,agg,nsize,nagg,magg)
 !
        call cpu_time(tfinbfs)
-       call system_clock(t2bfs)     
+       call system_clock(t2bfs)
 !
        tcpubfs = tcpubfs + tfinbfs - tinbfs
        tbfs    = tbfs    + dble(t2bfs-t1bfs)/dble(count_rate)
@@ -1785,19 +1845,19 @@
 !
        call cpu_time(tinsort)
        call system_clock(t1sort)
-! 
+!
 ! Setting up iagg, imol and nmol arrays
 !
        iagg(1) = 0
        imol(1) = 0
        do i = 1, nsize-1
          iagg(i+1) = iagg(i) + nagg(i)
-         nmol(i)   = i*nagg(i) 
+         nmol(i)   = i*nagg(i)
          imol(i+1) = imol(i) + nmol(i)
        end do
        nmol(nsize) = nnode - imol(nsize)
-! 
-! Sorting molecules and aggregate identifiers based on the size of 
+!
+! Sorting molecules and aggregate identifiers based on the size of
 !  the aggregates
 !
        call ivvqsort(nnode,agg,tag,mol,1,nnode)
@@ -1815,7 +1875,7 @@
          end if
        end do
 !
-!~ !$omp end parallel do                   
+!~ !$omp end parallel do
 !
        if ( nagg(nsize) .gt. 1 )                                       &
                          call ivqsort(nnode,tag,mol,imol(nsize)+1,nnode)
@@ -1835,10 +1895,10 @@
          end do
        end do
 !
-!~ !$omp end parallel do                   
+!~ !$omp end parallel do
 !
        call cpu_time(tfinsort)
-       call system_clock(t2sort)     
+       call system_clock(t2sort)
 !
        tcpusort = tcpusort + tfinsort - tinsort
        tsort    = tsort    + dble(t2sort-t1sort)/dble(count_rate)
@@ -1867,9 +1927,87 @@
 !
 !======================================================================!
 !
+! PRINTADJBODY - PRINT ADJacency matrix 
+!                 in the n-BODY simplified representation
+!
+       subroutine printadjbody(nagg,imol,node,posi,box,buildadjbody)
+!
+       use systeminf,   only:  mtype,mnode,matms,mmon,nmon,imon,       &
+                               mbodymon,ibodymon,adjbody,tmpbody
+       use properties,  only:  nmax,num
+!
+       use filenames,   only:  outp
+       use lengths,     only:  lenout
+       use units,       only:  uniadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(nmax),intent(in)          ::  node    !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
+       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+!
+! External functions
+!
+       external                                    ::  buildadjbody
+!
+! Local variables
+!
+       integer                                     ::  iagg    !  Indexes
+       integer                                     ::  madj    !  Indexes
+       integer                                     ::  i,j     !  Indexes
+       integer                                     ::  ii,jj   !  Indexes
+!
+! Printing adj matrix of the aggregates in the N-body simplified representation
+! -----------------------------------------------------------------------------
+!
+       do iagg = mtype+1, nmax-1
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         if ( num(iagg) .eq. 0 ) then
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                action='write')
+           write(uniadj,*) trim(adjbody(iagg)%lab)
+         else
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                position='append',action='write')
+         end if
+!
+         madj = mbodymon(iagg)
+!
+         j = imol(iagg)
+!
+         do i = 1, nagg(iagg)
+!
+           tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
+!
+           call buildadjbody(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
+                             tmpbody(iagg)%adj,matms,posi,box,mtype,   &
+                             nmon(:,iagg),imon(:,iagg),ibodymon(:,iagg))
+!
+           j = j + mmon(iagg)
+!
+           do ii = 1, madj
+             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+!
+         end do
+!
+         close(uniadj)
+!
+       end do
+!
+       return
+       end subroutine printadjbody
+!
+!======================================================================!
+!
 ! NBLOCKDIAG - N-components BLOCK DIAGonalization
 !
-! This subroutine block diagonalizes an input adjacency matrix 
+! This subroutine block diagonalizes an input adjacency matrix
 !  ADJ(NNODE,NNODE) of an undirected unweighted graph of NNODE vertices.
 ! The subroutine FINDCOMPUNDIR is employed to find the connected compo-
 !  nents of the graph using BFS and the QUICKSHORT algorithm is used to
@@ -1894,9 +2032,9 @@
 ! Input/output variables
 !
        logical,dimension(mnode,mnode),intent(in)  ::  adj     !  Adjacency matrix
-       integer,dimension(mnode),intent(out)       ::  idx     !  
-       integer,dimension(mnode),intent(out)       ::  ntype   !  
-       integer,dimension(mnode),intent(out)       ::  itype   !  
+       integer,dimension(mnode),intent(out)       ::  idx     !
+       integer,dimension(mnode),intent(out)       ::  ntype   !
+       integer,dimension(mnode),intent(out)       ::  itype   !
        integer,dimension(mnode),intent(out)       ::  mol     !  Molecules identifier
        integer,dimension(mnode),intent(out)       ::  node    !  Molecules identifier
        integer,dimension(mnode),intent(out)       ::  tag     !  Aggregates identifier
@@ -1906,12 +2044,12 @@
        integer,dimension(nmax),intent(out)        ::  nmol    !
        integer,dimension(nmax),intent(out)        ::  imol    !
        integer,intent(out)                        ::  nsize   !  Maximum aggregate size
-       integer,intent(out)                        ::  nidx    !  Maximum aggregate identifier 
+       integer,intent(out)                        ::  nidx    !  Maximum aggregate identifier
        integer,intent(out)                        ::  magg    !  Number of aggregates
-       logical,intent(out)                        ::  debug   !  
+       logical,intent(out)                        ::  debug   !
 !
 ! Local variables
-! 
+!
        integer                                    ::  i,j,k   !  Indexes
 !
 ! Declaration of time control variables
@@ -1923,19 +2061,19 @@
        integer                                    ::  t1bfs   !  Initial BFS time
        integer                                    ::  t2bfs   !  Final BFS time
        integer                                    ::  t1sort  !  Initial sorting time
-       integer                                    ::  t2sort  !  Final sorting time  
+       integer                                    ::  t2sort  !  Final sorting time
 !
-! Block-diagonalizing the adjacency matrix 
+! Block-diagonalizing the adjacency matrix
 ! ----------------------------------------
 !
        call cpu_time(tibfs)
-       call system_clock(t1bfs)     
+       call system_clock(t1bfs)
 !
        call nfindcompundir(adj,mol,node,tag,agg,idx,itype,ntype,nagg,  &
                            magg,nsize,nidx)
 !
        call cpu_time(tfbfs)
-       call system_clock(t2bfs)     
+       call system_clock(t2bfs)
 !
        tcpubfs = tcpubfs + tfbfs - tibfs
        tbfs    = tbfs    + dble(t2bfs-t1bfs)/dble(count_rate)
@@ -1945,14 +2083,14 @@
 !
        call cpu_time(tisort)
        call system_clock(t1sort)
-! 
+!
 ! Setting up iagg, imol and nmol arrays
 !
        iagg(1) = 0
        imol(1) = 0
        do i = 1, nmax-1
          iagg(i+1) = iagg(i) + nagg(i)
-         nmol(i)   = mmon(i)*nagg(i) 
+         nmol(i)   = mmon(i)*nagg(i)
          imol(i+1) = imol(i) + nmol(i)
        end do
        nmol(nmax) = mnode - imol(nmax)
@@ -1973,8 +2111,8 @@
                                                              imol(:nmax)
          write(*,*)
        end if
-! 
-! Sorting molecules and aggregate identifiers based on the 
+!
+! Sorting molecules and aggregate identifiers based on the
 !  aggregate identifier
 !
 !~ write(*,*) 'sorting based on idx from',1,'to',mnode
@@ -2007,7 +2145,7 @@
              k = k + mmon(i)
            end do
 !
-         end if  
+         end if
        end do
 !
        if ( nagg(nmax) .gt. 0 ) then
@@ -2022,15 +2160,15 @@
        end if
 !
        call cpu_time(tfsort)
-       call system_clock(t2sort)     
+       call system_clock(t2sort)
 !
        tcpusort = tcpusort + tfsort - tisort
        tsort    = tsort    + dble(t2sort-t1sort)/dble(count_rate)
 !
-!~        if ( debug ) then
-!~          call nprint_info(0,mnode,agg,tag,mol,node,ntype,itype,idx,    &
-!~                          'agg','tag','mol','node','ntype','itype','idx')
-!~        end if
+       if ( debug ) then
+         call nprint_info(0,mnode,agg,tag,mol,node,ntype,itype,idx,    &
+                         'agg','tag','mol','node','ntype','itype','idx')
+       end if
 !
        return
        end subroutine nblockdiag
@@ -2061,7 +2199,7 @@
 !~        integer,dimension(nnode),intent(in)                         ::  agg     !  Aggregates size
 !~        integer,dimension(natmol),intent(in)                        ::  grps     !  Number of subgroups in each group
 !~        integer,dimension(natmol),intent(in)                        ::  subg     !  Number of atoms in each subgroup
-!~        integer,dimension(natmol),intent(in)                        ::  igrps    !  
+!~        integer,dimension(natmol),intent(in)                        ::  igrps    !
 !~        integer,intent(in)                                          ::  ngrps    !  Number of groups
 !~        integer,intent(in)                                          ::  nsubg    !  Number of subgroups
 !~        integer,intent(in)                                          ::  nnode    !  Number of residues
@@ -2093,7 +2231,7 @@
 !~              iimol  = iimol + 1
 !~              ingrps = (mol(iimol)-1)*natmol
 !~ !
-!~              jimol  = iimol 
+!~              jimol  = iimol
 !~              do jrenum = irenum+1, agg(iiagg)
 !~                jimol  = jimol + 1
 !~                jngrps = (mol(jimol)-1)*natmol
@@ -2102,7 +2240,7 @@
 !~                ii     = 0
 !~                do iigrps = 1, ngrps
 !~                  do insubg = 1, grps(iigrps)
-!~                    iisubg = iisubg + 1 
+!~                    iisubg = iisubg + 1
 !~                    ii     = ii + subg(iisubg)
 !~                    i      = ingrps + igrps(ii)
 !~ !
@@ -2110,7 +2248,7 @@
 !~                    jj     = 0
 !~                    do jigrps = 1, ngrps
 !~                      mindis = thr(iigrps,jigrps)
-!~                      if ( mindis .gt. 1.0e-6 ) then 
+!~                      if ( mindis .gt. 1.0e-6 ) then
 !~                        do jnsubg = 1, grps(jigrps)
 !~                          jisubg = jisubg + 1
 !~                          jj     = jj + subg(jisubg)
@@ -2122,15 +2260,15 @@
 !~                          if ( dist .le. mindis ) then
 !~                            pim(iigrps,jigrps,itype) =                  &  ! FLAG: alternatively, to save pim in triangular form
 !~                                         pim(iigrps,jigrps,itype) + 1.0d0  !       1) find max(jigrps,iigrps) and min(jigrps,iigrps)
-!~                            pim(jigrps,iigrps,itype) =                  &  !       2) then assign pim(max,min) 
-!~                                         pim(jigrps,iigrps,itype) + 1.0d0       
+!~                            pim(jigrps,iigrps,itype) =                  &  !       2) then assign pim(max,min)
+!~                                         pim(jigrps,iigrps,itype) + 1.0d0
 !~                          end if
 !~                        end do
 !~                      else
 !~                        jisubg = jisubg + grps(jigrps)
 !~                        jj     = jj + subg(jisubg)
 !~                      end if
-!~                    end do            
+!~                    end do
 !~                  end do
 !~                end do
 !~              end do
