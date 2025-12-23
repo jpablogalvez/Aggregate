@@ -59,6 +59,7 @@ $(ODIR)/%.o: %.F90
 	$(FC) $(FCFLAGS) -o $@ $^ 
 
 $(ODIR)/version.o: version.f90
+	@./get_git_version.sh
 	@mkdir -p $(MDIR)
 	$(dir_guard)
 	$(FC) $(FCFLAGS) -o $@ $^ 
