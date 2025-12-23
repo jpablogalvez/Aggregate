@@ -26,7 +26,8 @@
 !
        use graphtools,  only:  buildadjmolbub,buildadjmolang,          &
                                nbuildadjmolbub,nbuildadjmolang,        &
-                               nbuildadjbodybub,nbuildadjbodyang
+                               nbuildadjbodybub,nbuildadjbodyang,      &
+                               nbuildadjgrpsbub,nbuildadjgrpsang
        use screening,   only:  scrnint,scrnosc,scrncol
 !
        implicit none
@@ -115,6 +116,26 @@
 !
        end subroutine nsubadjrep
 ! 
+       subroutine nsubprint(nmax,nagg,imol,mnode,node,matms,posi,      &
+                            box,buildadjrep)
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
+       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax    !
+       integer,intent(in)                          ::  mnode   !
+       integer,intent(in)                          ::  matms   !
+!
+! External functions
+!
+       external                                    ::  buildadjrep
+!
+       end subroutine nsubprint
+! 
        subroutine subscrn(nnode,oldadj,adj,newadj)
 !
        logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
@@ -129,6 +150,7 @@
        procedure(subadj),pointer      ::  subbuildadj     => null()
        procedure(nsubadj),pointer     ::  subnbuildadj    => null()
        procedure(nsubadjrep),pointer  ::  subnbuildadjrep => null()
+       procedure(nsubprint),pointer   ::  subnprintadjrep => null()
        procedure(subscrn),pointer     ::  subscrnint      => null()
 !
 ! Selection of the aggregation algorithm ! FIXME: count reading time in this section
@@ -215,26 +237,28 @@
            subnbuildadj     => nbuildadjmolang
          end if
 !
-!~          if ( trim(cconf) .eq. 'body' ) then
+         if ( trim(cconf) .eq. 'body' ) then
+           subnprintadjrep => printadjbody
            if ( trim(schm) .eq. 'distances' ) then
              subnbuildadjrep => nbuildadjbodybub
            else if ( trim(schm) .eq. 'angles' ) then
              subnbuildadjrep => nbuildadjbodyang
            end if
-!~          else if ( trim(cconf) .eq. 'grps' ) then
-!~            if ( trim(schm) .eq. 'distances' ) then
-!~              subnbuildadjrep => nbuildadjgrpsbub
-!~            else if ( trim(schm) .eq. 'angles' ) then
-!~              subnbuildadjrep => nbuildadjgrpsang
-!~            end if
-!~          end if
+         else if ( trim(cconf) .eq. 'grps' ) then
+           subnprintadjrep => printadjgrps
+           if ( trim(schm) .eq. 'distances' ) then
+             subnbuildadjrep => nbuildadjgrpsbub
+           else if ( trim(schm) .eq. 'angles' ) then
+             subnbuildadjrep => nbuildadjgrpsang
+           end if
+         end if
 !
          select case (trim(ch))
            case ('original')
 !
              call naggdist(neidis,nsteps,nprint,minstep,maxstep,       &
                            nsolv,dopim,doconf,subnbuildadj,            &
-                           subnbuildadjrep,debug)
+                           subnbuildadjrep,subnprintadjrep,debug)
 !
            case ('life')
 !
@@ -2099,7 +2123,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  is obtained from the number of blocks of each size.
 !
        subroutine naggdist(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,buildadjmol,buildadjbody,debug)
+                           dopim,doconf,buildadjmol,buildadjrep,       &
+                           printadjrep,debug)
 !
        use systeminf,   only:  xtcf,mnode,matms
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
@@ -2135,7 +2160,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! External functions
 !
        external                                    ::  buildadjmol
-       external                                    ::  buildadjbody
+       external                                    ::  buildadjrep
+       external                                    ::  printadjrep
 !
 ! Aggregates information in the molecule-based representation
 !
@@ -2246,7 +2272,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            if ( doconf ) then
              call system_clock(t1conf)
 !     
-             call printadjbody(nagg,imol,node,posi,box,buildadjbody)
+             call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
+                              box,buildadjrep)
 !             call isomorphism()
 !
              call system_clock(t2conf)     
@@ -2310,62 +2337,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        return
        end subroutine naggdist
-!
-!======================================================================!
-!
-! NPRINTPOP - N-components PRINT POPulations
-!
-! This subroutine 
-!
-       subroutine nprintpop(step,box,nagg,magg,nsolv,iuni)
-!
-       use systeminf,   only:  nnode
-       use properties,  only:  nmax,num,pop,frac,conc,cin,volu
-!
-       use parameters,  only:  Na
-!
-       implicit none
-!
-! Input/Output variables
-!
-       real(kind=4),dimension(3),intent(in)  ::  box    !  Simulation box dimensions
-       integer,dimension(nmax),intent(in)    ::  nagg   !
-       integer,intent(in)                    ::  magg   !
-       integer,intent(in)                    ::  nsolv  !
-       integer,intent(in)                    ::  step   !
-       integer,intent(in)                    ::  iuni   !
-!
-! Local variables
-!
-       integer                               ::  i      !  Index 
-!
-! Accumulating properties
-!
-       do i = 1, nmax
-         num(i)  = num(i)  + nagg(i)
-         pop(i)  = pop(i)  + real(nagg(i))/magg*100
-         frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
-         conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-!~          prob(i) = prob(i) + real(i*nagg(i))/nnode*100  ! TODO: compute probabilities
-       end do                    
-!
-       cin(:) = cin(:) + real(nnode(:))/box(1)**3
-!
-       volu = volu + box(1)**3
-!
-! Printing populations of the current configuration
-!
-       write(iuni+1,'(I10,100(X,F10.6))') step,real(nagg(:))/magg*100
-       write(iuni+2,'(I10,100(X,F10.6))') step,                        &
-                                              real(nagg(:))/(magg+nsolv)
-       write(iuni+3,'(I10,100(X,F10.6))') step,                        &
-                                    real(nagg(:))/box(1)**3/(Na*1.0E-24)
-!~        write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
-!~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
-       write(iuni+5,'(I10,100(X,I7))') step,nagg(:)  
-!
-       return
-       end subroutine nprintpop
 !
 !======================================================================!
 !
@@ -3226,6 +3197,226 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        return
        end subroutine naggscrn
+!
+!======================================================================!
+!
+! NPRINTPOP - N-components PRINT POPulations
+!
+! This subroutine 
+!
+       subroutine nprintpop(step,box,nagg,magg,nsolv,iuni)
+!
+       use systeminf,   only:  nnode
+       use properties,  only:  nmax,num,pop,frac,conc,cin,volu
+!
+       use parameters,  only:  Na
+!
+       implicit none
+!
+! Input/Output variables
+!
+       real(kind=4),dimension(3),intent(in)  ::  box    !  Simulation box dimensions
+       integer,dimension(nmax),intent(in)    ::  nagg   !
+       integer,intent(in)                    ::  magg   !
+       integer,intent(in)                    ::  nsolv  !
+       integer,intent(in)                    ::  step   !
+       integer,intent(in)                    ::  iuni   !
+!
+! Local variables
+!
+       integer                               ::  i      !  Index 
+!
+! Accumulating properties
+!
+       do i = 1, nmax
+         num(i)  = num(i)  + nagg(i)
+         pop(i)  = pop(i)  + real(nagg(i))/magg*100
+         frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
+         conc(i) = conc(i) + real(nagg(i))/box(1)**3 
+!~          prob(i) = prob(i) + real(i*nagg(i))/nnode*100  ! TODO: compute probabilities
+       end do                    
+!
+       cin(:) = cin(:) + real(nnode(:))/box(1)**3
+!
+       volu = volu + box(1)**3
+!
+! Printing populations of the current configuration
+!
+       write(iuni+1,'(I10,100(X,F10.6))') step,real(nagg(:))/magg*100
+       write(iuni+2,'(I10,100(X,F10.6))') step,                        &
+                                              real(nagg(:))/(magg+nsolv)
+       write(iuni+3,'(I10,100(X,F10.6))') step,                        &
+                                    real(nagg(:))/box(1)**3/(Na*1.0E-24)
+!~        write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
+!~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
+       write(iuni+5,'(I10,100(X,I7))') step,nagg(:)  
+!
+       return
+       end subroutine nprintpop
+!
+!======================================================================!
+!
+! PRINTADJBODY - PRINT ADJacency matrix 
+!                 in the n-BODY simplified representation
+!
+       subroutine printadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
+                               box,buildadjbody)
+!
+       use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,ibodymon, &
+                               adjbody,tmpbody
+       use properties,  only:  num
+!
+       use filenames,   only:  outp
+       use lengths,     only:  lenout
+       use units,       only:  uniadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
+       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax    !
+       integer,intent(in)                          ::  mnode   !
+       integer,intent(in)                          ::  matms   !
+!
+! External functions
+!
+       external                                    ::  buildadjbody
+!
+! Local variables
+!
+       integer                                     ::  iagg    !  Indexes
+       integer                                     ::  madj    !  Indexes
+       integer                                     ::  i,j     !  Indexes
+       integer                                     ::  ii,jj   !  Indexes
+!
+! Printing adj matrix of the aggregates in the N-body simplified representation
+! -----------------------------------------------------------------------------
+!
+       do iagg = mtype+1, nmax-1
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         if ( num(iagg) .eq. 0 ) then
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                action='write')
+           write(uniadj,*) trim(adjbody(iagg)%lab)
+         else
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                position='append',action='write')
+         end if
+!
+         madj = mbodymon(iagg)
+!
+         j = imol(iagg)
+!
+         do i = 1, nagg(iagg)
+!
+           tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
+!
+           call buildadjbody(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
+                             tmpbody(iagg)%adj,matms,posi,box,mtype,   &
+                             nmon(:,iagg),imon(:,iagg),ibodymon(:,iagg))
+!
+           j = j + mmon(iagg)
+!
+           do ii = 1, madj
+             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+!
+         end do
+!
+         close(uniadj)
+!
+       end do
+!
+       return
+       end subroutine printadjbody
+!
+!======================================================================!
+!
+! PRINTADJGRPS - PRINT ADJacency matrix 
+!                 in the GRouPS representation
+!
+       subroutine printadjgrps(nmax,nagg,imol,mnode,node,matms,posi,   &
+                               box,buildadjgrps)
+!
+       use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,igrpsmon, &
+                               adjgrps,tmpgrps
+       use properties,  only:  num
+!
+       use filenames,   only:  outp
+       use lengths,     only:  lenout
+       use units,       only:  uniadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
+       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax    !
+       integer,intent(in)                          ::  mnode   !
+       integer,intent(in)                          ::  matms   !
+!
+! External functions
+!
+       external                                    ::  buildadjgrps
+!
+! Local variables
+!
+       integer                                     ::  iagg    !  Indexes
+       integer                                     ::  madj    !  Indexes
+       integer                                     ::  i,j     !  Indexes
+       integer                                     ::  ii,jj   !  Indexes
+!
+! Printing adj matrix of the aggregates in the groups representation
+! ------------------------------------------------------------------
+!
+       do iagg = mtype+1, nmax-1
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         if ( num(iagg) .eq. 0 ) then
+           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
+                action='write')
+           write(uniadj,*) trim(adjgrps(iagg)%lab)
+         else
+           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
+                position='append',action='write')
+         end if
+!
+         madj = mgrpsmon(iagg)
+!
+         j = imol(iagg)
+!
+         do i = 1, nagg(iagg)
+!
+           tmpgrps(iagg)%adj(:,:) = adjgrps(iagg)%adj(:,:)
+!
+           call buildadjgrps(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
+                             tmpgrps(iagg)%adj,matms,posi,box,mtype,   &
+                             nmon(:,iagg),imon(:,iagg),igrpsmon(:,iagg))
+!
+           j = j + mmon(iagg)
+!
+           do ii = 1, madj
+             write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+!
+         end do
+!
+         close(uniadj)
+!
+       end do
+!
+       return
+       end subroutine printadjgrps
 !
 !======================================================================!
 !

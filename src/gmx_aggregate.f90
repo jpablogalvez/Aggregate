@@ -551,6 +551,10 @@
          end do
          write(*,*)
 !
+       end if
+!
+       if ( debug .and. doconf ) then
+!
          write(*,'(A)') 'Adjacency matrices of the monomers'
          write(*,'(A)') '----------------------------------'
          write(*,*)
@@ -672,7 +676,7 @@
 !
        call templateadj()
 !
-       if ( debug ) then
+       if ( debug .and. doconf ) then
 !
          write(*,'(A)') 'Adjacency matrices of the aggegates in th'//  &
                                     'e N-body simplified representation'
@@ -1924,84 +1928,6 @@
 !
        return
        end subroutine blockdiag
-!
-!======================================================================!
-!
-! PRINTADJBODY - PRINT ADJacency matrix 
-!                 in the n-BODY simplified representation
-!
-       subroutine printadjbody(nagg,imol,node,posi,box,buildadjbody)
-!
-       use systeminf,   only:  mtype,mnode,matms,mmon,nmon,imon,       &
-                               mbodymon,ibodymon,adjbody,tmpbody
-       use properties,  only:  nmax,num
-!
-       use filenames,   only:  outp
-       use lengths,     only:  lenout
-       use units,       only:  uniadj
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
-       integer,dimension(nmax),intent(in)          ::  imol    !  
-       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
-       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
-       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
-!
-! External functions
-!
-       external                                    ::  buildadjbody
-!
-! Local variables
-!
-       integer                                     ::  iagg    !  Indexes
-       integer                                     ::  madj    !  Indexes
-       integer                                     ::  i,j     !  Indexes
-       integer                                     ::  ii,jj   !  Indexes
-!
-! Printing adj matrix of the aggregates in the N-body simplified representation
-! -----------------------------------------------------------------------------
-!
-       do iagg = mtype+1, nmax-1
-         if ( nagg(iagg) .eq. 0 ) cycle
-!
-         if ( num(iagg) .eq. 0 ) then
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                action='write')
-           write(uniadj,*) trim(adjbody(iagg)%lab)
-         else
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                position='append',action='write')
-         end if
-!
-         madj = mbodymon(iagg)
-!
-         j = imol(iagg)
-!
-         do i = 1, nagg(iagg)
-!
-           tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
-!
-           call buildadjbody(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
-                             tmpbody(iagg)%adj,matms,posi,box,mtype,   &
-                             nmon(:,iagg),imon(:,iagg),ibodymon(:,iagg))
-!
-           j = j + mmon(iagg)
-!
-           do ii = 1, madj
-             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-!
-         end do
-!
-         close(uniadj)
-!
-       end do
-!
-       return
-       end subroutine printadjbody
 !
 !======================================================================!
 !
