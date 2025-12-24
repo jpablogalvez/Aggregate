@@ -26,8 +26,9 @@
 !
        use graphtools,  only:  buildadjmolbub,buildadjmolang,          &
                                nbuildadjmolbub,nbuildadjmolang,        &
+                               nbuildadjgrpsbub,nbuildadjgrpsang,      &
                                nbuildadjbodybub,nbuildadjbodyang,      &
-                               nbuildadjgrpsbub,nbuildadjgrpsang
+                               nbuildadjbodybubdir,nbuildadjbodyangdir
        use screening,   only:  scrnint,scrnosc,scrncol
 !
        implicit none
@@ -250,6 +251,13 @@
              subnbuildadjrep => nbuildadjgrpsbub
            else if ( trim(schm) .eq. 'angles' ) then
              subnbuildadjrep => nbuildadjgrpsang
+           end if
+         else if ( trim(cconf) .eq. 'bodydir' ) then
+           subnprintadjrep => printadjbody
+           if ( trim(schm) .eq. 'distances' ) then
+             subnbuildadjrep => nbuildadjbodybubdir
+           else if ( trim(schm) .eq. 'angles' ) then
+             subnbuildadjrep => nbuildadjbodyangdir
            end if
          end if
 !

@@ -1156,10 +1156,13 @@
              next = lowercase(next)
 !
              select case (trim(next))
-               case ('body','bodies')
-                 scrn = 'body'
-               case ('grps','groups','grp','group')
-                 scrn = 'grps'
+               case ('body','bodies','bodyundir','bodiesundir')
+                 cconf = 'body'
+               case ('bodydir','bodiesdir')
+                 cconf = 'bodydir'
+               case ('grps','groups','grp','group','grpsundir',        &
+                     'groupsundir','grpundir','groupundir')
+                 cconf = 'grps'
                case default
                  write(*,'(2X,68("="))')
                  write(*,'(3X,A)') 'ERROR:  Invalid value introduc'//  &
@@ -1345,7 +1348,7 @@
        write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
                                   'm [complete|collisions|oscillations]'
        write(*,'(2X,A)') '--conf-repre          Representation for'//  &
-                              ' the conformational analysis [body|grps]'
+                      ' the conformational analysis [body|grps|bodydir]'
        write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
