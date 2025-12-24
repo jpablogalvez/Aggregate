@@ -3300,16 +3300,19 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        do iagg = mtype+1, nmax-1
          if ( nagg(iagg) .eq. 0 ) cycle
 !
+         madj = mbodymon(iagg)
+!
          if ( num(iagg) .eq. 0 ) then
            open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
                 action='write')
            write(uniadj,*) trim(adjbody(iagg)%lab)
+           do ii = 1, madj
+             write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
+           end do
          else
            open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
                 position='append',action='write')
          end if
-!
-         madj = mbodymon(iagg)
 !
          j = imol(iagg)
 !
@@ -3382,16 +3385,19 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        do iagg = mtype+1, nmax-1
          if ( nagg(iagg) .eq. 0 ) cycle
 !
+         madj = mgrpsmon(iagg)
+!
          if ( num(iagg) .eq. 0 ) then
            open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
                 action='write')
            write(uniadj,*) trim(adjgrps(iagg)%lab)
+           do ii = 1, madj
+             write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
+           end do
          else
            open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
                 position='append',action='write')
          end if
-!
-         madj = mgrpsmon(iagg)
 !
          j = imol(iagg)
 !
