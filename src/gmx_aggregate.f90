@@ -1202,7 +1202,7 @@
                end if
              end if
              i = i + 1
-           case ('-p',,'-top','--top','--topology','--topol')
+           case ('-p','-top','--top','--topology','--topol')
              call get_command_argument(i,conf,status=io)
              call check_arg(conf,io,arg,cmd)
              i = i + 1
