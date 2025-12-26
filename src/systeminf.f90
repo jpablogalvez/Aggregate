@@ -15,7 +15,8 @@
        type(adjinf),dimension(:),allocatable   ::  adjbody  !  Templates in the bodies representations
        type(adjinf),dimension(:),allocatable   ::  tmpgrps  !  Templates in the grps representations
        type(adjinf),dimension(:),allocatable   ::  tmpbody  !  Templates in the bodies representations
-       type(xtcfile)                           ::  xtcf     !  Trajectory information
+       type(xtcfile),target                    ::  xtcf     !  Trajectory information
+       real(kind=4),dimension(:,:),pointer     ::  coord    !  Coordinates 
 !
 ! System size information
 !

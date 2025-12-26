@@ -272,7 +272,8 @@
 !
              call nagglife(neidis,nsteps,nprint,minstep,maxstep,       &
                            nsolv,avlife,nlife,dopim,doconf,            &
-                           subnbuildadj,debug)
+                           subnbuildadj,subnbuildadjrep,               &
+                           subnprintadjrep,debug)
 !
            case ('scrn')
 !
@@ -2134,7 +2135,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                            dopim,doconf,buildadjmol,buildadjrep,       &
                            printadjrep,debug)
 !
-       use systeminf,   only:  xtcf,mnode,matms
+       use systeminf,   only:  xtcf,mnode,matms,maxat,coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tpim,tconf,       &
@@ -2239,6 +2240,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Allocating variables depending on topological information 
 !
        allocate(posi(3,matms))
+!
+       coord => xtcf%pos(:,:)
 !
 ! Analyzing frames in the inverval [minstep,maxstep]
 !
@@ -2361,11 +2364,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  are present in the former and the previous configurations.
 !
        subroutine nagglife(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           avlife,nlife,dopim,doconf,buildadjmol,debug)
+                           avlife,nlife,dopim,doconf,buildadjmol,      &
+                           buildadjrep,printadjrep,debug)
 !
        use omp_lib
 !
-       use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon
+       use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon,maxat,  &
+                               coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
@@ -2383,102 +2388,105 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Interaction criteria information
 ! 
-       real(kind=4),intent(in)                    ::  neidis    !  Screening distance
+       real(kind=4),intent(in)                         ::  neidis    !  Screening distance
 !
 ! Lifetimes calculation variables
 !
-       real(kind=8),dimension(nmax),intent(out)   ::  avlife    !
-       integer,dimension(nmax),intent(out)        ::  nlife     !
+       real(kind=8),dimension(nmax),intent(out)        ::  avlife    !
+       integer,dimension(nmax),intent(out)             ::  nlife     !
 !
 ! Trajectory control variables
 !     
-       integer,intent(in)                         ::  nprint    !  Populations printing interval
-       integer,intent(in)                         ::  minstep   !  First step for analysis
-       integer,intent(in)                         ::  maxstep   !  Last step for analysis
-       integer,intent(out)                        ::  nsteps    !  Number of snapshots analyzed
+       integer,intent(in)                              ::  nprint    !  Populations printing interval
+       integer,intent(in)                              ::  minstep   !  First step for analysis
+       integer,intent(in)                              ::  maxstep   !  Last step for analysis
+       integer,intent(out)                             ::  nsteps    !  Number of snapshots analyzed
 !
 ! Program control flags
 !
-       logical,intent(in)                         ::  dopim     !  PIM calculation flag
-       logical,intent(in)                         ::  doconf    !  Conformational analysis flag
-       logical,intent(in)                         ::  debug     !  Debug mode
+       logical,intent(in)                              ::  dopim     !  PIM calculation flag
+       logical,intent(in)                              ::  doconf    !  Conformational analysis flag
+       logical,intent(in)                              ::  debug     !  Debug mode
 !
 ! AnalysisPhenolMD variables
 !     
-       integer,intent(in)                         ::  nsolv     !
+       integer,intent(in)                              ::  nsolv     !
 !
 ! External functions
 !
-       external                                   ::  buildadjmol  
+       external                                        ::  buildadjmol  
+       external                                        ::  buildadjrep  
+       external                                        ::  printdadjrep  
 !
 ! Aggregates information in the molecule-based representation
 !
-       logical,dimension(:,:),allocatable         ::  adj       !  Adjacency matrix
-       logical,dimension(:),allocatable           ::  iwill     !
-       logical,dimension(:),allocatable           ::  iwont     !
-       integer,dimension(:),allocatable           ::  mol       !  Molecules identifier
-       integer,dimension(:),allocatable           ::  node      !  Molecules identifier
-       integer,dimension(:),allocatable           ::  tag       !  Aggregates identifier
-       integer,dimension(:),allocatable           ::  agg       !  Aggregates size 
-       integer,dimension(:),allocatable           ::  idx       !  Aggregate identifier 
-       integer,dimension(:),allocatable           ::  ntype     !   
-       integer,dimension(:),allocatable           ::  itype     !   
-       integer,dimension(:),allocatable           ::  newmol    !  Molecules identifier
-       integer,dimension(:),allocatable           ::  newnode   !  Molecules identifier
-       integer,dimension(:),allocatable           ::  newtag    !  Aggregates identifier
-       integer,dimension(:),allocatable           ::  newagg    !  Aggregates size 
-       integer,dimension(:),allocatable           ::  newidx    !  Aggregate identifier 
-       integer,dimension(:),allocatable           ::  newntype  !   
-       integer,dimension(:),allocatable           ::  newitype  !   
-       integer,dimension(:),allocatable           ::  nagg      !  Number of aggregates of each size
-       integer,dimension(:),allocatable           ::  iagg      !  
-       integer,dimension(:),allocatable           ::  nmol      !  
-       integer,dimension(:),allocatable           ::  imol      !  
-       integer,dimension(:),allocatable           ::  newnagg   !  Number of aggregates of each size
-       integer,dimension(:),allocatable           ::  newiagg   !  
-       integer,dimension(:),allocatable           ::  newnmol   !  
-       integer,dimension(:),allocatable           ::  newimol   ! 
-       integer,dimension(:),allocatable           ::  willmap   !
-       integer                                    ::  nsize     !  Actual maximum aggregate size
-       integer                                    ::  newsize   !  New maximum aggregate size
-       integer                                    ::  midx      !  Actual maximum aggregate identifier
-       integer                                    ::  newmidx   !  New maximum aggregate identifier
-       integer                                    ::  magg      !  Actual number of chemical species
-       integer                                    ::  newmagg   !  New number of chemical species
-       integer                                    ::  actstep   !
-       integer                                    ::  newstep   !
+       logical,dimension(:,:),allocatable              ::  adj       !  Adjacency matrix
+       logical,dimension(:),allocatable                ::  iwill     !
+       logical,dimension(:),allocatable                ::  iwont     !
+       integer,dimension(:),allocatable                ::  mol       !  Molecules identifier
+       integer,dimension(:),allocatable                ::  node      !  Molecules identifier
+       integer,dimension(:),allocatable                ::  tag       !  Aggregates identifier
+       integer,dimension(:),allocatable                ::  agg       !  Aggregates size 
+       integer,dimension(:),allocatable                ::  idx       !  Aggregate identifier 
+       integer,dimension(:),allocatable                ::  ntype     !   
+       integer,dimension(:),allocatable                ::  itype     !   
+       integer,dimension(:),allocatable                ::  newmol    !  Molecules identifier
+       integer,dimension(:),allocatable                ::  newnode   !  Molecules identifier
+       integer,dimension(:),allocatable                ::  newtag    !  Aggregates identifier
+       integer,dimension(:),allocatable                ::  newagg    !  Aggregates size 
+       integer,dimension(:),allocatable                ::  newidx    !  Aggregate identifier 
+       integer,dimension(:),allocatable                ::  newntype  !   
+       integer,dimension(:),allocatable                ::  newitype  !   
+       integer,dimension(:),allocatable                ::  nagg      !  Number of aggregates of each size
+       integer,dimension(:),allocatable                ::  iagg      !  
+       integer,dimension(:),allocatable                ::  nmol      !  
+       integer,dimension(:),allocatable                ::  imol      !  
+       integer,dimension(:),allocatable                ::  newnagg   !  Number of aggregates of each size
+       integer,dimension(:),allocatable                ::  newiagg   !  
+       integer,dimension(:),allocatable                ::  newnmol   !  
+       integer,dimension(:),allocatable                ::  newimol   ! 
+       integer,dimension(:),allocatable                ::  willmap   !
+       integer                                         ::  nsize     !  Actual maximum aggregate size
+       integer                                         ::  newsize   !  New maximum aggregate size
+       integer                                         ::  midx      !  Actual maximum aggregate identifier
+       integer                                         ::  newmidx   !  New maximum aggregate identifier
+       integer                                         ::  magg      !  Actual number of chemical species
+       integer                                         ::  newmagg   !  New number of chemical species
+       integer                                         ::  actstep   !
+       integer                                         ::  newstep   !
 !
 ! Local lifetimes calculation variables
 !
-       integer,dimension(:),allocatable           ::  life      !
-       integer,dimension(:),allocatable           ::  auxlife   !
+       integer,dimension(:),allocatable                ::  life      !
+       integer,dimension(:),allocatable                ::  auxlife   !
 !
 ! Local variables
 !
-       real(kind=4),dimension(:,:),allocatable    ::  posi      !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable    ::  newposi   !  Auxiliary coordinates
-       real(kind=4),dimension(3)                  ::  box       !
-       real(kind=4),dimension(3)                  ::  newbox    !
-       integer                                    ::  i,j       !   
+       real(kind=4),dimension(:,:),allocatable         ::  posi      !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),allocatable         ::  newposi   !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),allocatable,target  ::  tmpposi   !  Auxiliary coordinates
+       real(kind=4),dimension(3)                       ::  box       !
+       real(kind=4),dimension(3)                       ::  newbox    !
+       integer                                         ::  i,j       !   
 !
 ! Declaration of time control variables
 !
-       real(kind=8)                               ::  tiadj     !  Initial CPU building time
-       real(kind=8)                               ::  tfadj     !  Final CPU building time
-       real(kind=8)                               ::  tipim     !  Initial CPU PIM time
-       real(kind=8)                               ::  tfpim     !  Final CPU PIM time
-       real(kind=8)                               ::  tilife    !  Initial CPU lifetimes time
-       real(kind=8)                               ::  tflife    !  Final CPU lifetimes time
-       integer                                    ::  t1read    !  Initial reading time
-       integer                                    ::  t2read    !  Final reading time
-       integer                                    ::  t1adj     !  Initial building time
-       integer                                    ::  t2adj     !  Final building time
-       integer                                    ::  t1pim     !  Initial PIM analysis time
-       integer                                    ::  t2pim     !  Final PIM analysis time
-       integer                                    ::  t1conf    !  Initial conformational analysis time
-       integer                                    ::  t2conf    !  Final conformational analysis time
-       integer                                    ::  t1life    !  Initial lifetimes time
-       integer                                    ::  t2life    !  Final lifetimes time
+       real(kind=8)                                    ::  tiadj     !  Initial CPU building time
+       real(kind=8)                                    ::  tfadj     !  Final CPU building time
+       real(kind=8)                                    ::  tipim     !  Initial CPU PIM time
+       real(kind=8)                                    ::  tfpim     !  Final CPU PIM time
+       real(kind=8)                                    ::  tilife    !  Initial CPU lifetimes time
+       real(kind=8)                                    ::  tflife    !  Final CPU lifetimes time
+       integer                                         ::  t1read    !  Initial reading time
+       integer                                         ::  t2read    !  Final reading time
+       integer                                         ::  t1adj     !  Initial building time
+       integer                                         ::  t2adj     !  Final building time
+       integer                                         ::  t1pim     !  Initial PIM analysis time
+       integer                                         ::  t2pim     !  Final PIM analysis time
+       integer                                         ::  t1conf    !  Initial conformational analysis time
+       integer                                         ::  t2conf    !  Final conformational analysis time
+       integer                                         ::  t1life    !  Initial lifetimes time
+       integer                                         ::  t2life    !  Final lifetimes time
 !
 ! Initializing variables
 !
@@ -2525,6 +2533,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(newposi(3,matms))
        allocate(posi(3,matms))
 !
+       allocate(tmpposi(3,maxat))
+!
+       coord => tmpposi(:,:)
+!
 ! Reading the first configuration
 !
        do while ( xtcf%STEP .lt. minstep )
@@ -2539,6 +2551,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        box     = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
        actstep = xtcf%STEP
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(xtcf,tmpposi)                                 &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+       do i = 1, maxat
+         tmpposi(:,i) = xtcf%pos(:,i)
+       end do
+!
+!$omp end parallel do 
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life)                                         &
@@ -2625,7 +2647,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            tcpuadj = tcpuadj + tfadj - tiadj
            tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
 !
-! Block-diagonalizing the interaction-corrected adjacency matrix
+! Block-diagonalizing the adjacency matrix of the new-configuration
 !
            call nblockdiag(adj,newmol,newnode,newtag,newagg,newidx,    &
                            newntype,newitype,newsize,newnagg,newiagg,  &
@@ -2646,6 +2668,20 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            tcpulife = tcpulife + tflife - tilife
            tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+!
+! Analyzing aggregates by their connectivity
+!
+           if ( doconf ) then
+             call system_clock(t1conf)
+!     
+             call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
+                              box,buildadjrep)
+!             call isomorphism()
+!
+             call system_clock(t2conf)     
+!
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
+           end if
 !
 ! Printing the population of every aggregate
 ! 
@@ -2676,18 +2712,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
            end if      
 !
-! Analyzing aggregates by their connectivity ! TODO: needs corrected adjacency matrix of aggs
-!
-           if ( doconf ) then
-             call system_clock(t1conf)
-!     
-!             call isomorphism()
-!
-             call system_clock(t2conf)     
-!
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
-           end if
-!
 ! Adding up lifetimes of the aggregates
 !
            call cpu_time(tilife)
@@ -2699,6 +2723,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Keeping track the adjacency matrix information
 !
            box(:) = newbox(:)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(xtcf,tmpposi)                                 &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+           do i = 1, maxat
+             tmpposi(:,i) = xtcf%pos(:,i)
+           end do
+!
+!$omp end parallel do 
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(auxlife)                                      &

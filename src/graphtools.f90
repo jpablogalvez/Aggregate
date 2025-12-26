@@ -1715,7 +1715,7 @@
 !
        use omp_lib
 !
-       use systeminf,  only:  xtcf,rep,iat,iatms,igrps
+       use systeminf,  only:  coord,rep,iat,iatms,igrps
 !
        use thresholds, only:  thr,thrang
        use parameters, only:  zero
@@ -1859,13 +1859,13 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(ii)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(ii)%neiang(jnei)),  &
                                                              box,minang)
 !
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                            end if
@@ -1985,13 +1985,13 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(jj)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(jj)%neiang(jnei)),  &
                                                              box,minang)
 !
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                            end if
@@ -2044,7 +2044,7 @@
 !
        use omp_lib
 !
-       use systeminf,  only:  xtcf,rep,iat,iatms,igrps
+       use systeminf,  only:  coord,rep,iat,iatms,igrps
 !
        use thresholds, only:  thr,thrang
        use parameters, only:  zero
@@ -2188,7 +2188,7 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(ii)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(ii)%neiang(jnei)),  &
                                                              box,minang)
 !
                              adj(iadj+inbody,jadj+jnbody) = .TRUE.
@@ -2197,7 +2197,7 @@
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then ! points towards i
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                              adj(jadj+jnbody,iadj+inbody) = .TRUE.
@@ -2320,7 +2320,7 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(jj)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(jj)%neiang(jnei)),  &
                                                              box,minang)
 !
                              if ( doang ) then
@@ -2331,7 +2331,7 @@
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then ! points towards i
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                              if ( doang ) then
@@ -2388,7 +2388,7 @@
 !
        use omp_lib
 !
-       use systeminf,  only:  xtcf,rep,iat,iatms,igrps
+       use systeminf,  only:  coord,rep,iat,iatms,igrps
 !
        use thresholds, only:  thr,thrang
        use parameters, only:  zero
@@ -2521,13 +2521,13 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(ii)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(ii)%neiang(jnei)),  &
                                                              box,minang)
 !
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                            end if
@@ -2637,13 +2637,13 @@
                              v21(:) = -v21(:)
 !
                              doang = chkangle(v21,dis1,posi(:,nj),     &
-                              xtcf%pos(:,jnnei+rep(jj)%neiang(jnei)),  &
+                                 coord(:,jnnei+rep(jj)%neiang(jnei)),  &
                                                              box,minang)
 !
                            else if ( rep(ii)%neiang(inei) .ne. 0 ) then
 !
                              doang = chkangle(v21,dis1,posi(:,ni),     &
-                              xtcf%pos(:,innei+rep(ii)%neiang(inei)),  &
+                                 coord(:,innei+rep(ii)%neiang(inei)),  &
                                                              box,minang)
 !
                            end if
