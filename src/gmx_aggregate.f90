@@ -1149,8 +1149,8 @@
 !
              i = i + 1
 !
-           case ('--conf-rep','--conformations-rep','--conf-repre',    &
-                 '--conformations-repre')
+           case ('-c','--conf-rep','--conformations-rep',              &
+                 '--conf-repre','--conformations-repre')
              call get_command_argument(i,next,status=io)
              call check_arg(next,io,arg,cmd)
              next = lowercase(next)
@@ -1202,8 +1202,7 @@
                end if
              end if
              i = i + 1
-           case ('-c','-p','-config','-top','--config','--top',        &
-                 '--configuration','--topology','--topol')
+           case ('-p',,'-top','--top','--topology','--topol')
              call get_command_argument(i,conf,status=io)
              call check_arg(conf,io,arg,cmd)
              i = i + 1
@@ -1325,8 +1324,8 @@
                                                          'tion and exit'
        write(*,'(2X,A)') '-f,--file             Input file name'
        write(*,'(2X,A)') '-t,--trajectory       Trajectory file name'
-       write(*,'(2X,A)') '-c,--configuration    Configuration file name'
-       write(*,'(2X,A)') '-p,--populations      Populations file name'
+       write(*,'(2X,A)') '-p,--topology         Topology file name'
+       write(*,'(2X,A)') '-o,--output           Output file basename'
        write(*,'(2X,A)') '-lw,--log-weights     Weights file name'
        write(*,*)
        write(*,'(2X,A)') '-n,--nprint           Printing steps interval'
@@ -1347,7 +1346,7 @@
                                        'ia algorithm [distances|angles]'
        write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
                                   'm [complete|collisions|oscillations]'
-       write(*,'(2X,A)') '--conf-repre          Representation for'//  &
+       write(*,'(2X,A)') '-c,--conf-repre       Representation for'//  &
                       ' the conformational analysis [body|grps|bodydir]'
        write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
