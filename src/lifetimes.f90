@@ -114,8 +114,9 @@
 !
                if ( tmol(ni) .lt. rmol(nj) ) then
 !
-! If first molecule of the target aggregate is lower than the reference molecule to be compared
-! it will never appear in the reference aggregates 
+! If first molecule of the target aggregate is lower than 
+!  the reference molecule to be compared it will never appear
+!  in the reference aggregates 
 !
                  qiagg = jiagg
                  exit 
