@@ -530,7 +530,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
          exit
        end do
 !
@@ -580,7 +580,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
          if ( line(1:1) .eq. '[' ) exit
 !
          ntype = ntype + 1
@@ -670,7 +670,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
          exit
        end do
 !
@@ -731,7 +731,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
 !
          i = i + 1
 !
@@ -792,7 +792,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
          if ( line(1:1) .eq. '[' ) exit
          nbond = nbond + 1
        end do
@@ -838,7 +838,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
 !
          i = i + 1
 !
@@ -878,7 +878,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
          exit
        end do
 !
@@ -924,7 +924,7 @@
          if ( io /= 0 ) exit
          if ( len_trim(line) .eq. 0 ) cycle
          line = adjustl(line)
-         if ( (trim(line(1:1)).ne.';') .or. (trim(line(1:1)).ne.'#') ) cycle
+         if ( (trim(line(1:1)).eq.';') .or. (trim(line(1:1)).eq.'#') ) cycle
 !
          i = i + 1
 !
