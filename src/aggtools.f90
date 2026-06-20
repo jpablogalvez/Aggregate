@@ -2877,7 +2877,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use printings,   only:  print_end
 !
-       use omp_var,     only:  np,chunkscrn
+       use omp_var,     only:  np,chunkscrn,chunklife
 !
        implicit none
 !
@@ -3157,7 +3157,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
              call system_clock(t2conf)     
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   /
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if   
 !
 ! Printing the population of every aggregate
