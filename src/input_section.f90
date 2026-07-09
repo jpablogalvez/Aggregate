@@ -283,7 +283,9 @@
 ! Local variables
 !
        character(len=lenline)                              ::  line    ! 
+       character(len=lenline)                              ::  keyopt  ! 
        character(len=lentag)                               ::  arg     !  
+       integer                                             ::  io      !
        integer                                             ::  posi    !
 !
 ! Reading BODY section options 
@@ -292,33 +294,35 @@
 ! Procesing the keywords line
 !
        do
-         if ( len_trim(line) == 0 ) return
+         if ( len_trim(line) == 0 ) exit
 ! Saving the keyword 
          posi = scan(key,'=') 
          if ( posi .ne. 0 ) then 
            line = key(posi+1:)  
            line = adjustl(line)
 !
-           arg  = key(:posi-1)
-           arg  = lowercase(arg)
+           key  = key(:posi-1)
+           key  = lowercase(key)
          else
-           call errkey('option',blck)
+           call errkey('option',sect)
          end if
 ! Saving the arguments
-         select case (arg)
+         select case (key)
 !       
            case ('name')
-             call chkkeyarg(arg,line,arg)
+             call chkkeyarg(key,line,arg)
              bodytag(mbody) = arg(:lentag)
              bodytag(mbody) = adjustr(bodytag(mbody))
 !
            case default
-             call unkkeysect(arg,blck)
+             call unkkeysect(key,sect)
          end select  
 !
          key = line
 !
        end do
+!
+       call findline(key,'sect',sect)
 !
 ! Reading the options
 !
@@ -625,6 +629,7 @@
        integer                                           ::  naux1    !
        integer                                           ::  naux2    !
        integer                                           ::  posi     !
+       integer                                           ::  i,j      !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------
@@ -703,8 +708,12 @@
                key = key(:posi-1)
                read(key,*) saux
 !
-               thr(iaux1,iaux2) = pi - saux*pi/180.0
-               thr(iaux2,iaux1) = pi - saux*pi/180.0
+               do i = 1, naux1
+                 do j = 1, naux2
+                   thr(iaux1(i),iaux2(j)) = pi - saux*pi/180.0
+                   thr(iaux2(j),iaux1(i)) = pi - saux*pi/180.0
+                 end do
+               end do
 !
                call findline(key,'opt','.VALUES')
 !
