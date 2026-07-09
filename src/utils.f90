@@ -622,6 +622,44 @@
 !
 !======================================================================!
 !
+! FINDARRCV - Find ARRay of Characters Vector 
+!
+! This subroutine returns an array with the locations of the elements 
+!  in the array CVEC of size N with the value given in the CVAL argument
+!
+       subroutine findarrcv(n,cvec,cval,nposi,posi)
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)                        ::  n
+       character(len=*),dimension(n),intent(in)  ::  cvec
+       character(len=*),intent(in)               ::  cval
+       integer,dimension(n)                      ::  posi
+       integer                                   ::  nposi
+!
+! Local variables
+!
+       integer                                   ::  i
+! 
+! Finding how many times appear the string CVAL in the array CVEC
+!
+       posi(:) = 0
+       nposi   = 0
+!
+       do i = 1, n
+         if ( trim(adjustl(cvec(i))) .eq. trim(adjustl(cval)) ) then
+           nposi = nposi + 1
+           posi(nposi) = i
+         end if
+       end do 
+!     
+       return
+       end subroutine findarrcv
+!
+!======================================================================!
+!
        subroutine errfindcvopt(opt,sect)
 !
        implicit none

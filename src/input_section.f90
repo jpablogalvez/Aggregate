@@ -32,6 +32,7 @@
 ! Local variables
 !
        character(len=lentag),dimension(mat)              ::  grptag  !  Names of the groups
+       character(len=lentag),dimension(mat)              ::  grptype !  Names of the groups
        character(len=lenline)                            ::  line    !
        character(len=lenline)                            ::  key     !
        integer                                           ::  msubg   !
@@ -56,8 +57,10 @@
 ! 
          do i = 1, rep(j)%nat
            write(rep(j)%grptag(i),'(I8)') i
+           write(rep(j)%grptype(i),'(I8)') i
            write(rep(j)%bodytag(i),'(I8)') i
            rep(j)%grptag(i)  = 'Atom-'//trim(adjustl(rep(j)%grptag(i)))
+           rep(j)%grptype(i) = 'Site-'//trim(adjustl(rep(j)%grptype(i)))
            rep(j)%bodytag(i) = 'Body-'//trim(adjustl(rep(j)%bodytag(i)))
            rep(j)%body(i)    = i
            rep(j)%grps(i)    = i
@@ -102,15 +105,19 @@
 !
              call findline(line,'blck','**MOLREP')
 !
-             call read_molrep(line,'**MOLREP',rep(imol)%nat,           & 
+             call read_molrep(line,'**MOLREP',rep(imol)%nat,           &
                               rep(imol)%tgrp,rep(imol)%grptag,         &
-                              rep(imol)%nbody,rep(imol)%ngrps,         &
-                              rep(imol)%nsubg,rep(imol)%atms,          &
-                              rep(imol)%mbody,rep(imol)%mgrps,         &
-                              rep(imol)%msubg,rep(imol)%matms)      
+                              rep(imol)%grptype,rep(imol)%nbody,       &
+                              rep(imol)%ngrps,rep(imol)%nsubg,         &
+                              rep(imol)%atms,rep(imol)%mbody,          &
+                              rep(imol)%mgrps,rep(imol)%msubg,         &
+                              rep(imol)%matms)
 !            
              grptag(itag+1:itag+rep(imol)%mgrps) =                     &
                                       rep(imol)%grptag(:rep(imol)%mgrps)
+!            
+             grptype(itag+1:itag+rep(imol)%mgrps) =                    &
+                                      rep(imol)%grptype(:rep(imol)%mgrps)
 !
              msubg = msubg + rep(imol)%msubg
              itag  = itag  + rep(imol)%mgrps
@@ -124,17 +131,7 @@
              call findline(line,'blck','**THRESHOLD')
 !
              call read_threshold(line,'**THRESHOLD',mat,thr,           &
-                                 itag,grptag(:itag))
-!
-           case ('**INTERTHRESH','**INTERTHRESHOLD')
-!~              write(*,*) 
-!~              write(*,*) 'Reading **THRESHOLD block'
-!~              write(*,*) 
-!
-             call findline(line,'blck','**INTERTHRESHOLD')
-!
-             call read_interthreshold(line,'**INTERTHRESHOLD',         &
-                                      mat,thr,itag,grptag(:itag))
+                                 itag,grptype(:itag))
 !
            case ('**ANGLES','**THRANG','**THRANGLE','**THREANGLES')
 !~              write(*,*) 
@@ -144,7 +141,7 @@
              call findline(line,'blck','**ANGLES')
 !
              call read_angles(line,'**ANGLES',mat,thrang,              &
-                              itag,grptag(:itag),msubg)
+                              itag,grptype(:itag),msubg)
 ! 
            case default
              write(*,*)
@@ -167,8 +164,8 @@
 !
 !======================================================================!
 !
-       subroutine read_molrep(key,blck,nat,tgrp,grptag,body,grps,subg, &
-                              atms,mbody,mgrps,msubg,matms)
+       subroutine read_molrep(key,blck,nat,tgrp,grptag,grptype,body,   &
+                              grps,subg,atms,mbody,mgrps,msubg,matms)
 !
        use lengths, only: leninp,lentag,lenline
        use utils
@@ -182,6 +179,7 @@
        character(len=leninp),intent(inout)                 ::  tgrp    !  Groups file title
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptype !  Type of the groups
        integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
@@ -235,8 +233,8 @@
 !~              write(*,*) '  Reading *BODY section'
 !~              write(*,*)
 !
-             call read_body(key,'*BODY',blck,nat,grptag,body,grps,     &
-                            subg,atms,mbody,mgrps,msubg,matms)
+             call read_body(key,'*BODY',blck,nat,grptag,grptype,body,  &
+                            grps,subg,atms,mbody,mgrps,msubg,matms)
 !
            case ('**END')
 !~              write(*,*) 
@@ -253,8 +251,8 @@
 !
 !======================================================================!
 !
-       subroutine read_body(key,sect,blck,nat,grptag,body,grps,subg,   &
-                            atms,mbody,mgrps,msubg,matms)
+       subroutine read_body(key,sect,blck,nat,grptag,grptype,body,     &
+                            grps,subg,atms,mbody,mgrps,msubg,matms)
 !
        use lengths, only: lentag,lenline
        use utils
@@ -268,6 +266,7 @@
        character(len=lenline),intent(inout)                ::  key     !  
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptype !  Type of the groups
        integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
        integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
@@ -299,7 +298,7 @@
 !~              write(*,*) '    Reading .GRP option'
 !~              write(*,*)
 !
-             call read_grps('.GRP',nat,grptag,grps,subg,atms,          &
+             call read_grps('.GRP',nat,grptag,grptype,grps,subg,atms,  &
                             mgrps,msubg,matms)
 !
              call findline(key,'sect',sect)
@@ -311,7 +310,7 @@
 !~              write(*,*) 
 !~              write(*,*) '    Reading .SGRP option'
 !~              write(*,*)
-             call read_grps('.SGRP',nat,grptag,grps,subg,atms,         &
+             call read_grps('.SGRP',nat,grptag,grptype,grps,subg,atms, &
                             mgrps,msubg,matms)
 !
              call findline(key,'sect',sect)
@@ -327,8 +326,8 @@
 !
 !======================================================================!
 !
-       subroutine read_grps(opt,nat,grptag,grps,subg,atms,mgrps,       &
-                            msubg,matms)
+       subroutine read_grps(opt,nat,grptag,grptype,grps,subg,atms,     &
+                            mgrps,msubg,matms)
 !
        use lengths, only: leninp,lentag,lenline
        use utils
@@ -340,6 +339,7 @@
        character(len=*),intent(in)                         ::  opt     !  Option name
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
+       character(len=lentag),dimension(nat),intent(inout)  ::  grptype !  Type of the groups
        integer,dimension(nat),intent(inout)                ::  grps    !  Number of subgroups in each group
        integer,dimension(nat),intent(inout)                ::  subg    !  Number of atoms in each subgroup
        integer,dimension(nat),intent(inout)                ::  atms    !  Atoms identifier
@@ -415,6 +415,11 @@
                grptag(mgrps) = arg(:lentag)
                grptag(mgrps) = adjustr(grptag(mgrps))
 !
+             case ('type')
+               call chkkeyarg(key,line,arg)
+               grptype(mgrps) = arg(:lentag)
+               grptype(mgrps) = adjustr(grptype(mgrps))
+!
              case default
                call unkkeysect(key,opt)
            end select  
@@ -429,7 +434,7 @@
 !
 !======================================================================!
 !
-       subroutine read_threshold(key,blck,nat,thr,ntag,grptag)
+       subroutine read_threshold(key,blck,nat,thr,ntag,grptype)
 !
        use lengths, only: lentag,lenline
        use utils
@@ -438,22 +443,25 @@
 !
 ! Input/output variables
 !
-       character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
-       character(len=lenline),intent(inout)                ::  key     !
-       character(len=*),intent(in)                         ::  blck    !
-       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
-       integer,intent(in)                                  ::  nat     !
-       integer,intent(in)                                  ::  ntag    !
+       character(len=lentag),dimension(ntag),intent(in)  ::  grptype  !
+       character(len=lenline),intent(inout)              ::  key      !
+       character(len=*),intent(in)                       ::  blck     !
+       real(kind=4),dimension(nat,nat),intent(inout)     ::  thr      !
+       integer,intent(in)                                ::  nat      !
+       integer,intent(in)                                ::  ntag     !
 
 !
 ! Local variables
 !
-       character(len=lentag)                            ::  caux1   !
-       character(len=lentag)                            ::  caux2   !
-       real(kind=4)                                     ::  saux    !
-       integer                                          ::  iaux1   !
-       integer                                          ::  iaux2   !
-       integer                                          ::  posi    !
+       character(len=lentag)                             ::  caux1    !
+       character(len=lentag)                             ::  caux2    !
+       real(kind=4)                                      ::  saux     !
+       integer,dimension(nat)                            ::  iaux1    !
+       integer,dimension(nat)                            ::  iaux2    !
+       integer                                           ::  naux1    !
+       integer                                           ::  naux2    !
+       integer                                           ::  posi     !
+       integer                                           ::  i,j      !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------
@@ -489,8 +497,8 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                caux1 = key(:posi-1)
-               iaux1 = findcv(ntag,grptag,caux1)
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
+               call findarrcv(ntag,grptype,caux1,naux1,iaux1)
+               if ( naux1 .eq. 0 ) call errkeychar('option',caux1,     &
                                                               '.VALUES')
 !
                key   = key(posi+1:)   
@@ -501,8 +509,8 @@
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
-               iaux2 = findcv(ntag,grptag,caux2)
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
+               call findarrcv(ntag,grptype,caux2,naux2,iaux2)
+               if ( naux2 .eq. 0 ) call errkeychar('option',caux2,     &
                                                               '.VALUES')
 !
                key   = key(posi+1:)   
@@ -517,8 +525,12 @@
                read(key,*) saux
 !
 !~ write(*,*) 'adding',iaux1,iaux2,saux
-               thr(iaux1,iaux2) = saux
-               thr(iaux2,iaux1) = saux
+               do i = 1, naux1 
+                 do j = 1, naux2
+                   thr(iaux1(i),iaux2(j)) = saux
+                   thr(iaux2(j),iaux1(i)) = saux
+                 end do
+               end do
 !
                call findline(key,'opt','.VALUES')
 !
@@ -544,119 +556,7 @@
 !
 !======================================================================!
 !
-       subroutine read_interthreshold(key,blck,nat,thr,ntag,grptag)
-!
-       use lengths, only: lentag,lenline
-       use utils
-!
-       implicit none
-!
-! Input/output variables
-!
-       character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
-       character(len=lenline),intent(inout)                ::  key     !
-       character(len=*),intent(in)                         ::  blck    !
-       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
-       integer,intent(in)                                  ::  nat     !
-       integer,intent(in)                                  ::  ntag    !
-
-!
-! Local variables
-!
-       character(len=lentag)                               ::  caux1   !
-       character(len=lentag)                               ::  caux2   !
-       real(kind=4)                                        ::  saux    !
-       integer                                             ::  iaux1   !
-       integer                                             ::  iaux2   !
-       integer                                             ::  posi    !
-!
-! Reading THRESHOLD block options 
-! -------------------------------
-!
-       do
-! Changing lowercase letters by uppercase letters 
-         key = uppercase(key)
-! Keeping just the first string
-         posi = index(key,' ')           
-         if ( posi .gt. 0 ) key = key(:posi-1)
-! Reading the different section options       
-         select case (key)
-           case ('.THR')
-!~              write(*,*) 
-!~              write(*,*) 'Reading .THR option'
-!~              write(*,*)
-!
-             read(uniinp,*) saux    ! FLAG: check if a value is introduced
-!
-             thr(:,:) = saux
-!
-             call findline(key,'blck','**INTERTHRESHOLD')
-!
-           case ('.VALUES')
-!~              write(*,*) 
-!~              write(*,*) 'Reading .VALUES option'
-!~              write(*,*)
-!
-             call findline(key,'opt','.VALUES')
-!
-             do
-               posi  = scan(key,' ') 
-               if ( posi .eq. 0 ) call errkey('option','.VALUES')
-!
-               caux1 = key(:posi-1)
-               iaux1 = findcv(ntag,grptag,caux1)  
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
-                                                              '.VALUES')
-!
-               key   = key(posi+1:)   
-               key   = adjustl(key)
-               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                              '.VALUES')
-!
-               posi  = scan(key,' ') 
-!
-               caux2 = key(:posi-1)
-               iaux2 = findcv(ntag,grptag,caux2)  
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
-                                                              '.VALUES')
-!
-               key   = key(posi+1:)   
-               key   = adjustl(key)
-               if ( len_trim(key) .eq. 0 ) call errkey('option',       &
-                                                              '.VALUES')
-!
-               posi  = scan(key,' ') 
-               if ( posi .eq. 0 ) call errkey('option','.VALUES')
-!
-               key = key(:posi-1)
-               read(key,*) saux
-!
-               thr(iaux1,iaux2) = saux
-               thr(iaux2,iaux1) = saux
-!
-               call findline(key,'opt','.VALUES')
-!
-               if ( (uppercase(key(1:1)).eq.'*') .or.                  &
-                                     (uppercase(key(1:1)).eq.'.') ) exit
-             end do
-!
-           case ('**END')
-!~              write(*,*) 
-!~              write(*,*) 'Exiting from **THRESHOLD block'
-!~              write(*,*)
-             return
-!
-           case default
-             call unksect(key,blck)
-         end select  
-       end do
-!
-       return
-       end subroutine read_interthreshold
-!
-!======================================================================!
-!
-       subroutine read_angles(key,blck,nat,thr,ntag,grptag,msubg)
+       subroutine read_angles(key,blck,nat,thr,ntag,grptype,msubg)
 !
        use thresholds,  only:  neiang
        use parameters,  only:  zero,pi
@@ -667,23 +567,25 @@
 !
 ! Input/output variables
 !
-       character(len=lentag),dimension(ntag),intent(in)    ::  grptag  !
-       character(len=lenline),intent(inout)                ::  key     !
-       character(len=*),intent(in)                         ::  blck    !
-       real(kind=4),dimension(nat,nat),intent(inout)       ::  thr     !
-       integer,intent(in)                                  ::  msubg   !
-       integer,intent(in)                                  ::  nat     !
-       integer,intent(in)                                  ::  ntag    !
+       character(len=lentag),dimension(ntag),intent(in)  ::  grptype  !
+       character(len=lenline),intent(inout)              ::  key      !
+       character(len=*),intent(in)                       ::  blck     !
+       real(kind=4),dimension(nat,nat),intent(inout)     ::  thr      !
+       integer,intent(in)                                ::  msubg    !
+       integer,intent(in)                                ::  nat      !
+       integer,intent(in)                                ::  ntag     !
 
 !
 ! Local variables
 !
-       character(len=lentag)                               ::  caux1   !
-       character(len=lentag)                               ::  caux2   !
-       real(kind=4)                                        ::  saux    !
-       integer                                             ::  iaux1   !
-       integer                                             ::  iaux2   !
-       integer                                             ::  posi    !
+       character(len=lentag)                             ::  caux1    !
+       character(len=lentag)                             ::  caux2    !
+       real(kind=4)                                      ::  saux     !
+       integer,dimension(nat)                            ::  iaux1    !
+       integer,dimension(nat)                            ::  iaux2    !
+       integer                                           ::  naux1    !
+       integer                                           ::  naux2    !
+       integer                                           ::  posi     !
 !
 ! Reading THRESHOLD block options 
 ! -------------------------------
@@ -731,8 +633,8 @@
                if ( posi .eq. 0 ) call errkey('option','.VALUES')
 !
                caux1 = key(:posi-1) 
-               iaux1 = findcv(ntag,grptag,caux1)
-               if ( iaux1 .eq. 0 ) call errkeychar('option',caux1,     &
+               call findarrcv(ntag,grptype,caux1,naux1,iaux1)
+               if ( naux1 .eq. 0 ) call errkeychar('option',caux1,     &
                                                               '.VALUES')
 !
                key   = key(posi+1:)   
@@ -745,8 +647,8 @@
                posi  = scan(key,' ') 
 !
                caux2 = key(:posi-1)
-               iaux2 = findcv(ntag,grptag,caux2)
-               if ( iaux2 .eq. 0 ) call errkeychar('option',caux2,     &
+               call findarrcv(ntag,grptype,caux2,naux2,iaux2)
+               if ( naux2 .eq. 0 ) call errkeychar('option',caux2,     &
                                                               '.VALUES')
 !
                key   = key(posi+1:)   
