@@ -400,18 +400,6 @@
          igrps(itype) = igrps(itype-1) + ngrps(itype-1)
        end do
 !
-! Setting up the tag of the bodies as the tag of the first group
-!
-       do i = 1, mtype
-         do j = 1, rep(i)%mbody
-!
-           k = rep(i)%ibody(j) + 1
-!
-           rep(i)%bodytag(j) = rep(i)%grptag(k)
-!
-         end do
-       end do
-!
 ! Building adjacency matrix of the monomer in the canonical order
 !
        if ( conf(len_trim(conf)-3:) .eq. '.gro' ) then  ! TODO: guess adj from atomic radii, etc.

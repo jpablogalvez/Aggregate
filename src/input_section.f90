@@ -106,12 +106,12 @@
              call findline(line,'blck','**MOLREP')
 !
              call read_molrep(line,'**MOLREP',rep(imol)%nat,           &
-                              rep(imol)%tgrp,rep(imol)%grptag,         &
-                              rep(imol)%grptype,rep(imol)%nbody,       &
-                              rep(imol)%ngrps,rep(imol)%nsubg,         &
-                              rep(imol)%atms,rep(imol)%mbody,          &
-                              rep(imol)%mgrps,rep(imol)%msubg,         &
-                              rep(imol)%matms)
+                              rep(imol)%tgrp,rep(imol)%bodytag,        &
+                              rep(imol)%grptag,rep(imol)%grptype,      &
+                              rep(imol)%nbody,rep(imol)%ngrps,         &
+                              rep(imol)%nsubg,rep(imol)%atms,          &
+                              rep(imol)%mbody,rep(imol)%mgrps,         &
+                              rep(imol)%msubg,rep(imol)%matms)
 !            
              grptag(itag+1:itag+rep(imol)%mgrps) =                     &
                                       rep(imol)%grptag(:rep(imol)%mgrps)
@@ -164,8 +164,9 @@
 !
 !======================================================================!
 !
-       subroutine read_molrep(key,blck,nat,tgrp,grptag,grptype,body,   &
-                              grps,subg,atms,mbody,mgrps,msubg,matms)
+       subroutine read_molrep(key,blck,nat,tgrp,bodytag,grptag,        &
+                              grptype,body,grps,subg,atms,mbody,       &
+                              mgrps,msubg,matms)
 !
        use lengths, only: leninp,lentag,lenline
        use utils
@@ -178,6 +179,7 @@
        character(len=lenline),intent(inout)                ::  key     !
        character(len=leninp),intent(inout)                 ::  tgrp    !  Groups file title
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
+       character(len=lentag),dimension(nat),intent(inout)  ::  bodytag !  Names of the bodies
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
        character(len=lentag),dimension(nat),intent(inout)  ::  grptype !  Type of the groups
        integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
@@ -233,8 +235,9 @@
 !~              write(*,*) '  Reading *BODY section'
 !~              write(*,*)
 !
-             call read_body(key,'*BODY',blck,nat,grptag,grptype,body,  &
-                            grps,subg,atms,mbody,mgrps,msubg,matms)
+             call read_body(key,'*BODY',blck,nat,bodytag,grptag,       &
+                            grptype,body,grps,subg,atms,mbody,         &
+                            mgrps,msubg,matms)
 !
            case ('**END')
 !~              write(*,*) 
@@ -251,8 +254,8 @@
 !
 !======================================================================!
 !
-       subroutine read_body(key,sect,blck,nat,grptag,grptype,body,     &
-                            grps,subg,atms,mbody,mgrps,msubg,matms)
+       subroutine read_body(key,sect,blck,nat,bodytag,grptag,grptype,  &
+                            body,grps,subg,atms,mbody,mgrps,msubg,matms)
 !
        use lengths, only: lentag,lenline
        use utils
@@ -265,6 +268,7 @@
        character(len=*),intent(in)                         ::  blck    !  Block name
        character(len=lenline),intent(inout)                ::  key     !  
        integer,intent(in)                                  ::  nat     !  Number of atoms in the molecule
+       character(len=lentag),dimension(nat),intent(inout)  ::  bodytag !  Names of the bodies
        character(len=lentag),dimension(nat),intent(inout)  ::  grptag  !  Names of the groups
        character(len=lentag),dimension(nat),intent(inout)  ::  grptype !  Type of the groups
        integer,dimension(nat),intent(inout)                ::  body    !  Number of groups in each body
@@ -278,10 +282,45 @@
 !
 ! Local variables
 !
+       character(len=lenline)                              ::  line    ! 
+       character(len=lentag)                               ::  arg     !  
        integer                                             ::  posi    !
 !
 ! Reading BODY section options 
 ! ----------------------------
+!
+! Procesing the keywords line
+!
+       do
+         if ( len_trim(line) == 0 ) return
+! Saving the keyword 
+         posi = scan(key,'=') 
+         if ( posi .ne. 0 ) then 
+           line = key(posi+1:)  
+           line = adjustl(line)
+!
+           arg  = key(:posi-1)
+           arg  = lowercase(arg)
+         else
+           call errkey('option',blck)
+         end if
+! Saving the arguments
+         select case (arg)
+!       
+           case ('name')
+             call chkkeyarg(arg,line,arg)
+             bodytag(mbody) = arg(:lentag)
+             bodytag(mbody) = adjustr(bodytag(mbody))
+!
+           case default
+             call unkkeysect(arg,blck)
+         end select  
+!
+         key = line
+!
+       end do
+!
+! Reading the options
 !
        do
 ! Changing lowercase letters by uppercase letters 
