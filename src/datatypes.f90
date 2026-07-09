@@ -49,6 +49,7 @@
          integer                                         ::  msubg    !  Number of subgroups
          integer                                         ::  matms    !  Number of interacting atoms in the monomer
          integer                                         ::  nat      !  Number of atoms in the monomer
+         integer                                         ::  maxat    !  Maximum number of interaction sites
          integer                                         ::  iat      !  Starting atom
        end type repre
 !

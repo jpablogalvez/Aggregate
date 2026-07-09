@@ -105,7 +105,7 @@
 !
              call findline(line,'blck','**MOLREP')
 !
-             call read_molrep(line,'**MOLREP',rep(imol)%nat,           &
+             call read_molrep(line,'**MOLREP',rep(imol)%maxat,         &
                               rep(imol)%tgrp,rep(imol)%bodytag,        &
                               rep(imol)%grptag,rep(imol)%grptype,      &
                               rep(imol)%nbody,rep(imol)%ngrps,         &
@@ -117,7 +117,7 @@
                                       rep(imol)%grptag(:rep(imol)%mgrps)
 !            
              grptype(itag+1:itag+rep(imol)%mgrps) =                    &
-                                      rep(imol)%grptype(:rep(imol)%mgrps)
+                                     rep(imol)%grptype(:rep(imol)%mgrps)
 !
              msubg = msubg + rep(imol)%msubg
              itag  = itag  + rep(imol)%mgrps

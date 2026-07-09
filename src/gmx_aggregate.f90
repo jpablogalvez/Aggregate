@@ -249,14 +249,16 @@
 !
        do itype = 1, mtype
 !
+         rep(itype)%nat = sys(itype)%nat
+         rep(itype)%iat = 0
+!
+         rep(itype)%maxat = sys(itype)%nat*2
+!
          mnode = mnode + nnode(itype)
-         mat   = mat   + sys(itype)%nat
+         mat   = mat   + rep(itype)%maxat
 !
          nat(itype) = sys(itype)%nat*nnode(itype)
          maxat      = maxat + sys(itype)%nat*nnode(itype)
-!
-         rep(itype)%nat = sys(itype)%nat
-         rep(itype)%iat = 0
 !
        end do
 !
@@ -290,28 +292,28 @@
 !
        allocate(thr(mat,mat),thrang(mat,mat))
 !
-       allocate(neiang(rep(1)%nat))
+       allocate(neiang(rep(1)%maxat))
 !
        do i = 1, mtype
 !
-         allocate(rep(i)%nbody(sys(i)%nat))
-         allocate(rep(i)%ngrps(sys(i)%nat))
-         allocate(rep(i)%nsubg(sys(i)%nat))
+         allocate(rep(i)%nbody(rep(i)%maxat))
+         allocate(rep(i)%ngrps(rep(i)%maxat))
+         allocate(rep(i)%nsubg(rep(i)%maxat))
 !
-         allocate(rep(i)%ibody(sys(i)%nat))
-         allocate(rep(i)%igrps(sys(i)%nat))
-         allocate(rep(i)%isubg(sys(i)%nat))
+         allocate(rep(i)%ibody(rep(i)%maxat))
+         allocate(rep(i)%igrps(rep(i)%maxat))
+         allocate(rep(i)%isubg(rep(i)%maxat))
 !
-         allocate(rep(i)%body(sys(i)%nat))
-         allocate(rep(i)%grps(sys(i)%nat))
-         allocate(rep(i)%subg(sys(i)%nat))
+         allocate(rep(i)%body(rep(i)%maxat))
+         allocate(rep(i)%grps(rep(i)%maxat))
+         allocate(rep(i)%subg(rep(i)%maxat))
 !
-         allocate(rep(i)%grptag(sys(i)%nat))
-         allocate(rep(i)%grptype(sys(i)%nat))
-         allocate(rep(i)%bodytag(sys(i)%nat))
-         allocate(rep(i)%atms(sys(i)%nat))
+         allocate(rep(i)%grptag(rep(i)%maxat))
+         allocate(rep(i)%grptype(rep(i)%maxat))
+         allocate(rep(i)%bodytag(rep(i)%maxat))
+         allocate(rep(i)%atms(rep(i)%maxat))
 !
-         allocate(rep(i)%neiang(sys(i)%nat))
+         allocate(rep(i)%neiang(rep(i)%maxat))
 !
        end do
 !
@@ -491,28 +493,28 @@
            write(*,'(2X,A,I4)') 'Molecular system:',itype
            write(*,'(2X,A)')    '.....................'
            write(*,*)
-           write(*,'(A,20I4)') 'mbody  ',rep(itype)%mbody
-           write(*,'(A,20I4)') 'nbody  ',rep(itype)%nbody
-           write(*,'(A,20I4)') 'ibody  ',rep(itype)%ibody
-           write(*,'(A,20I4)') 'body   ',rep(itype)%body
+           write(*,'(A,25I4)') 'mbody  ',rep(itype)%mbody
+           write(*,'(A,25I4)') 'nbody  ',rep(itype)%nbody
+           write(*,'(A,25I4)') 'ibody  ',rep(itype)%ibody
+           write(*,'(A,25I4)') 'body   ',rep(itype)%body
            write(*,*)
-           write(*,'(A,20I4)') 'mgrps  ',rep(itype)%mgrps
-           write(*,'(A,20I4)') 'ngrps  ',rep(itype)%ngrps
-           write(*,'(A,20I4)') 'igrps  ',rep(itype)%igrps
-           write(*,'(A,20I4)') 'grps   ',rep(itype)%grps
+           write(*,'(A,25I4)') 'mgrps  ',rep(itype)%mgrps
+           write(*,'(A,25I4)') 'ngrps  ',rep(itype)%ngrps
+           write(*,'(A,25I4)') 'igrps  ',rep(itype)%igrps
+           write(*,'(A,25I4)') 'grps   ',rep(itype)%grps
            write(*,*)
-           write(*,'(A,20I4)') 'msubg  ',rep(itype)%msubg
-           write(*,'(A,20I4)') 'nsubg  ',rep(itype)%nsubg
-           write(*,'(A,20I4)') 'isubg  ',rep(itype)%isubg
-           write(*,'(A,20I4)') 'subg   ',rep(itype)%subg
+           write(*,'(A,25I4)') 'msubg  ',rep(itype)%msubg
+           write(*,'(A,25I4)') 'nsubg  ',rep(itype)%nsubg
+           write(*,'(A,25I4)') 'isubg  ',rep(itype)%isubg
+           write(*,'(A,25I4)') 'subg   ',rep(itype)%subg
            write(*,*)
-           write(*,'(A,20I4)') 'matms  ',rep(itype)%matms
-           write(*,'(A,20I4)') 'atms   ',rep(itype)%atms
+           write(*,'(A,25I4)') 'matms  ',rep(itype)%matms
+           write(*,'(A,25I4)') 'atms   ',rep(itype)%atms
            write(*,*)
-           write(*,'(A,20I4)') 'neiang ',rep(itype)%neiang
+           write(*,'(A,25I4)') 'neiang ',rep(itype)%neiang
            write(*,*)
-           write(*,'(A,20I4)') 'nat    ',rep(itype)%nat
-           write(*,'(A,20I4)') 'iat    ',rep(itype)%iat
+           write(*,'(A,25I4)') 'nat    ',rep(itype)%nat
+           write(*,'(A,25I4)') 'iat    ',rep(itype)%iat
            write(*,*)
          end do
 !
