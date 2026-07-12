@@ -2295,7 +2295,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! 
            call system_clock(t1read)
 !         
-           call nprintpop(xtcf%STEP,box,nagg,magg,nsolv,uniout)
+           call nprintpop(xtcf%STEP,box,nagg,imol,mnode,agg,itype,    &
+                          magg,nsolv,uniout)
 !
 !           if ( debug ) then
 !             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
@@ -2685,7 +2686,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! 
            call system_clock(t1read)
 !         
-           call nprintpop(actstep,box,nagg,magg,nsolv,uniout)
+           call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
+                          magg,nsolv,uniout)
 !
 !           if ( debug ) then
 !             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
@@ -3164,7 +3166,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! 
            call system_clock(t1read)
 !         
-           call nprintpop(actstep,box,nagg,magg,nsolv,uniout)
+           call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
+                          magg,nsolv,uniout)
 !
 !           if ( debug ) then
 !             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
@@ -3268,10 +3271,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! This subroutine 
 !
-       subroutine nprintpop(step,box,nagg,magg,nsolv,iuni)
+       subroutine nprintpop(step,box,nagg,imol,mnode,agg,itype,magg,  &
+                            nsolv,iuni)
 !
-       use systeminf,   only:  nnode
-       use properties,  only:  nmax,num,pop,frac,conc,cin,volu
+       use systeminf,   only:  nnode,mtype,nmon
+       use properties,  only:  nmax,num,pop,frac,conc,cin,volu,       &
+                                xsize,psize,pqsize,homxsize,mixxsize, &
+                                hompsize,mixpsize,                    &
+                                sumagg,summol,sumqmol,hompop,homconc, &
+                                homnum,mixpop,mixconc,mixnum,mixapop, &
+                                mixaconc,mixanum
 !
        use parameters,  only:  Na
 !
@@ -3281,6 +3290,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        real(kind=4),dimension(3),intent(in)  ::  box    !  Simulation box dimensions
        integer,dimension(nmax),intent(in)    ::  nagg   !
+       integer,dimension(nmax),intent(in)    ::  imol   !
+       integer,intent(in)                    ::  mnode  !
+       integer,dimension(mnode),intent(in)   ::  agg    !
+       integer,dimension(mnode),intent(in)   ::  itype  !
        integer,intent(in)                    ::  magg   !
        integer,intent(in)                    ::  nsolv  !
        integer,intent(in)                    ::  step   !
@@ -3288,7 +3301,18 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Local variables
 !
+       integer,dimension(mtype)              ::  comp   !
+       integer,dimension(mtype,mnode)        ::  ihom   !
+       integer,dimension(mnode)              ::  imix   !
        integer                               ::  i      !  Index 
+       integer                               ::  j      !  Index
+       integer                               ::  k      !  Index
+       integer                               ::  nsp    !  Number of species in aggregate
+       integer                               ::  qhom   !  Homogeneous aggregate species
+       integer                               ::  isize  !  Aggregate size
+!
+       ihom(:,:) = 0
+       imix(:)   = 0
 !
 ! Accumulating properties
 !
@@ -3297,8 +3321,77 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          pop(i)  = pop(i)  + real(nagg(i))/magg*100
          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
          conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-!~          prob(i) = prob(i) + real(i*nagg(i))/nnode*100  ! TODO: compute probabilities
        end do                    
+!
+! Accumulating denominators and size distributions
+!
+       sumagg = sumagg + dble(magg)
+       summol = summol + dble(sum(nnode(:)))
+       sumqmol(:) = sumqmol(:) + dble(nnode(:))
+!
+       do i = 1, nmax-1
+         if ( nagg(i) .eq. 0 ) cycle
+         isize = sum(nmon(:,i))
+         xsize(isize) = xsize(isize) + dble(nagg(i))
+         psize(isize) = psize(isize) + dble(isize*nagg(i))
+         nsp  = 0
+         qhom = 0
+         do j = 1, mtype
+           pqsize(j,isize) = pqsize(j,isize) + dble(nmon(j,i)*nagg(i))
+           if ( nmon(j,i) .gt. 0 ) then
+             nsp  = nsp + 1
+             qhom = j
+           end if
+         end do
+         if ( nsp .eq. 1 ) then
+           ihom(qhom,isize) = ihom(qhom,isize) + nagg(i)
+           homxsize(qhom,isize) = homxsize(qhom,isize) +             &
+                                   dble(nagg(i))
+           hompsize(qhom,isize) = hompsize(qhom,isize) +             &
+                                   dble(isize*nagg(i))
+         else
+           imix(isize) = imix(isize) + nagg(i)
+           mixxsize(isize) = mixxsize(isize) + dble(nagg(i))
+           mixpsize(isize) = mixpsize(isize) + dble(isize*nagg(i))
+           mixapop(i)  = mixapop(i)  + dble(nagg(i))/dble(magg)*100.0d0
+           mixaconc(i) = mixaconc(i) + dble(nagg(i))/dble(box(1)**3)
+           mixanum(i)  = mixanum(i)  + dble(nagg(i))
+         end if
+       end do
+!
+       if ( nagg(nmax) .gt. 0 ) then
+         k = imol(nmax)
+         do i = 1, nagg(nmax)
+           isize = agg(k+1)
+           comp(:) = 0
+           do j = k+1, k+isize
+             comp(itype(j)) = comp(itype(j)) + 1
+           end do
+!
+           xsize(isize) = xsize(isize) + 1.0d0
+           psize(isize) = psize(isize) + dble(isize)
+           nsp  = 0
+           qhom = 0
+           do j = 1, mtype
+             pqsize(j,isize) = pqsize(j,isize) + dble(comp(j))
+             if ( comp(j) .gt. 0 ) then
+               nsp  = nsp + 1
+               qhom = j
+             end if
+           end do
+           if ( nsp .eq. 1 ) then
+             ihom(qhom,isize) = ihom(qhom,isize) + 1
+             homxsize(qhom,isize) = homxsize(qhom,isize) + 1.0d0
+             hompsize(qhom,isize) = hompsize(qhom,isize) + dble(isize)
+           else
+             imix(isize) = imix(isize) + 1
+             mixxsize(isize) = mixxsize(isize) + 1.0d0
+             mixpsize(isize) = mixpsize(isize) + dble(isize)
+           end if
+!
+           k = k + isize
+         end do
+       end if
 !
        cin(:) = cin(:) + real(nnode(:))/box(1)**3
 !
@@ -3314,6 +3407,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !~        write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
 !~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
        write(iuni+5,'(I10,100(X,I7))') step,nagg(:)  
+!
+       do i = 1, mtype
+         hompop(i,:)  = hompop(i,:)  + dble(ihom(i,:))/dble(magg)*100.0d0
+         homconc(i,:) = homconc(i,:) + dble(ihom(i,:))/dble(box(1)**3)
+         homnum(i,:)  = homnum(i,:)  + dble(ihom(i,:))
+       end do
+!
+       mixpop(:)  = mixpop(:)  + dble(imix(:))/dble(magg)*100.0d0
+       mixconc(:) = mixconc(:) + dble(imix(:))/dble(box(1)**3)
+       mixnum(:)  = mixnum(:)  + dble(imix(:))
 !
        return
        end subroutine nprintpop

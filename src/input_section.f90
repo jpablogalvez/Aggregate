@@ -283,9 +283,7 @@
 ! Local variables
 !
        character(len=lenline)                              ::  line    ! 
-       character(len=lenline)                              ::  keyopt  ! 
        character(len=lentag)                               ::  arg     !  
-       integer                                             ::  io      !
        integer                                             ::  posi    !
 !
 ! Reading BODY section options 

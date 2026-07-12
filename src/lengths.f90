@@ -6,7 +6,7 @@
 !
 ! Declaration of the length of different variables
 !
-       integer,parameter  ::  lenlab  = 5    !
+       integer,parameter  ::  lenlab  = 10   !
        integer,parameter  ::  lentag  = 10   !
        integer,parameter  ::  lenschm = 32   !
        integer,parameter  ::  lencmd  = 512  !

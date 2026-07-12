@@ -11,7 +11,12 @@
                                  ngrpsmon,nbodymon,igrpsmon,ibodymon,  &
                                  tmpgrps,tmpbody
        use properties,    only:  msize,nmax,pim,num,pop,frac,conc,     &
-                                 prob,cin,volu
+                                 prob,cin,volu,xagg,pagg,pqagg,xsize,  &
+                                 psize,pqsize,homxsize,mixxsize,       &
+                                 hompsize,mixpsize,                    &
+                                 hompop,homconc,homnum,mixpop,mixconc, &
+                                 mixnum,mixapop,mixaconc,mixanum,      &
+                                 sumagg,summol,sumqmol
        use filenames,     only:  inp,conf,traj,outp,weight
        use thresholds,    only:  neidis,thr,thrang,neiang
 !
@@ -20,7 +25,7 @@
                                  tpim,tconf,tcpuadj,tcpubfs,tcpusort,  &
                                  tcpuscrn,tcpulife,tcpupim,tcpuconf
 !
-       use parameters,    only:  pi,Na
+       use parameters,    only:  pi,Na,zero
        use lengths,       only:  lenschm
        use units,         only:  uniinp,uniout
        use omp_var,       only:  np,chunkadj,chunkscrn,chunklife
@@ -90,6 +95,7 @@
        integer                                ::  io       !  Status
        integer                                ::  itype    !  Index
        integer                                ::  i,j,k    !  Indexes
+       character(len=16)                      ::  aux      !  Auxiliary string
 !
 ! Printing header
 !
@@ -178,6 +184,7 @@
                                    trim(scrn),lfin)
        call line_log(6,2,'Screening calculation',lin,':',doscrn,lfin)
        call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
+       call line_log(6,2,'Conformational analysis',lin,':',doconf,lfin)
        write(*,*)
 !
        call line_sp(6,2,'Screening distance',lin,':','F5.2',           &
@@ -627,6 +634,18 @@
        allocate(pop(nmax),conc(nmax),frac(nmax))
        allocate(prob(nmax),num(nmax))
 !
+       allocate(xagg(nmax),pagg(nmax),pqagg(mtype,nmax))
+       allocate(xsize(mnode),psize(mnode),pqsize(mtype,mnode))
+       allocate(homxsize(mtype,mnode),mixxsize(mnode))
+       allocate(hompsize(mtype,mnode),mixpsize(mnode))
+!
+       allocate(hompop(mtype,mnode),homconc(mtype,mnode))
+       allocate(homnum(mtype,mnode))
+!
+       allocate(mixpop(mnode),mixconc(mnode),mixnum(mnode))
+       allocate(mixapop(nmax),mixaconc(nmax),mixanum(nmax))
+       allocate(sumqmol(mtype))
+!
        allocate(adjgrps(nmax),adjbody(nmax))
        allocate(tmpgrps(nmax),tmpbody(nmax))
 !
@@ -719,6 +738,34 @@
        open(unit=uniout+4,file=trim(outp)//'_prob.dat',action='write')
        open(unit=uniout+5,file=trim(outp)//'_num.dat',action='write')
 !
+       xagg(:)     = 0.0d0
+       pagg(:)     = 0.0d0
+       pqagg(:,:)  = 0.0d0
+!
+       xsize(:)    = 0.0d0
+       psize(:)    = 0.0d0
+       pqsize(:,:) = 0.0d0
+       homxsize(:,:) = 0.0d0
+       mixxsize(:) = 0.0d0
+       hompsize(:,:) = 0.0d0
+       mixpsize(:) = 0.0d0
+!
+       hompop(:,:) = 0.0d0
+       homconc(:,:) = 0.0d0
+       homnum(:,:) = 0.0d0
+!
+       mixpop(:)   = 0.0d0
+       mixconc(:)  = 0.0d0
+       mixnum(:)   = 0.0d0
+!
+       mixapop(:)  = 0.0d0
+       mixaconc(:) = 0.0d0
+       mixanum(:)  = 0.0d0
+!
+       sumagg      = 0.0d0
+       summol      = 0.0d0
+       sumqmol(:)  = 0.0d0
+!
 ! Computing the populations of the aggregates
 !
        write(*,'(1X,A)') 'Computing the populations of the aggrega'//  &
@@ -767,9 +814,54 @@
 !
        conc(:) = conc(:)/nsteps/(Na*1.0E-24)
 !
+       hompop(:,:)  = hompop(:,:)/nsteps
+       homconc(:,:) = homconc(:,:)/nsteps/(Na*1.0E-24)
+       homnum(:,:)  = homnum(:,:)/nsteps
+!
+       mixpop(:)    = mixpop(:)/nsteps
+       mixconc(:)   = mixconc(:)/nsteps/(Na*1.0E-24)
+       mixnum(:)    = mixnum(:)/nsteps
+!
+       mixapop(:)   = mixapop(:)/nsteps
+       mixaconc(:)  = mixaconc(:)/nsteps/(Na*1.0E-24)
+       mixanum(:)   = mixanum(:)/nsteps
+!
        cin(:) = cin(:)/nsteps/(Na*1.0E-24)
 !
        volu = volu/nsteps
+!
+! Computing aggregate distributions
+!
+       if ( sumagg .gt. zero ) then
+         xagg(:)  = dble(num(:))/sumagg
+         xsize(:) = xsize(:)/sumagg
+         homxsize(:,:) = homxsize(:,:)/sumagg
+         mixxsize(:) = mixxsize(:)/sumagg
+       end if
+!
+       if ( summol .gt. zero ) then
+         do i = 1, nmax-1
+           pagg(i) = dble(mmon(i)*num(i))/summol
+         end do
+         pagg(nmax) = 1.0d0 - sum(pagg(:nmax-1))
+         if ( pagg(nmax) .le. zero ) pagg(nmax) = zero
+!
+         psize(:) = psize(:)/summol
+         hompsize(:,:) = hompsize(:,:)/summol
+         mixpsize(:) = mixpsize(:)/summol
+       end if
+!
+       do i = 1, mtype
+         if ( sumqmol(i) .gt. zero ) then
+           do j = 1, nmax-1
+             pqagg(i,j) = dble(nmon(i,j)*num(j))/sumqmol(i)
+           end do
+           pqagg(i,nmax) = 1.0d0 - sum(pqagg(i,:nmax-1))
+           if ( pqagg(i,nmax) .le. zero ) pqagg(i,nmax) = zero
+!
+           pqsize(i,:) = pqsize(i,:)/sumqmol(i)
+         end if
+       end do
 !
 ! Averaging lifetimes
 !
@@ -778,6 +870,217 @@
            if ( nlife(i) .ne. 0 ) avlife(i) = avlife(i)/nlife(i)
          end do
        end if
+!
+! Printing output files with the results
+!
+       open(unit=uniout,file=trim(outp)//'_avpop.dat',action='write')
+       do i = 1, nmax
+         write(uniout,'(I6,1X,F12.8)') i,pop(i)
+       end do
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avconc.dat',action='write')
+       do i = 1, nmax
+         write(uniout,'(I6,1X,D20.10)') i,conc(i)
+       end do
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avnum.dat',action='write')
+       do i = 1, nmax
+         write(uniout,'(I6,1X,I12)') i,num(i)
+       end do
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avxalpha.dat',action='write')
+       do i = 1, nmax
+         write(uniout,'(I6,1X,D20.10)') i,xagg(i)
+       end do
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avPalpha.dat',action='write')
+       do i = 1, nmax
+         write(uniout,'(I6,1X,D20.10)') i,pagg(i)
+       end do
+       close(uniout)
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avPqalpha_'//trim(aux)//'.dat',       &
+              action='write')
+         do i = 1, nmax
+           write(uniout,'(I6,1X,D20.10)') i,pqagg(j,i)
+         end do
+         close(uniout)
+       end do
+!
+       open(unit=uniout,file=trim(outp)//'_avxsize.dat',action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,'(I6,1X,D20.10)') i,xsize(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,'(I6,1X,D20.10)') msize+1,                      &
+                                             sum(xsize(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avxsize_hom_size_'//trim(aux)//'.dat',&
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,'(I6,1X,D20.10)') i,homxsize(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,'(I6,1X,D20.10)') msize+1,                    &
+                                           sum(homxsize(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       open(unit=uniout,file=trim(outp)//'_avxsize_mix_size.dat',     &
+            action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,'(I6,1X,D20.10)') i,mixxsize(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,'(I6,1X,D20.10)') msize+1,                      &
+                                          sum(mixxsize(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avPsize.dat',action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,'(I6,1X,D20.10)') i,psize(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,'(I6,1X,D20.10)') msize+1,                      &
+                                             sum(psize(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avPsize_hom_size_'//trim(aux)//'.dat',&
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,'(I6,1X,D20.10)') i,hompsize(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,'(I6,1X,D20.10)') msize+1,                    &
+                                           sum(hompsize(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       open(unit=uniout,file=trim(outp)//'_avPsize_mix_size.dat',     &
+            action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,'(I6,1X,D20.10)') i,mixpsize(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,'(I6,1X,D20.10)') msize+1,                      &
+                                          sum(mixpsize(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avPqsize_'//trim(aux)//'.dat',        &
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,'(I6,1X,D20.10)') i,pqsize(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,'(I6,1X,D20.10)') msize+1,                    &
+                                            sum(pqsize(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avpop_hom_size_'//trim(aux)//'.dat',  &
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,*) i,hompop(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,*) msize+1,sum(hompop(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avconc_hom_size_'//trim(aux)//'.dat', &
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,*) i,homconc(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,*) msize+1,sum(homconc(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       do j = 1, mtype
+         write(aux,'(I0)') j
+         open(unit=uniout,                                             &
+              file=trim(outp)//'_avnum_hom_size_'//trim(aux)//'.dat',  &
+              action='write')
+         do i = 1, min(msize,mnode)
+           write(uniout,*) i,homnum(j,i)
+         end do
+         if ( msize .lt. mnode ) then
+           write(uniout,*) msize+1,sum(homnum(j,msize+1:mnode))
+         end if
+         close(uniout)
+       end do
+!
+       open(unit=uniout,file=trim(outp)//'_avmix_detail.dat',         &
+            action='write')
+       do k = 1, nmax-1
+         if ( count(nmon(:,k) .gt. 0) .le. 1 ) cycle
+         write(uniout,*) sum(nmon(:,k)),k,(nmon(j,k),j=1,mtype),      &
+                         mixapop(k),mixaconc(k),mixanum(k)
+       end do
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avpop_mix_size.dat',        &
+            action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,*) i,mixpop(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,*) msize+1,sum(mixpop(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avconc_mix_size.dat',       &
+            action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,*) i,mixconc(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,*) msize+1,sum(mixconc(msize+1:mnode))
+       end if
+       close(uniout)
+!
+       open(unit=uniout,file=trim(outp)//'_avnum_mix_size.dat',        &
+            action='write')
+       do i = 1, min(msize,mnode)
+         write(uniout,*) i,mixnum(i)
+       end do
+       if ( msize .lt. mnode ) then
+         write(uniout,*) msize+1,sum(mixnum(msize+1:mnode))
+       end if
+       close(uniout)
 !
 ! Printing summary of the results
 !
@@ -840,6 +1143,12 @@
        deallocate(neiang)
 !
        deallocate(pop,conc,frac,prob,num)
+       deallocate(xagg,pagg,pqagg)
+       deallocate(xsize,psize,pqsize,homxsize,mixxsize)
+       deallocate(hompsize,mixpsize,sumqmol)
+       deallocate(hompop,homconc,homnum)
+       deallocate(mixpop,mixconc,mixnum)
+       deallocate(mixapop,mixaconc,mixanum)
        deallocate(pim)
 !
        deallocate(adjgrps,adjbody)
