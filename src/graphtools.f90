@@ -2683,6 +2683,449 @@
 !
 !======================================================================!
 !
+! NBUILDADJGRPSMONBUB - Add intramolecular edges in the groups
+!                        representation using distance restraints
+!
+       subroutine nbuildadjgrpsmonbub(mnode,node,madj,adj,matms,posi,  &
+                                      box,mtype,nnode,inode,igrpsmon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  igrpsmon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjgrpsmon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,igrpsmon,.FALSE.)
+!
+       return
+       end subroutine nbuildadjgrpsmonbub
+!
+!======================================================================!
+!
+! NBUILDADJGRPSMONANG - Add intramolecular edges in the groups
+!                        representation using distance and angle restraints
+!
+       subroutine nbuildadjgrpsmonang(mnode,node,madj,adj,matms,posi,  &
+                                      box,mtype,nnode,inode,igrpsmon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  igrpsmon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjgrpsmon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,igrpsmon,.TRUE.)
+!
+       return
+       end subroutine nbuildadjgrpsmonang
+!
+!======================================================================!
+!
+! NBUILDADJBODYMONBUB - Add intramolecular edges in the body
+!                        representation using distance restraints
+!
+       subroutine nbuildadjbodymonbub(mnode,node,madj,adj,matms,posi,  &
+                                      box,mtype,nnode,inode,ibodymon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  ibodymon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjbodymon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,ibodymon,.FALSE.,.FALSE.)
+!
+       return
+       end subroutine nbuildadjbodymonbub
+!
+!======================================================================!
+!
+! NBUILDADJBODYMONANG - Add intramolecular edges in the body
+!                        representation using distance and angle restraints
+!
+       subroutine nbuildadjbodymonang(mnode,node,madj,adj,matms,posi,  &
+                                      box,mtype,nnode,inode,ibodymon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  ibodymon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjbodymon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,ibodymon,.TRUE.,.FALSE.)
+!
+       return
+       end subroutine nbuildadjbodymonang
+!
+!======================================================================!
+!
+! NBUILDADJBODYMONBUBDIR - Add directed intramolecular edges in the body
+!                           representation using distance restraints
+!
+       subroutine nbuildadjbodymonbubdir(mnode,node,madj,adj,matms,    &
+                                         posi,box,mtype,nnode,inode,   &
+                                         ibodymon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  ibodymon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjbodymon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,ibodymon,.FALSE.,.TRUE.)
+!
+       return
+       end subroutine nbuildadjbodymonbubdir
+!
+!======================================================================!
+!
+! NBUILDADJBODYMONANGDIR - Add directed intramolecular edges in the body
+!                           representation using distance and angle restraints
+!
+       subroutine nbuildadjbodymonangdir(mnode,node,madj,adj,matms,    &
+                                         posi,box,mtype,nnode,inode,   &
+                                         ibodymon)
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  ibodymon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+!
+       call nbuildadjbodymon(mnode,node,madj,adj,matms,posi,box,mtype, &
+                             nnode,inode,ibodymon,.TRUE.,.TRUE.)
+!
+       return
+       end subroutine nbuildadjbodymonangdir
+!
+!======================================================================!
+!
+! NBUILDADJGRPSMON - Add intramolecular contacts between groups
+!
+       subroutine nbuildadjgrpsmon(mnode,node,madj,adj,matms,posi,box, &
+                                   mtype,nnode,inode,igrpsmon,doangle)
+!
+       use systeminf,  only:  coord,rep,iat,iatms,igrps
+       use thresholds, only:  thr,thrang
+       use parameters, only:  zero
+       use geometry,   only:  sminimgvec
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  igrpsmon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+       logical,intent(in)                          ::  doangle
+!
+       real(kind=4),dimension(3)                   ::  v21
+       real(kind=4)                                ::  dis1
+       real(kind=4)                                ::  mindis
+       real(kind=4)                                ::  minang
+       integer                                     ::  iinode
+       integer                                     ::  innode
+       integer                                     ::  innei
+       integer                                     ::  ingrps
+       integer                                     ::  jngrps
+       integer                                     ::  iigrps
+       integer                                     ::  jigrps
+       integer                                     ::  inei
+       integer                                     ::  jnei
+       integer                                     ::  iiatms
+       integer                                     ::  iiat
+       integer                                     ::  ithr
+       integer                                     ::  iiadj
+       integer                                     ::  iadj
+       integer                                     ::  i,j
+       integer                                     ::  ii
+       integer                                     ::  ni,nj
+       logical                                     ::  keep
+!
+       do ii = 1, mtype
+!
+         iiatms = iatms(ii)
+         iiat   = iat(ii)
+         ithr   = igrps(ii)
+         iiadj  = igrpsmon(ii)
+!
+         do iinode = 1, nnode(ii)
+!
+           innode = iiatms + (node(inode(ii)+iinode)-1)*rep(ii)%msubg
+           innei  = iiat   + (node(inode(ii)+iinode)-1)*rep(ii)%nat
+           iadj   = iiadj  + (iinode-1)*rep(ii)%mgrps
+!
+           do ingrps = 1, rep(ii)%mgrps-1
+             i = innode + rep(ii)%igrps(ingrps)
+!
+             do iigrps = 1, rep(ii)%ngrps(ingrps)
+!
+               ni   = i + iigrps
+               inei = rep(ii)%igrps(ingrps) + iigrps
+!
+               do jngrps = ingrps+1, rep(ii)%mgrps
+!
+                 mindis = thr(ithr+jngrps,ithr+ingrps)
+                 if ( mindis .le. zero ) cycle
+!
+                 minang = thrang(ithr+jngrps,ithr+ingrps)
+                 j = innode + rep(ii)%igrps(jngrps)
+!
+                 do jigrps = 1, rep(ii)%ngrps(jngrps)
+!
+                   nj   = j + jigrps
+                   jnei = rep(ii)%igrps(jngrps) + jigrps
+!
+                   v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
+                   dis1 = dot_product(v21,v21)
+!
+                   if ( dis1 .le. mindis ) then
+!
+                     keep = .TRUE.
+!
+                     if ( doangle .and. (minang .gt. zero) ) then
+                       if ( rep(ii)%neiang(jnei) .ne. 0 ) then
+                         v21(:) = -v21(:)
+                         keep = chkangle(v21,dis1,posi(:,nj),          &
+                              coord(:,innei+rep(ii)%neiang(jnei)),box, &
+                              minang)
+                       else if ( rep(ii)%neiang(inei) .ne. 0 ) then
+                         keep = chkangle(v21,dis1,posi(:,ni),          &
+                              coord(:,innei+rep(ii)%neiang(inei)),box, &
+                              minang)
+                       end if
+                     end if
+!
+                     if ( keep ) then
+                       adj(iadj+ingrps,iadj+jngrps) = .TRUE.
+                       adj(iadj+jngrps,iadj+ingrps) = .TRUE.
+                       exit
+                     end if
+!
+                   end if
+!
+                 end do
+!
+               end do
+             end do
+           end do
+!
+         end do
+       end do
+!
+       return
+       end subroutine nbuildadjgrpsmon
+!
+!======================================================================!
+!
+! NBUILDADJBODYMON - Add intramolecular contacts between bodies
+!
+       subroutine nbuildadjbodymon(mnode,node,madj,adj,matms,posi,box, &
+                                   mtype,nnode,inode,ibodymon,         &
+                                   doangle,dodir)
+!
+       use systeminf,  only:  coord,rep,iat,iatms,igrps
+       use thresholds, only:  thr,thrang
+       use parameters, only:  zero
+       use geometry,   only:  sminimgvec
+!
+       implicit none
+!
+       logical,dimension(madj,madj),intent(inout)  ::  adj
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi
+       real(kind=4),dimension(3),intent(in)        ::  box
+       integer,dimension(mnode),intent(in)         ::  node
+       integer,dimension(mtype),intent(in)         ::  nnode
+       integer,dimension(mtype),intent(in)         ::  inode
+       integer,dimension(mtype),intent(in)         ::  ibodymon
+       integer,intent(in)                          ::  madj
+       integer,intent(in)                          ::  mnode
+       integer,intent(in)                          ::  matms
+       integer,intent(in)                          ::  mtype
+       logical,intent(in)                          ::  doangle
+       logical,intent(in)                          ::  dodir
+!
+       real(kind=4),dimension(3)                   ::  v21
+       real(kind=4)                                ::  dis1
+       real(kind=4)                                ::  mindis
+       real(kind=4)                                ::  minang
+       integer                                     ::  iinode
+       integer                                     ::  innode
+       integer                                     ::  innei
+       integer                                     ::  inbody
+       integer                                     ::  jnbody
+       integer                                     ::  iibody
+       integer                                     ::  jibody
+       integer                                     ::  ingrps
+       integer                                     ::  jngrps
+       integer                                     ::  iigrps
+       integer                                     ::  jigrps
+       integer                                     ::  inei
+       integer                                     ::  jnei
+       integer                                     ::  iiatms
+       integer                                     ::  iiat
+       integer                                     ::  ithr
+       integer                                     ::  ibody
+       integer                                     ::  iadj
+       integer                                     ::  i,j
+       integer                                     ::  ii
+       integer                                     ::  ni,nj
+       logical                                     ::  keep
+!
+       do ii = 1, mtype
+!
+         iiatms = iatms(ii)
+         iiat   = iat(ii)
+         ithr   = igrps(ii)
+         ibody  = ibodymon(ii)
+!
+         do iinode = 1, nnode(ii)
+!
+           innode = iiatms + (node(inode(ii)+iinode)-1)*rep(ii)%msubg
+           innei  = iiat   + (node(inode(ii)+iinode)-1)*rep(ii)%nat
+           iadj   = ibody  + (iinode-1)*rep(ii)%mbody
+!
+           do inbody = 1, rep(ii)%mbody-1
+             do iibody = 1, rep(ii)%nbody(inbody)
+!
+               ingrps = rep(ii)%ibody(inbody) + iibody
+               i = innode + rep(ii)%igrps(ingrps)
+!
+               do iigrps = 1, rep(ii)%ngrps(ingrps)
+!
+                 ni   = i + iigrps
+                 inei = rep(ii)%igrps(ingrps) + iigrps
+!
+                 do jnbody = inbody+1, rep(ii)%mbody
+                   do jibody = 1, rep(ii)%nbody(jnbody)
+!
+                     jngrps = rep(ii)%ibody(jnbody) + jibody
+                     mindis = thr(ithr+jngrps,ithr+ingrps)
+                     if ( mindis .le. zero ) cycle
+!
+                     minang = thrang(ithr+jngrps,ithr+ingrps)
+                     j = innode + rep(ii)%igrps(jngrps)
+!
+                     do jigrps = 1, rep(ii)%ngrps(jngrps)
+!
+                       nj   = j + jigrps
+                       jnei = rep(ii)%igrps(jngrps) + jigrps
+!
+                       v21  = sminimgvec(posi(:,ni),posi(:,nj),box)
+                       dis1 = dot_product(v21,v21)
+!
+                       if ( dis1 .le. mindis ) then
+!
+                         keep = .TRUE.
+!
+                         if ( doangle .and. (minang .gt. zero) ) then
+                           if ( rep(ii)%neiang(jnei) .ne. 0 ) then
+                             v21(:) = -v21(:)
+                             keep = chkangle(v21,dis1,posi(:,nj),      &
+                                  coord(:,innei+rep(ii)%neiang(jnei)), &
+                                  box,minang)
+                           else if ( rep(ii)%neiang(inei) .ne. 0 ) then
+                             keep = chkangle(v21,dis1,posi(:,ni),      &
+                                  coord(:,innei+rep(ii)%neiang(inei)), &
+                                  box,minang)
+                           end if
+                         end if
+!
+                         if ( keep ) then
+                           if ( dodir ) then
+                             if ( rep(ii)%neiang(jnei) .ne. 0 ) then
+                               adj(iadj+inbody,iadj+jnbody) = .TRUE.
+                             else if ( rep(ii)%neiang(inei) .ne. 0 ) then
+                               adj(iadj+jnbody,iadj+inbody) = .TRUE.
+                             else
+                               adj(iadj+inbody,iadj+jnbody) = .TRUE.
+                               adj(iadj+jnbody,iadj+inbody) = .TRUE.
+                             end if
+                           else
+                             adj(iadj+inbody,iadj+jnbody) = .TRUE.
+                             adj(iadj+jnbody,iadj+inbody) = .TRUE.
+                           end if
+                           exit
+                         end if
+!
+                       end if
+!
+                     end do
+!
+                   end do
+                 end do
+!
+               end do
+             end do
+           end do
+!
+         end do
+       end do
+!
+       return
+       end subroutine nbuildadjbodymon
+!
+!======================================================================!
+!
 ! FINDCOMPUNDIR - FIND COMPonents UNDIRected
 !
 ! This subroutine finds the connected components in an undirected

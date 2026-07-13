@@ -16,8 +16,8 @@
 !  This subroutine defines the execution architecture of the algorithm
 !
        subroutine driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,   &
-                         avlife,nlife,dopim,doconf,schm,scrn,cconf,    &
-                         doscrn,dolife,debug)
+                         avlife,nlife,dopim,doconf,domon,schm,scrn,    &
+                         cconf,doscrn,dolife,debug)
 !
        use systeminf,   only:  mnode,rep,xtcf,mtype,nnode,natms
        use properties,  only:  nmax,msize,cin
@@ -28,7 +28,11 @@
                                nbuildadjmolbub,nbuildadjmolang,        &
                                nbuildadjgrpsbub,nbuildadjgrpsang,      &
                                nbuildadjbodybub,nbuildadjbodyang,      &
-                               nbuildadjbodybubdir,nbuildadjbodyangdir
+                               nbuildadjbodybubdir,nbuildadjbodyangdir,&
+                               nbuildadjgrpsmonbub,nbuildadjgrpsmonang,&
+                               nbuildadjbodymonbub,nbuildadjbodymonang,&
+                               nbuildadjbodymonbubdir,                 &
+                               nbuildadjbodymonangdir
        use screening,   only:  scrnint,scrnosc,scrncol
 !
        implicit none
@@ -58,6 +62,7 @@
        logical,intent(in)                          ::  dolife   !  Lifetimes calculation flag
        logical,intent(in)                          ::  dopim    !  PIM calculation flag
        logical,intent(in)                          ::  doconf   !  Conformational analysis flag
+       logical,intent(in)                          ::  domon    !  Monomer intramolecular edges flag
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -118,7 +123,7 @@
        end subroutine nsubadjrep
 ! 
        subroutine nsubprint(nmax,nagg,imol,mnode,node,matms,posi,      &
-                            box,buildadjrep)
+                            box,buildadjrep,buildadjmon,domon)
 !
 ! Input/output variables
 !
@@ -130,10 +135,12 @@
        integer,intent(in)                          ::  nmax    !
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
+       logical,intent(in)                          ::  domon   !
 !
 ! External functions
 !
        external                                    ::  buildadjrep
+       external                                    ::  buildadjmon
 !
        end subroutine nsubprint
 ! 
@@ -151,6 +158,7 @@
        procedure(subadj),pointer      ::  subbuildadj     => null()
        procedure(nsubadj),pointer     ::  subnbuildadj    => null()
        procedure(nsubadjrep),pointer  ::  subnbuildadjrep => null()
+       procedure(nsubadjrep),pointer  ::  subnbuildadjmon => null()
        procedure(nsubprint),pointer   ::  subnprintadjrep => null()
        procedure(subscrn),pointer     ::  subscrnint      => null()
 !
@@ -242,22 +250,28 @@
            subnprintadjrep => printadjbody
            if ( trim(schm) .eq. 'distances' ) then
              subnbuildadjrep => nbuildadjbodybub
+             subnbuildadjmon => nbuildadjbodymonbub
            else if ( trim(schm) .eq. 'angles' ) then
              subnbuildadjrep => nbuildadjbodyang
+             subnbuildadjmon => nbuildadjbodymonang
            end if
          else if ( trim(cconf) .eq. 'grps' ) then
            subnprintadjrep => printadjgrps
            if ( trim(schm) .eq. 'distances' ) then
              subnbuildadjrep => nbuildadjgrpsbub
+             subnbuildadjmon => nbuildadjgrpsmonbub
            else if ( trim(schm) .eq. 'angles' ) then
              subnbuildadjrep => nbuildadjgrpsang
+             subnbuildadjmon => nbuildadjgrpsmonang
            end if
          else if ( trim(cconf) .eq. 'bodydir' ) then
            subnprintadjrep => printadjbody
            if ( trim(schm) .eq. 'distances' ) then
              subnbuildadjrep => nbuildadjbodybubdir
+             subnbuildadjmon => nbuildadjbodymonbubdir
            else if ( trim(schm) .eq. 'angles' ) then
              subnbuildadjrep => nbuildadjbodyangdir
+             subnbuildadjmon => nbuildadjbodymonangdir
            end if
          end if
 !
@@ -265,15 +279,16 @@
            case ('original')
 !
              call naggdist(neidis,nsteps,nprint,minstep,maxstep,       &
-                           nsolv,dopim,doconf,subnbuildadj,            &
-                           subnbuildadjrep,subnprintadjrep,debug)
+                           nsolv,dopim,doconf,domon,subnbuildadj,      &
+                           subnbuildadjrep,subnbuildadjmon,            &
+                           subnprintadjrep,debug)
 !
            case ('life')
 !
              call nagglife(neidis,nsteps,nprint,minstep,maxstep,       &
-                           nsolv,avlife,nlife,dopim,doconf,            &
+                           nsolv,avlife,nlife,dopim,doconf,domon,      &
                            subnbuildadj,subnbuildadjrep,               &
-                           subnprintadjrep,debug)
+                           subnbuildadjmon,subnprintadjrep,debug)
 !
            case ('scrn')
 !
@@ -2132,8 +2147,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  is obtained from the number of blocks of each size.
 !
        subroutine naggdist(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,buildadjmol,buildadjrep,       &
-                           printadjrep,debug)
+                           dopim,doconf,domon,buildadjmol,             &
+                           buildadjrep,buildadjmon,printadjrep,debug)
 !
        use systeminf,   only:  xtcf,mnode,matms,maxat,coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
@@ -2160,6 +2175,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        logical,intent(in)                          ::  dopim    !  PIM calculation flag
        logical,intent(in)                          ::  doconf   !  Conformational analysis flag
+       logical,intent(in)                          ::  domon    !  Monomer intramolecular edges flag
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -2170,6 +2186,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        external                                    ::  buildadjmol
        external                                    ::  buildadjrep
+       external                                    ::  buildadjmon
        external                                    ::  printadjrep
 !
 ! Aggregates information in the molecule-based representation
@@ -2284,7 +2301,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              call system_clock(t1conf)
 !     
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
-                              box,buildadjrep)
+                              box,buildadjrep,buildadjmon,domon)
 !
              call system_clock(t2conf)     
 !
@@ -2364,8 +2381,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  are present in the former and the previous configurations.
 !
        subroutine nagglife(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           avlife,nlife,dopim,doconf,buildadjmol,      &
-                           buildadjrep,printadjrep,debug)
+                           avlife,nlife,dopim,doconf,domon,            &
+                           buildadjmol,buildadjrep,buildadjmon,        &
+                           printadjrep,debug)
 !
        use omp_lib
 !
@@ -2406,6 +2424,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        logical,intent(in)                              ::  dopim     !  PIM calculation flag
        logical,intent(in)                              ::  doconf    !  Conformational analysis flag
+       logical,intent(in)                              ::  domon     !  Monomer intramolecular edges flag
        logical,intent(in)                              ::  debug     !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -2416,7 +2435,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        external                                        ::  buildadjmol  
        external                                        ::  buildadjrep  
-       external                                        ::  printdadjrep  
+       external                                        ::  buildadjmon
+       external                                        ::  printadjrep
 !
 ! Aggregates information in the molecule-based representation
 !
@@ -2675,7 +2695,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              call system_clock(t1conf)
 !     
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
-                              box,buildadjrep)
+                              box,buildadjrep,buildadjmon,domon)
 !
              call system_clock(t2conf)     
 !
@@ -3427,14 +3447,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !                 in the n-BODY simplified representation
 !
        subroutine printadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
-                               box,buildadjbody)
+                               box,buildadjbody,buildadjmon,domon)
 !
        use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,ibodymon, &
                                adjbody,tmpbody
        use properties,  only:  num
 !
-       use filenames,   only:  outp
-       use lengths,     only:  lenout
        use units,       only:  uniadj
 !
        implicit none
@@ -3449,13 +3467,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,intent(in)                          ::  nmax    !
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
+       logical,intent(in)                          ::  domon   !
 !
 ! External functions
 !
        external                                    ::  buildadjbody
+       external                                    ::  buildadjmon
 !
 ! Local variables
 !
+       integer                                     ::  firstagg !  Indexes
        integer                                     ::  iagg    !  Indexes
        integer                                     ::  madj    !  Indexes
        integer                                     ::  i,j     !  Indexes
@@ -3464,7 +3485,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Printing adj matrix of the aggregates in the N-body simplified representation
 ! -----------------------------------------------------------------------------
 !
-       do iagg = mtype+1, nmax-1
+       firstagg = mtype + 1
+       if ( domon ) firstagg = 1
+!
+       do iagg = firstagg, nmax-1
          if ( nagg(iagg) .eq. 0 ) cycle
 !
          madj = mbodymon(iagg)
@@ -3486,6 +3510,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          do i = 1, nagg(iagg)
 !
            tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
+!
+           if ( domon ) then
+             call buildadjmon(mmon(iagg),node(j+1:j+mmon(iagg)),madj,  &
+                              tmpbody(iagg)%adj,matms,posi,box,mtype,  &
+                              nmon(:,iagg),imon(:,iagg),ibodymon(:,iagg))
+           end if
 !
            call buildadjbody(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
                              tmpbody(iagg)%adj,matms,posi,box,mtype,   &
@@ -3512,14 +3542,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !                 in the GRouPS representation
 !
        subroutine printadjgrps(nmax,nagg,imol,mnode,node,matms,posi,   &
-                               box,buildadjgrps)
+                               box,buildadjgrps,buildadjmon,domon)
 !
        use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,igrpsmon, &
                                adjgrps,tmpgrps
        use properties,  only:  num
 !
-       use filenames,   only:  outp
-       use lengths,     only:  lenout
        use units,       only:  uniadj
 !
        implicit none
@@ -3534,13 +3562,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,intent(in)                          ::  nmax    !
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
+       logical,intent(in)                          ::  domon   !
 !
 ! External functions
 !
        external                                    ::  buildadjgrps
+       external                                    ::  buildadjmon
 !
 ! Local variables
 !
+       integer                                     ::  firstagg !  Indexes
        integer                                     ::  iagg    !  Indexes
        integer                                     ::  madj    !  Indexes
        integer                                     ::  i,j     !  Indexes
@@ -3549,7 +3580,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Printing adj matrix of the aggregates in the groups representation
 ! ------------------------------------------------------------------
 !
-       do iagg = mtype+1, nmax-1
+       firstagg = mtype + 1
+       if ( domon ) firstagg = 1
+!
+       do iagg = firstagg, nmax-1
          if ( nagg(iagg) .eq. 0 ) cycle
 !
          madj = mgrpsmon(iagg)
@@ -3571,6 +3605,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          do i = 1, nagg(iagg)
 !
            tmpgrps(iagg)%adj(:,:) = adjgrps(iagg)%adj(:,:)
+!
+           if ( domon ) then
+             call buildadjmon(mmon(iagg),node(j+1:j+mmon(iagg)),madj,  &
+                              tmpgrps(iagg)%adj,matms,posi,box,mtype,  &
+                              nmon(:,iagg),imon(:,iagg),igrpsmon(:,iagg))
+           end if
 !
            call buildadjgrps(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
                              tmpgrps(iagg)%adj,matms,posi,box,mtype,   &

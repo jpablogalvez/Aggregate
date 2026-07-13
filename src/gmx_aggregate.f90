@@ -79,6 +79,7 @@
        logical                                ::  doscrn   !  Screening calculation flag
        logical                                ::  dolife   !  Lifetimes calculation flag
        logical                                ::  doconf   !  Conformational analysis flag
+       logical                                ::  domon    !  Monomer intramolecular edges flag
        logical                                ::  dopim    !  PIM calculation flag
        logical                                ::  seed     !  Random seed flag
        logical                                ::  debug    !  Debug mode
@@ -137,8 +138,8 @@
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    &
                          msize,neidis,schm,scrn,cconf,dopim,doconf,    &
-                         dolife,doscrn,seed,np,chunkadj,chunkscrn,     &
-                         chunklife,weight,nsolv,debug)
+                         domon,dolife,doscrn,seed,np,chunkadj,         &
+                         chunkscrn,chunklife,weight,nsolv,debug)
 !
 !
 !
@@ -185,6 +186,8 @@
        call line_log(6,2,'Screening calculation',lin,':',doscrn,lfin)
        call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
        call line_log(6,2,'Conformational analysis',lin,':',doconf,lfin)
+       call line_log(6,2,'Add intramolecular interactions',lin,':',    &
+                                                             domon,lfin)
        write(*,*)
 !
        call line_sp(6,2,'Screening distance',lin,':','F5.2',           &
@@ -684,7 +687,7 @@
 !
 ! Generating templates for the adjacency matrices of the aggregates
 !
-       call templateadj()
+       call templateadj(domon)
 !
        if ( debug .and. doconf ) then
 !
@@ -779,8 +782,8 @@
        tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        call driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,avlife,  &
-                   nlife,dopim,doconf,schm,scrn,cconf,doscrn,dolife,   &
-                   debug)
+                   nlife,dopim,doconf,domon,schm,scrn,cconf,doscrn,    &
+                   dolife,debug)
 !
        call system_clock(t1read)
 !
@@ -1209,9 +1212,9 @@
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,scrn,cconf,   &
-                               dopim,doconf,dolife,doscrn,seed,np,     &
-                               chunkadj,chunkscrn,chunklife,weight,    &
-                               nsolv,debug)
+                               dopim,doconf,domon,dolife,doscrn,seed,  &
+                               np,chunkadj,chunkscrn,chunklife,        &
+                               weight,nsolv,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
@@ -1243,6 +1246,7 @@
        logical,intent(out)                       ::  seed       !  Random seed flag
        logical,intent(out)                       ::  dopim      !  PIM calculation flag
        logical,intent(out)                       ::  doconf     !  Conformational analysis flag
+       logical,intent(out)                       ::  domon      !  Monomer intramolecular edges flag
        logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
        logical,intent(out)                       ::  doscrn     !  Screening calculation flag
        logical,intent(out)                       ::  debug      !  Debug mode
@@ -1287,6 +1291,7 @@
        cconf = 'body'
 !
        doconf  = .FALSE.
+       domon   = .FALSE.
        dopim   = .FALSE.
 !
        seed    = .FALSE.
@@ -1559,6 +1564,11 @@
              doconf = .TRUE.
            case ('-noconf','--noconf','--no-conf')
              doconf = .FALSE.
+           case ('-monomer','--monomer','--do-monomer')
+             domon  = .TRUE.
+             doconf = .TRUE.
+           case ('-nomonomer','--nomonomer','--no-monomer')
+             domon = .FALSE.
            case ('-life','-lifetime','-lifetimes','--lifetime',        &
                                                           '--lifetimes')
              dolife = .TRUE.
@@ -1653,6 +1663,8 @@
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
        write(*,'(2X,A)') '-[no]conf             Perform conformati'//  &
                                                          'onal analysis'
+       write(*,'(2X,A)') '-[no]monomer          Add intramolecular'//  &
+                                      ' edges to conformational matrices'
        write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
                                                      'nteraction matrix'
        write(*,*)
@@ -1723,7 +1735,7 @@
 !
 ! This subroutine
 !
-       subroutine templateadj()
+       subroutine templateadj(domon)
 !
        use systeminf,   only:  mtype,nmon,rep,adjgrps,adjbody,         &
                                mgrpsmon,mbodymon,igrpsmon,ibodymon,    &
@@ -1735,20 +1747,28 @@
 !
        implicit none
 !
+! Input variables
+!
+       logical,intent(in)    ::  domon     !  Monomer intramolecular edges flag
+!
 ! Local variables
 !
-       character(len=lenout)  ::  aux     !  Auxiliary string
-       integer                ::  iagg    !  Indexes
-       integer                ::  iitype  !  Indexes
-       integer                ::  iimon   !  Indexes
-       integer                ::  iigrps  !  Indexes
-       integer                ::  iibody  !  Indexes
-       integer                ::  k,kk    !  Indexes
+       character(len=lenout)  ::  aux      !  Auxiliary string
+       integer                ::  firstagg ! First aggregate identifier
+       integer                ::  iagg     !  Indexes
+       integer                ::  iitype   !  Indexes
+       integer                ::  iimon    !  Indexes
+       integer                ::  iigrps   !  Indexes
+       integer                ::  iibody   !  Indexes
+       integer                ::  k,kk     !  Indexes
 !
 ! Generating templates for the adjacency matrices of the aggregates
 ! -----------------------------------------------------------------
 !
-       do iagg = mtype+1, nmax-1
+       firstagg = mtype + 1
+       if ( domon ) firstagg = 1
+!
+       do iagg = firstagg, nmax-1
 !
          adjgrps(iagg)%n = mgrpsmon(iagg)
          adjbody(iagg)%n = mbodymon(iagg)
