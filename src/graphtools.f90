@@ -2924,6 +2924,8 @@
 !
                do jngrps = ingrps+1, rep(ii)%mgrps
 !
+                 if ( adj(iadj+ingrps,iadj+jngrps) ) cycle
+!
                  mindis = thr(ithr+jngrps,ithr+ingrps)
                  if ( mindis .le. zero ) cycle
 !
@@ -3056,6 +3058,9 @@
                  inei = rep(ii)%igrps(ingrps) + iigrps
 !
                  do jnbody = inbody+1, rep(ii)%mbody
+!
+                   if ( adj(iadj+inbody,iadj+jnbody) ) cycle
+!
                    do jibody = 1, rep(ii)%nbody(jnbody)
 !
                      jngrps = rep(ii)%ibody(jnbody) + jibody
