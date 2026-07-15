@@ -38,7 +38,7 @@
        implicit none
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                     ::  neidis   !  Screening distance
 !
 ! Lifetimes calculation variables
@@ -47,7 +47,7 @@
        integer,dimension(nmax),intent(out)         ::  nlife    !
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                          ::  nprint   !  Populations printing interval
        integer,intent(in)                          ::  minstep  !  First step for analysis
        integer,intent(in)                          ::  maxstep  !  Last step for analysis
@@ -67,7 +67,7 @@
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                          ::  nsolv    !
 !
 ! Local variables
@@ -85,13 +85,13 @@
        real(kind=4),dimension(3,natms),intent(in)  ::  posi    !  Atomic coordinates
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box
        real(kind=4),intent(in)                     ::  neidis  !
-       integer,dimension(nat),intent(in)           ::  ngrps   !  
-       integer,dimension(nat),intent(in)           ::  igrps   ! 
+       integer,dimension(nat),intent(in)           ::  ngrps   !
+       integer,dimension(nat),intent(in)           ::  igrps   !
        integer,intent(in)                          ::  msubg   !
        integer,intent(in)                          ::  mgrps   !  Number of subgroups
        integer,intent(in)                          ::  nnode   !  Number of residues
-       integer,intent(in)                          ::  natms   ! 
-       integer,intent(in)                          ::  nat     ! 
+       integer,intent(in)                          ::  natms   !
+       integer,intent(in)                          ::  nat     !
 !
        end subroutine subadj
 !
@@ -122,14 +122,14 @@
        integer,intent(in)                          ::  matms     !
 !
        end subroutine nsubadjrep
-! 
+!
        subroutine nsubprint(nmax,nagg,imol,mnode,node,matms,posi,      &
                             box,buildadjrep,buildadjmon,domon)
 !
 ! Input/output variables
 !
        integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
-       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(nmax),intent(in)          ::  imol    !
        integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
        real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
@@ -144,7 +144,7 @@
        external                                    ::  buildadjmon
 !
        end subroutine nsubprint
-! 
+!
        subroutine subscrn(nnode,oldadj,adj,newadj)
 !
        logical,dimension(nnode,nnode),intent(inout)  ::  adj     !  Adjacency matrix of the current snapshot
@@ -165,11 +165,11 @@
 !
 ! Selection of the aggregation algorithm ! FIXME: count reading time in this section
 ! --------------------------------------
-! 
+!
        ch = 'original'
-       if ( doscrn ) ch = 'scrn'   
-       if ( dolife ) ch = 'life'   
-       if ( doscrn .and. dolife ) ch = 'scrnlife' 
+       if ( doscrn ) ch = 'scrn'
+       if ( dolife ) ch = 'life'
+       if ( doscrn .and. dolife ) ch = 'scrnlife'
 !
        if ( trim(scrn) .eq. 'complete' ) then
          subscrnint => scrnint
@@ -188,7 +188,7 @@
 !!!           subbuildadj => buildadjmolbub
 !!!         else if ( trim(schm) .eq. 'angles' ) then
 !!!           subbuildadj => buildadjmolang
-!!!         end if  
+!!!         end if
 !!!!
 !!!         select case (trim(ch))
 !!!           case ('original')
@@ -204,7 +204,7 @@
 !!!!
 !!!             call agglife(xtcf,rep(1)%nat,nnode(1),natms(1),neidis,    &
 !!!                          msize,nsteps,rep(1)%nbody,rep(1)%ngrps,      &
-!!!                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      & 
+!!!                          rep(1)%nsubg,rep(1)%ibody,rep(1)%igrps,      &
 !!!                          rep(1)%isubg,rep(1)%body,rep(1)%grps,        &
 !!!                          rep(1)%subg,rep(1)%atms,rep(1)%mbody,        &
 !!!                          rep(1)%mgrps,rep(1)%msubg,rep(1)%matms,      &
@@ -225,7 +225,7 @@
 !!!           case ('scrnlife')
 !!!!
 !!!             call aggscrnlife(xtcf,rep(1)%nat,nnode(1),natms(1),       &
-!!!                              neidis,msize,nsteps,rep(1)%nbody,        & 
+!!!                              neidis,msize,nsteps,rep(1)%nbody,        &
 !!!                              rep(1)%ngrps,rep(1)%nsubg,rep(1)%ibody,  &
 !!!                              rep(1)%igrps,rep(1)%isubg,rep(1)%body,   &
 !!!                              rep(1)%grps,rep(1)%subg,rep(1)%atms,     &
@@ -234,7 +234,7 @@
 !!!                              nsolv,avlife,nlife,dopim,cin(1),         &
 !!!                              subbuildadj,subscrnint,debug)
 !!!!
-!!!         end select 
+!!!         end select
 !!!!
 !!!! N-components systems algorithm
 !!!! ..............................
@@ -294,15 +294,16 @@
            case ('scrn')
 !
              call naggscrn(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,subnbuildadj,subscrnint,       &
-                           docoord,debug)
+                           dopim,doconf,domon,subnbuildadj,            &
+                           subnbuildadjrep,subnbuildadjmon,            &
+                           subscrnint,scrn,cconf,docoord,debug)
 !
            case ('scrnlife')
 !
 stop 'Screening+lifetimes algorithm for N-components systems not yet implemented!'
 !             call naggscrnlife()
 !
-         end select     
+         end select
 !
 !!!       end if
 !
@@ -311,12 +312,143 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !======================================================================!
 !
+! NTRACKAGG - N-components TRACK AGGregates information
+!
+! This subroutine maps each target aggregate to the matching reference
+!  aggregate with the same stoichiometric identifier and molecule list.
+!
+       subroutine ntrackagg(mtype,nnode,nmax,nmon,rmidx,rmol,tmidx,   &
+                            tmol,rnagg,riagg,rnmol,rimol,tnagg,       &
+                            tiagg,timol,imap)
+!
+       use omp_var,  only:  np,chunklife
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)    ::  nmon   !
+       integer,dimension(nnode),intent(in)   ::  rmol   !  Reference molecule identifiers
+       integer,dimension(nnode),intent(in)   ::  tmol   !  Target molecule identifiers
+       integer,dimension(nnode),intent(out)  ::  imap   !  Target-to-reference aggregate map
+       integer,dimension(nmax),intent(in)    ::  rnagg  !
+       integer,dimension(nmax),intent(in)    ::  riagg  !
+       integer,dimension(nmax),intent(in)    ::  tnagg  !
+       integer,dimension(nmax),intent(in)    ::  tiagg  !
+       integer,dimension(nmax),intent(in)    ::  rnmol  !
+       integer,dimension(nmax),intent(in)    ::  rimol  !
+       integer,dimension(nmax),intent(in)    ::  timol  !
+       integer,intent(in)                    ::  mtype  !
+       integer,intent(in)                    ::  nnode  !  Number of molecules
+       integer,intent(in)                    ::  nmax   !  Number of possible aggregates
+       integer,intent(in)                    ::  rmidx  !  Reference maximum aggregate identifier
+       integer,intent(in)                    ::  tmidx  !  Target maximum aggregate identifier
+!
+! Local variables
+!
+       integer                               ::  iiagg  !
+       integer                               ::  jiagg  !
+       integer                               ::  qiagg  !
+       integer                               ::  iimol  !
+       integer                               ::  jimol  !
+       integer                               ::  qimol  !
+       integer                               ::  msize  !
+       integer                               ::  isize  !
+       integer                               ::  jsize  !
+       integer                               ::  ni,nj  !
+!
+! Initializing the target-to-reference map
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(imap)                                         &
+!$omp             private(ni)                                          &
+!$omp             schedule(dynamic,chunklife)
+!
+       do ni = 1, nnode
+         imap(ni) = 0
+       end do
+!
+!$omp end parallel do
+!
+       msize = tmidx
+       if ( rmidx .lt. tmidx ) msize = rmidx
+       if ( nmax .lt. msize ) msize = nmax
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(imap,tnagg,tmol,rmol,tiagg,riagg,rnagg,       &
+!$omp                    rnmol,rimol,timol,msize,nmon)                 &
+!$omp             private(isize,qiagg,iimol,jimol,qimol,iiagg,ni,nj,   &
+!$omp                     jiagg,jsize)                                 &
+!$omp             schedule(dynamic,1)
+!
+       do isize = mtype+1, msize
+         if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
+!
+           iimol = timol(isize)
+           jimol = rimol(isize)
+           qimol = jimol + rnmol(isize)
+!
+           qiagg = 1
+           iiagg = 1
+!
+           do while ( (iiagg.le.tnagg(isize)) .and. (jimol.lt.qimol) )
+!
+             ni = iimol + 1
+             nj = jimol + 1
+!
+             do jiagg = qiagg, rnagg(isize)
+!
+               nj = jimol + 1
+!
+               if ( tmol(ni) .lt. rmol(nj) ) then
+                 qiagg = jiagg
+                 exit
+!
+               else if ( tmol(ni) .eq. rmol(nj) ) then
+                 imap(tiagg(isize)+iiagg) = -1
+                 jsize = 2
+!
+                 do while ( (jsize.le.nmon(isize)) .and.               &
+                                      (imap(tiagg(isize)+iiagg).ne.0) )
+                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )    &
+                     imap(tiagg(isize)+iiagg) = 0
+                   jsize = jsize + 1
+                 end do
+!
+                 if ( imap(tiagg(isize)+iiagg) .ne. 0 )               &
+                   imap(tiagg(isize)+iiagg) = riagg(isize)+jiagg
+!
+                 qiagg = jiagg + 1
+                 jimol = jimol + nmon(isize)
+                 exit
+!
+               else
+                 jimol = jimol + nmon(isize)
+               end if
+!
+             end do
+!
+             iimol = iimol + nmon(isize)
+             iiagg = iiagg + 1
+!
+           end do
+!
+         end if
+       end do
+!
+!$omp end parallel do
+!
+       return
+       end subroutine ntrackagg
+!
+!======================================================================!
+!
 ! AGGDIST - AGGregates DISTances algorithm
 !
 ! This subroutine obtains the size and the number of aggregates present
 !  in the system according to a given interaction criteria depending on
 !  the external subroutine BUILDADJMOL. This can be a distance criteria
-!  or a distance criteria between atoms A-B combined with a threshold 
+!  or a distance criteria between atoms A-B combined with a threshold
 !  angle A-B-C where C is an atom covalently bonded to A or B
 ! The interaction between two molecules is stored in the corresponding
 !  adjacency matrix in the molecule-based representation. After block-
@@ -345,17 +477,17 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        type(xtcfile),intent(inout)                 ::  xtcf     !  Trajectory information
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                     ::  neidis   !  Screening distance
 !
 ! Average properties
 !
        integer,intent(out)                         ::  nsteps   !  Number of snapshots analyzed
-       real(kind=8),intent(out)                    ::  cin      !  
+       real(kind=8),intent(out)                    ::  cin      !
        integer,intent(in)                          ::  msize    !  Maximum aggregate size
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                          ::  nprint   !  Populations printing interval
        integer,intent(in)                          ::  minstep  !  First step for analysis
        integer,intent(in)                          ::  maxstep  !  Last step for analysis
@@ -387,11 +519,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable          ::  adj      !  Adjacency matrix
        integer,dimension(:),allocatable            ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable            ::  tag      !  Aggregates identifier
-       integer,dimension(:),allocatable            ::  agg      !  Aggregates size 
+       integer,dimension(:),allocatable            ::  agg      !  Aggregates size
        integer,dimension(:),allocatable            ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable            ::  iagg     !  
-       integer,dimension(:),allocatable            ::  nmol     !  
-       integer,dimension(:),allocatable            ::  imol     !  
+       integer,dimension(:),allocatable            ::  iagg     !
+       integer,dimension(:),allocatable            ::  nmol     !
+       integer,dimension(:),allocatable            ::  imol     !
        integer,intent(in)                          ::  nnode    !  Total number of molecules
        integer                                     ::  nsize    !  Actual maximum aggregate size
        integer                                     ::  magg     !  Actual number of chemical species
@@ -413,7 +545,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer                                     ::  t2conf   !  Final conformational analysis time
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                          ::  nsolv    !
 !
 ! Local variables
@@ -423,7 +555,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Initializing variables
 !
-       call system_clock(t1read)        
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -446,7 +578,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(nmol(nnode),imol(nnode))
        allocate(nagg(nnode),iagg(nnode))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(posi(3,natms))
 !
@@ -457,12 +589,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                                            (xtcf%STEP.ge.minstep) ) then
 !
            box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Finding the aggregates present in the current configuration
 ! -----------------------------------------------------------
@@ -470,17 +602,17 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Building the adjacency matrix
 !
            call cpu_time(tinadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,    &
                          nat,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms, &
                          box,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfinadj - tinadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix
 !
@@ -490,44 +622,44 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Printing the population of every aggregate
 !
            call system_clock(t1read)
-!         
+!
            call printpop(xtcf%STEP,nsize,msize,box,nnode,nagg,magg,nsolv,  &
                          cin,uniout)
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 
 !~            if ( debug ) then
 !~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
 !~            end if
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
              call cpu_time(tinpim)
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
              call cpu_time(tfinpim)
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
              tcpupim = tcpupim + tfinpim - tinpim
-             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
-           end if        
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
              call system_clock(t1conf)
-!     
+!
 !             call isomorphism()
 !
-             call system_clock(t2conf)     
+             call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
-           end if      
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+           end if
 !
            call system_clock(t1read)
 !
@@ -552,7 +684,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine aggdist
@@ -581,7 +713,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use omp_lib
 !
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,volu
-! 
+!
        use omp_var
        use datatypes
        use timings
@@ -600,13 +732,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                                  ::  neidis    !  Screening distance
 !
 ! Average properties
 !
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
-       real(kind=8),intent(out)                                 ::  cin       !  
+       real(kind=8),intent(out)                                 ::  cin       !
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
 ! Lifetimes calculation variables
@@ -615,7 +747,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(nmax),intent(out)                     ::  nlife     !
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                                       ::  nprint    !  Populations printing interval
        integer,intent(in)                                       ::  minstep   !  First step for analysis
        integer,intent(in)                                       ::  maxstep   !  Last step for analysis
@@ -645,12 +777,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,intent(in)                                       ::  debug     !  Debug mode
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                                       ::  nsolv     !
 !
 ! External functions
 !
-       external                                                 ::  buildadjmol  
+       external                                                 ::  buildadjmol
 !
 ! Aggregates information in the molecule-based representation
 !
@@ -658,18 +790,18 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable                       ::  adj       !  Adjacency matrix
        integer,dimension(:),allocatable                         ::  mol       !  Molecules identifier
        integer,dimension(:),allocatable                         ::  tag       !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size
        integer,dimension(:),allocatable                         ::  newmol    !  Molecules identifier
        integer,dimension(:),allocatable                         ::  newtag    !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  newagg    !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  newagg    !  Aggregates size
        integer,dimension(:),allocatable                         ::  nagg      !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  iagg      !  
-       integer,dimension(:),allocatable                         ::  nmol      !  
-       integer,dimension(:),allocatable                         ::  imol      !  
+       integer,dimension(:),allocatable                         ::  iagg      !
+       integer,dimension(:),allocatable                         ::  nmol      !
+       integer,dimension(:),allocatable                         ::  imol      !
        integer,dimension(:),allocatable                         ::  newnagg   !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  newiagg   !  
-       integer,dimension(:),allocatable                         ::  newnmol   !  
-       integer,dimension(:),allocatable                         ::  newimol   ! 
+       integer,dimension(:),allocatable                         ::  newiagg   !
+       integer,dimension(:),allocatable                         ::  newnmol   !
+       integer,dimension(:),allocatable                         ::  newimol   !
        integer,dimension(:),allocatable                         ::  willmap   !
        integer,intent(in)                                       ::  nnode     !  Total number of molecules
        integer                                                  ::  nsize     !  Actual maximum aggregate size
@@ -707,11 +839,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        real(kind=4),dimension(:,:),allocatable                  ::  newposi   !  Auxiliary coordinates
        real(kind=4),dimension(3)                                ::  box       !
        real(kind=4),dimension(3)                                ::  newbox    !
-       integer                                                  ::  i,j       !   
+       integer                                                  ::  i,j       !
 !
 ! Initializing variables
 !
-       call system_clock(t1read)         
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -742,9 +874,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(willmap(nnode))
 !
-       allocate(life(nnode),auxlife(nnode)) 
+       allocate(life(nnode),auxlife(nnode))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(newposi(3,natms))
        allocate(posi(3,natms))
@@ -756,7 +888,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( xtcf%STAT .ne. 0 ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -772,8 +904,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        do i = 1, nnode
          life(i)   = 0
        end do
-! 
-!$omp end parallel do 
+!
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(avlife,nlife)                                 &
@@ -784,27 +916,27 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          avlife(i) = 0.0d0
          nlife(i)  = 0
        end do
-! 
-!$omp end parallel do 
+!
+!$omp end parallel do
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first configuration
 !
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,         &
                      box,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix of the first configuration
 !
@@ -820,7 +952,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -831,27 +963,27 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
            newstep   = xtcf%STEP
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the new-configuration
 !
            call cpu_time(tinadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call buildadj(nnode,adj,natms,newposi,xtcf%NATOMS,xtcf%pos, &
                          nat,mgrps,ngrps,igrps,msubg,nsubg,isubg,      &
                          atms,newbox,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfinadj - tinadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
@@ -862,7 +994,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call cpu_time(tinlife)
            call system_clock(t1life)
-! 
+!
            call tracklife(nnode,newsize,newmol,nsize,mol,newnagg,      &
                           newiagg,newnmol,newimol,nagg,iagg,imol,      &
                           iwill,iwont,willmap)
@@ -871,7 +1003,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
-           tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+           tlife = tlife + dble(t2life-t1life)/dble(count_rate)
 !
 ! Printing the population of every aggregate
 !
@@ -882,29 +1014,29 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 
 !~            if ( debug ) then
 !~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
 !~            end if
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
+             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Adding up lifetimes of the aggregates
 !
            call cpu_time(tinlife)
            call system_clock(t1life)
-! 
+!
            call calclife(nmax,avlife,nlife,nnode,life,nsize,nagg,iagg,      &
                          magg,iwont)
 !
@@ -927,7 +1059,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              auxlife(i) = 0
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(nagg,willmap,life,auxlife)                    &
@@ -938,7 +1070,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              if ( willmap(i) .ne. 0 ) auxlife(willmap(i)) = life(i)
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life,auxlife,mol,agg,tag,nagg,iagg,nmol,imol, &
@@ -962,7 +1094,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              imol(i) = newimol(i)
            end do
 !
-!$omp end parallel do                 
+!$omp end parallel do
 !
            magg    = newmagg
            nsize   = newsize
@@ -978,13 +1110,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              posi(:,i) = newposi(:,i)
            end do
 !
-!$omp end parallel do                      
+!$omp end parallel do
 !
            call cpu_time(tfinlife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
-           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -1017,7 +1149,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine agglife
@@ -1033,13 +1165,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  diagonalization of this matrix, the size aggregates is obtained from
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
-! The subroutine SCREENING is employed to screen the interactions 
-!  between the molecules. To do so a three-steps procedure is carried 
-!  out with the following phylosophy: When an interaction exists, if I 
+! The subroutine SCREENING is employed to screen the interactions
+!  between the molecules. To do so a three-steps procedure is carried
+!  out with the following phylosophy: When an interaction exists, if I
 !  was or I will then I am, i.e., each interaction is anhilated if it is
-!  not present in two consequtive configurations (removing collisions), 
-!  and when an interaction does not exist, then if it was and it will 
-!  then it is, i.e., one interaction can be created if it is present in 
+!  not present in two consequtive configurations (removing collisions),
+!  and when an interaction does not exist, then if it was and it will
+!  then it is, i.e., one interaction can be created if it is present in
 !  the former and the following configurations (adding oscillations).
 !
        subroutine aggscrn(xtcf,nat,nnode,natms,neidis,msize,nsteps,    &
@@ -1070,17 +1202,17 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                                  ::  neidis    !  Screening distance
 !
 ! Average properties
 !
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
-       real(kind=8),intent(out)                                 ::  cin       !  
+       real(kind=8),intent(out)                                 ::  cin       !
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                                       ::  nprint    !  Populations printing interval
        integer,intent(in)                                       ::  minstep   !  First step for analysis
        integer,intent(in)                                       ::  maxstep   !  Last step for analysis
@@ -1121,11 +1253,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable                       ::  newadj    !  Adjacency matrix
        integer,dimension(:),allocatable                         ::  mol       !  Molecules identifier
        integer,dimension(:),allocatable                         ::  tag       !   Aggregates identifier
-       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size
        integer,dimension(:),allocatable                         ::  nagg      !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  iagg      !  
-       integer,dimension(:),allocatable                         ::  nmol      !  
-       integer,dimension(:),allocatable                         ::  imol      !  
+       integer,dimension(:),allocatable                         ::  iagg      !
+       integer,dimension(:),allocatable                         ::  nmol      !
+       integer,dimension(:),allocatable                         ::  imol      !
        integer,intent(in)                                       ::  nnode     !  Total number of molecules
        integer                                                  ::  nsize     !  Actual maximum aggregate size
        integer                                                  ::  magg      !  Actual number of chemical species
@@ -1148,7 +1280,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer                                                  ::  t2pim     !  Final PIM analysis time
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                                       ::  nsolv    !
 !
 ! Local variables
@@ -1161,7 +1293,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Initializing variables
 !
-       call system_clock(t1read)        
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -1185,7 +1317,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(nmol(nnode),imol(nnode))
        allocate(nagg(nnode),iagg(nnode))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(newposi(3,natms))
        allocate(posi(3,natms))
@@ -1197,31 +1329,31 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( xtcf%STAT .ne. 0 ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
 !
-       box  = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
+      box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first old-configuration
 !
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,oldadj,natms,posi,xtcf%NATOMS,xtcf%pos,nat, &
                      mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,box,     &
                      neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Reading the first configuration
 !
@@ -1232,16 +1364,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
+       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )
          call xtcf%read
          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -1251,22 +1383,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first configuration
 !
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,box,     &
                      neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Reading the first new-configuration
 !
@@ -1277,7 +1409,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -1288,27 +1420,27 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
            newstep   = xtcf%STEP
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the new-configuration
 !
            call cpu_time(tinadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,       &
                          xtcf%pos,nat,mgrps,ngrps,igrps,msubg,nsubg,   &
                          isubg,atms,newbox,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfinadj - tinadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Screening interactions between the molecules
 !
@@ -1321,7 +1453,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
@@ -1337,23 +1469,23 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 
 !~            if ( debug ) then
 !~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
 !~            end if
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
+             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Analyzing aggregates by their connectivity ! TODO: needs corrected adjacency matrix of aggs
 !
@@ -1380,7 +1512,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              adj(:,i)    = newadj(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(posi,newposi)                                 &
@@ -1391,13 +1523,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              posi(:,i) = newposi(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
            call cpu_time(tfinscrn)
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -1421,7 +1553,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine aggscrn
@@ -1437,13 +1569,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  diagonalization of this matrix, the size aggregates is obtained from
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
-! The subroutine SCREENING is employed to screen the interactions 
-!  between the molecules. To do so a three-steps procedure is carried 
-!  out with the following phylosophy: When an interaction exists, if I 
+! The subroutine SCREENING is employed to screen the interactions
+!  between the molecules. To do so a three-steps procedure is carried
+!  out with the following phylosophy: When an interaction exists, if I
 !  was or I will then I am, i.e., each interaction is anhilated if it is
-!  not present in two consequtive configurations (removing collisions), 
-!  and when an interaction does not exist, then if it was and it will 
-!  then it is, i.e., one interaction can be created if it is present in 
+!  not present in two consequtive configurations (removing collisions),
+!  and when an interaction does not exist, then if it was and it will
+!  then it is, i.e., one interaction can be created if it is present in
 !  the former and the following configurations (adding oscillations).
 ! The lifetimes are calculated keeping track of the aggregates which
 !  are present in the former and the previous configurations.
@@ -1479,13 +1611,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        type(xtcfile),intent(inout)                              ::  xtcf      !  Trajectory information
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                                  ::  neidis    !  Screening distance
 !
 ! Average properties
 !
        integer,intent(out)                                      ::  nsteps    !  Number of snapshots analyzed
-       real(kind=8),intent(out)                                 ::  cin       !  
+       real(kind=8),intent(out)                                 ::  cin       !
        integer,intent(in)                                       ::  msize     !  Maximum aggregate size
 !
 ! Lifetimes calculation variables
@@ -1496,7 +1628,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable                         ::  auxlife   !
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                                       ::  nprint    !  Populations printing interval
        integer,intent(in)                                       ::  minstep   !  First step for analysis
        integer,intent(in)                                       ::  maxstep   !  Last step for analysis
@@ -1527,7 +1659,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! External functions
 !
-       external                                                 ::  buildadjmol  
+       external                                                 ::  buildadjmol
        external                                                 ::  screen
 !
 ! Aggregates information in the molecule-based representation
@@ -1537,18 +1669,18 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable                       ::  nextadj   !  Adjacency matrix
        integer,dimension(:),allocatable                         ::  mol       !  Molecules identifier
        integer,dimension(:),allocatable                         ::  tag       !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  agg       !  Aggregates size
        integer,dimension(:),allocatable                         ::  newmol    !  Molecules identifier
        integer,dimension(:),allocatable                         ::  newtag    !  Aggregates identifier
-       integer,dimension(:),allocatable                         ::  newagg    !  Aggregates size 
+       integer,dimension(:),allocatable                         ::  newagg    !  Aggregates size
        integer,dimension(:),allocatable                         ::  nagg      !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  iagg      !  
-       integer,dimension(:),allocatable                         ::  nmol      !  
-       integer,dimension(:),allocatable                         ::  imol      !  
+       integer,dimension(:),allocatable                         ::  iagg      !
+       integer,dimension(:),allocatable                         ::  nmol      !
+       integer,dimension(:),allocatable                         ::  imol      !
        integer,dimension(:),allocatable                         ::  newnagg   !  Number of aggregates of each size
-       integer,dimension(:),allocatable                         ::  newiagg   !  
-       integer,dimension(:),allocatable                         ::  newnmol   !  
-       integer,dimension(:),allocatable                         ::  newimol   ! 
+       integer,dimension(:),allocatable                         ::  newiagg   !
+       integer,dimension(:),allocatable                         ::  newnmol   !
+       integer,dimension(:),allocatable                         ::  newimol   !
        integer,dimension(:),allocatable                         ::  willmap   !
        integer,intent(in)                                       ::  nnode     !  Total number of molecules
        integer                                                  ::  nsize     !  Actual maximum aggregate size
@@ -1581,7 +1713,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer                                                  ::  t2pim     !  Final PIM analysis time
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                                       ::  nsolv     !
 !
 ! Local variables
@@ -1592,14 +1724,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        real(kind=4),dimension(3)                                ::  box       !
        real(kind=4),dimension(3)                                ::  newbox    !
        real(kind=4),dimension(3)                                ::  nextbox   !
-       integer                                                  ::  i,j       !   
-       integer                                                  ::  iiagg     !   
-       integer                                                  ::  inagg     !   
-       integer                                                  ::  isize     ! 
+       integer                                                  ::  i,j       !
+       integer                                                  ::  iiagg     !
+       integer                                                  ::  inagg     !
+       integer                                                  ::  isize     !
 !
 ! Initializing variables
 !
-       call system_clock(t1read)         
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -1631,9 +1763,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(willmap(nnode))
 !
-       allocate(life(nnode),auxlife(nnode)) 
+       allocate(life(nnode),auxlife(nnode))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(nextposi(3,natms))
        allocate(newposi(3,natms))
@@ -1646,7 +1778,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( xtcf%STAT .ne. 0 ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -1656,22 +1788,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first old-configuration
 !
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,nextadj,natms,posi,xtcf%NATOMS,xtcf%pos,    &
                      nat,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,     &
                      nextbox,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix of the old-configuration
 !
@@ -1687,16 +1819,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
+       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )
          call xtcf%read
          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -1706,22 +1838,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first configuration
 !
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,adj,natms,posi,xtcf%NATOMS,xtcf%pos,nat,    &
                      mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,box,     &
                      neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Reading the first new-configuration
 !
@@ -1732,16 +1864,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
+       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )
          call xtcf%read
          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
            write(*,*)
            write(*,*) 'ERROR:: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -1751,22 +1883,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first new-configuration
-! 
+!
        call cpu_time(tinadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call buildadj(nnode,newadj,natms,newposi,xtcf%NATOMS,xtcf%pos,  &
                      nat,mgrps,ngrps,igrps,msubg,nsubg,isubg,atms,     &
                      newbox,neidis,buildadjmol)
 !
        call cpu_time(tfinadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfinadj - tinadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Screening interactions between the molecules
 !
@@ -1779,10 +1911,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        call system_clock(t2scrn)
 !
        tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-       tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate) 
+       tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate)
 !
 ! Block-diagonalizing the first interaction-corrected adjacency matrix
-! 
+!
        call blockdiag(nnode,adj,mol,tag,agg,nsize,nagg,iagg,nmol,      &
                       imol,magg,debug)
 !
@@ -1801,8 +1933,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          avlife(i) = 0.0d0
          nlife(i)  = 0
        end do
-! 
-!$omp end parallel do 
+!
+!$omp end parallel do
 !
        call tracklife(nnode,newsize,newmol,nsize,mol,newnagg,newiagg,  &
                       newnmol,newimol,nagg,iagg,imol,iwill,iwont,      &
@@ -1814,16 +1946,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !$omp             schedule(dynamic,chunklife)
 !
        do i = nagg(1)+1, magg
-         if ( iwill(i) ) life(i) = 1      
+         if ( iwill(i) ) life(i) = 1
        end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
        call cpu_time(tfinlife)
        call system_clock(t2life)
 !
        tcpulife = tcpulife + tfinlife - tinlife
-       tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+       tlife    = tlife    + dble(t2life-t1life)/dble(count_rate)
 !
 ! Reading the first next-configuration
 !
@@ -1834,7 +1966,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -1845,27 +1977,27 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            nextbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
            nextstep   = xtcf%STEP
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the new-configuration
 !
            call cpu_time(tinadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call buildadj(nnode,nextadj,natms,nextposi,xtcf%NATOMS,     &
                          xtcf%pos,nat,mgrps,ngrps,igrps,msubg,nsubg,   &
                          isubg,atms,nextbox,neidis,buildadjmol)
 !
            call cpu_time(tfinadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfinadj - tinadj
-           tadj    = tadj    + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj    = tadj    + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Screening interactions between the molecules
 !
@@ -1878,8 +2010,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfinscrn - tinscrn
-           tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate) 
-! 
+           tscrn    = tscrn    + dble(t2scrn-t1scrn)/dble(count_rate)
+!
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
            call blockdiag(nnode,newadj,newmol,newtag,newagg,newsize,   &
@@ -1889,16 +2021,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call cpu_time(tinlife)
            call system_clock(t1life)
-! 
+!
            call tracklife(nnode,newsize,newmol,nsize,mol,newnagg,      &
                           newiagg,newnmol,newimol,nagg,iagg,imol,      &
                           iwill,iwont,willmap)
-! 
+!
            call cpu_time(tfinlife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
-           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate)
 !
 ! Printing the population of every aggregate
 !
@@ -1909,28 +2041,28 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 
 !~            if ( debug ) then
 !~              call print_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
 !~            end if
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
+             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Adding up lifetimes of the aggregates
 !
            call cpu_time(tinlife)
-           call system_clock(t1life)                  
+           call system_clock(t1life)
 !
            call calclife(nmax,avlife,nlife,nnode,life,nsize,nagg,iagg,      &
                          magg,iwont)
@@ -1958,7 +2090,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              auxlife(i) = 0
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(nagg,willmap,life,auxlife)                    &
@@ -1969,7 +2101,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              if ( willmap(i) .ne. 0 ) auxlife(willmap(i)) = life(i)
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life,auxlife,mol,agg,tag,nagg,iagg,nmol,imol, &
@@ -1992,7 +2124,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              imol(i) = newimol(i)
            end do
 !
-!$omp end parallel do                 
+!$omp end parallel do
 !
            magg    = newmagg
            nsize   = newsize
@@ -2010,13 +2142,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              newposi(:,i) = nextposi(:,i)
            end do
 !
-!$omp end parallel do       
+!$omp end parallel do
 !
            call cpu_time(tfinlife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tfinlife - tinlife
-           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -2049,7 +2181,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine aggscrnlife
@@ -2058,13 +2190,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! PRINTPOP - PRINT POPulations
 !
-! This subroutine 
+! This subroutine
 !
        subroutine printpop(step,nsize,msize,box,nnode,nagg,magg,       &
                            nsolv,cin,iuni)
 !
        use properties,  only:  num,pop,frac,conc,prob,volu
-! 
+!
        use parameters,  only:  Na
 !
        implicit none
@@ -2072,13 +2204,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Input/Output variables
 !
        real(kind=4),dimension(3),intent(in)         ::  box    !  Simulation box dimensions
-       real(kind=8),intent(inout)                   ::  cin    !  
+       real(kind=8),intent(inout)                   ::  cin    !
        integer,dimension(nnode),intent(in)          ::  nagg   !
        integer,intent(in)                           ::  magg   !
        integer,intent(in)                           ::  nsolv  !
        integer,intent(in)                           ::  step   !
        integer,intent(in)                           ::  nnode  !  Total number of molecules
-       integer,intent(in)                           ::  msize  !  Maximum aggregate size   
+       integer,intent(in)                           ::  msize  !  Maximum aggregate size
        integer,intent(in)                           ::  nsize  !  Actual maximum aggregate size
        integer,intent(in)                           ::  iuni   !
 !
@@ -2086,7 +2218,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        real(kind=8)                                 ::  dp1    !
        real(kind=8)                                 ::  dp2    !
-       integer                                      ::  i      !  Index 
+       integer                                      ::  i      !  Index
 !
 ! Accumulating properties
 !
@@ -2094,9 +2226,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          num(i)  = num(i)  + nagg(i)
          pop(i)  = pop(i)  + real(nagg(i))/magg*100
          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
-         conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-         prob(i) = prob(i) + real(i*nagg(i))/nnode*100 
-       end do     
+         conc(i) = conc(i) + real(nagg(i))/box(1)**3
+         prob(i) = prob(i) + real(i*nagg(i))/nnode*100
+       end do
 !
        dp1 = 0.0d0
        dp2 = 0.0d0
@@ -2109,9 +2241,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          num(msize)  = num(msize)  + int(dp1)
          pop(msize)  = pop(msize)  + dp1/magg*100
          frac(msize) = frac(msize) + dp1/(magg+nsolv)
-         conc(msize) = conc(msize) + dp1/box(1)**3             
-         prob(msize) = prob(msize) + dp2/nnode*100             
-       end if                   
+         conc(msize) = conc(msize) + dp1/box(1)**3
+         prob(msize) = prob(msize) + dp2/nnode*100
+       end if
 !
        cin = cin + real(nnode)/box(1)**3
 !
@@ -2125,10 +2257,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                       real(nagg(:msize-1))/(magg+nsolv),dp1/(magg+nsolv)
        write(iuni+3,'(I10,100(X,F10.6))') step,                        &
                       real(nagg(:msize-1))/box(1)**3/(Na*1.0E-24),     &
-                                              dp1/box(1)**3/(Na*1.0E-24)  
-       write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
-                            real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
-       write(iuni+5,'(I10,100(X,I10))') step,nagg(:msize-1),int(dp1)  
+                                              dp1/box(1)**3/(Na*1.0E-24)
+       write(iuni+4,'(I10,100(X,F10.6))') step,                        &
+                            real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability
+       write(iuni+5,'(I10,100(X,I10))') step,nagg(:msize-1),int(dp1)
 !
        return
        end subroutine printpop
@@ -2140,7 +2272,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! This subroutine obtains the size and the number of aggregates present
 !  in the system according to a given interaction criteria depending on
 !  the external subroutine BUILDADJMOL. This can be a distance criteria
-!  or a distance criteria between atoms A-B combined with a threshold 
+!  or a distance criteria between atoms A-B combined with a threshold
 !  angle A-B-C where C is an atom covalently bonded to A or B
 ! The interaction between two molecules is stored in the corresponding
 !  adjacency matrix in the molecule-based representation. After block-
@@ -2164,11 +2296,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        implicit none
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                     ::  neidis   !  Screening distance
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                          ::  nprint   !  Populations printing interval
        integer,intent(in)                          ::  minstep  !  First step for analysis
        integer,intent(in)                          ::  maxstep  !  Last step for analysis
@@ -2183,7 +2315,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                          ::  nsolv    !
 !
 ! External functions
@@ -2199,14 +2331,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable            ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable            ::  node     !  Molecules identifier
        integer,dimension(:),allocatable            ::  tag      !  Aggregates identifier
-       integer,dimension(:),allocatable            ::  agg      !  Aggregates size 
-       integer,dimension(:),allocatable            ::  idx      !  Aggregate identifier 
-       integer,dimension(:),allocatable            ::  ntype    !   
-       integer,dimension(:),allocatable            ::  itype    !   
+       integer,dimension(:),allocatable            ::  agg      !  Aggregates size
+       integer,dimension(:),allocatable            ::  idx      !  Aggregate identifier
+       integer,dimension(:),allocatable            ::  ntype    !
+       integer,dimension(:),allocatable            ::  itype    !
        integer,dimension(:),allocatable            ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable            ::  iagg     !  
-       integer,dimension(:),allocatable            ::  nmol     !  
-       integer,dimension(:),allocatable            ::  imol     !  
+       integer,dimension(:),allocatable            ::  iagg     !
+       integer,dimension(:),allocatable            ::  nmol     !
+       integer,dimension(:),allocatable            ::  imol     !
        integer                                     ::  nsize    !  Actual maximum aggregate size
        integer                                     ::  midx     !  Actual maximum aggregate identifier
        integer                                     ::  magg     !  Actual number of chemical species
@@ -2233,7 +2365,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Initializing variables
 !
-       call system_clock(t1read)        
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -2258,7 +2390,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(nmol(nmax),imol(nmax))
        allocate(nagg(nmax),iagg(nmax))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(posi(3,matms))
 !
@@ -2271,12 +2403,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                                            (xtcf%STEP.ge.minstep) ) then
 !
            box(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Finding the aggregates present in the current configuration
 ! ...........................................................
@@ -2284,15 +2416,15 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Building the adjacency matrix
 !
            call cpu_time(tiadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call nbuildadj(adj,posi,xtcf%pos,box,neidis,buildadjmol)
 !
            call cpu_time(tfadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfadj - tiadj
-           tadj    = tadj    + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj    = tadj    + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix
 !
@@ -2303,44 +2435,45 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            if ( doconf ) then
              call system_clock(t1conf)
-!     
+!
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
 !
-             call system_clock(t2conf)     
+             call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
-           end if     
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+           end if
 !
 ! Printing the population of every aggregate
-! 
+!
            call system_clock(t1read)
-!         
+!
            call nprintpop(xtcf%STEP,box,nagg,imol,mnode,agg,itype,    &
                           magg,nsolv,uniout)
 !
-           if ( docoord ) call nprint_coord(xtcf%STEP,xtcf%pos,box,    &
-                              maxat,                                    &
-                              nmax,nagg,imol,mnode,mol,node,agg,itype)
+          if ( docoord ) then
+            call nprint_coord(xtcf%STEP,xtcf%pos,box,maxat,nmax,nagg, &
+                              imol,mnode,mol,node,agg,itype)
+          end if
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
              call cpu_time(tipim)
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
              call cpu_time(tfpim)
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
              tcpupim = tcpupim + tfpim - tipim
-             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
-           end if       
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
            call system_clock(t1read)
 !
@@ -2365,7 +2498,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine naggdist
@@ -2409,7 +2542,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        implicit none
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                         ::  neidis    !  Screening distance
 !
 ! Lifetimes calculation variables
@@ -2418,7 +2551,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(nmax),intent(out)             ::  nlife     !
 !
 ! Trajectory control variables
-!     
+!
        integer,intent(in)                              ::  nprint    !  Populations printing interval
        integer,intent(in)                              ::  minstep   !  First step for analysis
        integer,intent(in)                              ::  maxstep   !  Last step for analysis
@@ -2433,13 +2566,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,intent(in)                              ::  debug     !  Debug mode
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                              ::  nsolv     !
 !
 ! External functions
 !
-       external                                        ::  buildadjmol  
-       external                                        ::  buildadjrep  
+       external                                        ::  buildadjmol
+       external                                        ::  buildadjrep
        external                                        ::  buildadjmon
        external                                        ::  printadjrep
 !
@@ -2451,25 +2584,25 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable                ::  mol       !  Molecules identifier
        integer,dimension(:),allocatable                ::  node      !  Molecules identifier
        integer,dimension(:),allocatable                ::  tag       !  Aggregates identifier
-       integer,dimension(:),allocatable                ::  agg       !  Aggregates size 
-       integer,dimension(:),allocatable                ::  idx       !  Aggregate identifier 
-       integer,dimension(:),allocatable                ::  ntype     !   
-       integer,dimension(:),allocatable                ::  itype     !   
+       integer,dimension(:),allocatable                ::  agg       !  Aggregates size
+       integer,dimension(:),allocatable                ::  idx       !  Aggregate identifier
+       integer,dimension(:),allocatable                ::  ntype     !
+       integer,dimension(:),allocatable                ::  itype     !
        integer,dimension(:),allocatable                ::  newmol    !  Molecules identifier
        integer,dimension(:),allocatable                ::  newnode   !  Molecules identifier
        integer,dimension(:),allocatable                ::  newtag    !  Aggregates identifier
-       integer,dimension(:),allocatable                ::  newagg    !  Aggregates size 
-       integer,dimension(:),allocatable                ::  newidx    !  Aggregate identifier 
-       integer,dimension(:),allocatable                ::  newntype  !   
-       integer,dimension(:),allocatable                ::  newitype  !   
+       integer,dimension(:),allocatable                ::  newagg    !  Aggregates size
+       integer,dimension(:),allocatable                ::  newidx    !  Aggregate identifier
+       integer,dimension(:),allocatable                ::  newntype  !
+       integer,dimension(:),allocatable                ::  newitype  !
        integer,dimension(:),allocatable                ::  nagg      !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  iagg      !  
-       integer,dimension(:),allocatable                ::  nmol      !  
-       integer,dimension(:),allocatable                ::  imol      !  
+       integer,dimension(:),allocatable                ::  iagg      !
+       integer,dimension(:),allocatable                ::  nmol      !
+       integer,dimension(:),allocatable                ::  imol      !
        integer,dimension(:),allocatable                ::  newnagg   !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  newiagg   !  
-       integer,dimension(:),allocatable                ::  newnmol   !  
-       integer,dimension(:),allocatable                ::  newimol   ! 
+       integer,dimension(:),allocatable                ::  newiagg   !
+       integer,dimension(:),allocatable                ::  newnmol   !
+       integer,dimension(:),allocatable                ::  newimol   !
        integer,dimension(:),allocatable                ::  willmap   !
        integer                                         ::  nsize     !  Actual maximum aggregate size
        integer                                         ::  newsize   !  New maximum aggregate size
@@ -2492,7 +2625,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        real(kind=4),dimension(:,:),allocatable,target  ::  tmpposi   !  Auxiliary coordinates
        real(kind=4),dimension(3)                       ::  box       !
        real(kind=4),dimension(3)                       ::  newbox    !
-       integer                                         ::  i,j       !   
+       integer                                         ::  i,j       !
 !
 ! Declaration of time control variables
 !
@@ -2515,7 +2648,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Initializing variables
 !
-       call system_clock(t1read)         
+       call system_clock(t1read)
 !
        nsteps  = 0
 !
@@ -2549,11 +2682,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(iwill(mnode),iwont(mnode))
 !
-       allocate(willmap(mnode))           
+       allocate(willmap(mnode))
 !
        allocate(life(mnode),auxlife(mnode))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
        allocate(newposi(3,matms))
        allocate(posi(3,matms))
@@ -2569,7 +2702,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( xtcf%STAT .ne. 0 ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -2585,7 +2718,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          tmpposi(:,i) = xtcf%pos(:,i)
        end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life)                                         &
@@ -2595,8 +2728,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        do i = 1, mnode
          life(i)   = 0
        end do
-! 
-!$omp end parallel do 
+!
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(avlife,nlife)                                 &
@@ -2608,24 +2741,24 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          nlife(i)  = 0
        end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first configuration
 !
        call cpu_time(tiadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call nbuildadj(adj,posi,xtcf%pos,box,neidis,buildadjmol)
 !
        call cpu_time(tfadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfadj - tiadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix of the first configuration
 !
@@ -2641,7 +2774,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -2652,25 +2785,25 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
            newstep   = xtcf%STEP
-! 
+!
            nsteps = nsteps + 1
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the new-configuration
 !
            call cpu_time(tiadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call nbuildadj(adj,newposi,xtcf%pos,newbox,neidis,buildadjmol)
 !
            call cpu_time(tfadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfadj - tiadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Block-diagonalizing the adjacency matrix of the new-configuration
 !
@@ -2682,7 +2815,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
            call cpu_time(tilife)
            call system_clock(t1life)
-! 
+!
            call ntracklife(mtype,mnode,nmax,mmon,newmidx,newsize,      &
                            newmol,midx,nsize,mol,newnagg,newiagg,      &
                            newnmol,newimol,nagg,iagg,imol,iwill,       &
@@ -2692,56 +2825,57 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tflife - tilife
-           tlife = tlife + dble(t2life-t1life)/dble(count_rate) 
+           tlife = tlife + dble(t2life-t1life)/dble(count_rate)
 !
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
              call system_clock(t1conf)
-!     
+!
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
 !
-             call system_clock(t2conf)     
+             call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)   
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
-! 
+!
            call system_clock(t1read)
-!         
+!
            call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
                           magg,nsolv,uniout)
 !
-           if ( docoord ) call nprint_coord(actstep,tmpposi,box,maxat, &
-                                 nmax,nagg,imol,mnode,mol,node,agg,    &
-                                 itype)
+           if ( docoord ) then
+             call nprint_coord(actstep,tmpposi,box,maxat,nmax,nagg,    &
+                               imol,mnode,mol,node,agg,itype)
+           end if
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
              call cpu_time(tipim)
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
              call cpu_time(tfpim)
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
              tcpupim = tcpupim + tfpim - tipim
-             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
-           end if      
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Adding up lifetimes of the aggregates
 !
            call cpu_time(tilife)
            call system_clock(t1life)
-! 
+!
            call ncalclife(mtype,mnode,nmax,avlife,nlife,life,nmax,     &
                           nagg,iagg,magg,iwont)
 !
@@ -2757,7 +2891,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              tmpposi(:,i) = xtcf%pos(:,i)
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(auxlife)                                      &
@@ -2768,7 +2902,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              auxlife(i) = 0
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(nagg,willmap,life,auxlife)                    &
@@ -2779,7 +2913,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              if ( willmap(i) .ne. 0 ) auxlife(willmap(i)) = life(i)
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(life,auxlife,mol,agg,tag,newmol,              &
@@ -2794,7 +2928,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              tag(i)  = newtag(i)
            end do
 !
-!$omp end parallel do                 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
 !$omp             shared(nagg,iagg,nmol,imol,newnagg,                  &
@@ -2809,7 +2943,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              imol(i) = newimol(i)
            end do
 !
-!$omp end parallel do                 
+!$omp end parallel do
 !
            magg    = newmagg
            midx    = newmidx
@@ -2826,13 +2960,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              posi(:,i) = newposi(:,i)
            end do
 !
-!$omp end parallel do                      
+!$omp end parallel do
 !
            call cpu_time(tflife)
            call system_clock(t2life)
 !
            tcpulife = tcpulife + tflife - tilife
-           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate) 
+           tlife    = tlife    + dble(t2life-t1life)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -2864,7 +2998,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine nagglife
@@ -2880,23 +3014,25 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  diagonalization of this matrix, the size aggregates is obtained from
 !  the dimension of each block and the number of aggregates of each size
 !  is obtained from the number of blocks of each size.
-! The subroutine SCREENING is employed to screen the interactions 
-!  between the molecules. To do so a three-steps procedure is carried 
-!  out with the following phylosophy: When an interaction exists, if I 
+! The subroutine SCREENING is employed to screen the interactions
+!  between the molecules. To do so a three-steps procedure is carried
+!  out with the following phylosophy: When an interaction exists, if I
 !  was or I will then I am, i.e., each interaction is anhilated if it is
-!  not present in two consequtive configurations (removing collisions), 
-!  and when an interaction does not exist, then if it was and it will 
-!  then it is, i.e., one interaction can be created if it is present in 
+!  not present in two consequtive configurations (removing collisions),
+!  and when an interaction does not exist, then if it was and it will
+!  then it is, i.e., one interaction can be created if it is present in
 !  the former and the following configurations (adding oscillations).
 !
        subroutine naggscrn(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,buildadjmol,screen,docoord,     &
-                           debug)
+                           dopim,doconf,domon,buildadjmol,buildadjrep, &
+                           buildadjmon,screen,scrn,cconf,docoord,debug)
 !
        use omp_lib
 !
-       use systeminf,   only:  xtcf,rep,mnode,matms,maxat,coord
+       use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon,maxat,  &
+                               coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use lengths,     only:  lenschm
 !
        use timings,     only:  count_rate,tread,tadj,tscrn,tpim,tconf, &
                                tcpuadj,tcpuscrn,tcpupim
@@ -2910,12 +3046,12 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        implicit none
 !
 ! Interaction criteria information
-! 
+!
        real(kind=4),intent(in)                         ::  neidis   !  Screening distance
 !
 ! Trajectory control variables
 
-!     
+!
        integer,intent(in)                              ::  nprint   !  Populations printing interval
        integer,intent(in)                              ::  minstep  !  First step for analysis
        integer,intent(in)                              ::  maxstep  !  Last step for analysis
@@ -2925,16 +3061,21 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        logical,intent(in)                              ::  dopim    !  PIM calculation flag
        logical,intent(in)                              ::  doconf   !  Conformational analysis flag
+       logical,intent(in)                              ::  domon    !  Monomer intramolecular edges flag
        logical,intent(in)                              ::  docoord  !  Coordinate printing flag
        logical,intent(in)                              ::  debug    !  Debug mode
+       character(len=lenschm),intent(in)               ::  scrn     !  Calculation screening flag
+       character(len=lenschm),intent(in)               ::  cconf    !  Calculation conformations flag
 !
 ! AnalysisPhenolMD variables
-!     
+!
        integer,intent(in)                              ::  nsolv    !
 !
 ! External functions
 !
        external                                        ::  buildadjmol
+       external                                        ::  buildadjrep
+       external                                        ::  buildadjmon
        external                                        ::  screen
 !
 ! Aggregates information in the molecule-based representation
@@ -2945,27 +3086,62 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable                ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable                ::  node     !  Molecules identifier
        integer,dimension(:),allocatable                ::  tag      !   Aggregates identifier
-       integer,dimension(:),allocatable                ::  agg      !  Aggregates size 
-       integer,dimension(:),allocatable                ::  idx      !  Aggregate identifier 
-       integer,dimension(:),allocatable                ::  ntype    !   
-       integer,dimension(:),allocatable                ::  itype    !   
+       integer,dimension(:),allocatable                ::  agg      !  Aggregates size
+       integer,dimension(:),allocatable                ::  idx      !  Aggregate identifier
+       integer,dimension(:),allocatable                ::  ntype    !
+       integer,dimension(:),allocatable                ::  itype    !
        integer,dimension(:),allocatable                ::  nagg     !  Number of aggregates of each size
-       integer,dimension(:),allocatable                ::  iagg     !  
-       integer,dimension(:),allocatable                ::  nmol     !  
-       integer,dimension(:),allocatable                ::  imol     !  
+       integer,dimension(:),allocatable                ::  iagg     !
+       integer,dimension(:),allocatable                ::  nmol     !
+       integer,dimension(:),allocatable                ::  imol     !
+       integer,dimension(:),allocatable                ::  oldmol   !  Molecules identifier
+       integer,dimension(:),allocatable                ::  oldnode  !  Molecules identifier
+       integer,dimension(:),allocatable                ::  oldtag   !  Aggregates identifier
+       integer,dimension(:),allocatable                ::  oldagg   !  Aggregates size
+       integer,dimension(:),allocatable                ::  oldidx   !  Aggregate identifier
+       integer,dimension(:),allocatable                ::  oldntype !
+       integer,dimension(:),allocatable                ::  olditype !
+       integer,dimension(:),allocatable                ::  oldnagg  !  Number of aggregates of each size
+       integer,dimension(:),allocatable                ::  oldiagg  !
+       integer,dimension(:),allocatable                ::  oldnmol  !
+       integer,dimension(:),allocatable                ::  oldimol  !
+       integer,dimension(:),allocatable                ::  newmol   !  Molecules identifier
+       integer,dimension(:),allocatable                ::  newnode  !  Molecules identifier
+       integer,dimension(:),allocatable                ::  newtag   !  Aggregates identifier
+       integer,dimension(:),allocatable                ::  newagg   !  Aggregates size
+       integer,dimension(:),allocatable                ::  newidx   !  Aggregate identifier
+       integer,dimension(:),allocatable                ::  newntype !
+       integer,dimension(:),allocatable                ::  newitype !
+       integer,dimension(:),allocatable                ::  newnagg  !  Number of aggregates of each size
+       integer,dimension(:),allocatable                ::  newiagg  !
+       integer,dimension(:),allocatable                ::  newnmol  !
+       integer,dimension(:),allocatable                ::  newimol  !
+       integer,dimension(:),allocatable                ::  cur2old  !
+       integer,dimension(:),allocatable                ::  cur2new  !
+       integer                                         ::  oldsize  !  Old maximum aggregate size
+       integer                                         ::  oldmidx  !  Old maximum aggregate index
+       integer                                         ::  oldmagg  !  Old number of chemical species
+       integer                                         ::  newsize  !  New maximum aggregate size
+       integer                                         ::  newmidx  !  New maximum aggregate index
+       integer                                         ::  newmagg  !  New number of chemical species
        integer                                         ::  nsize    !  Actual maximum aggregate size
-       integer                                         ::  midx     !  Actual maximum aggregate index 
+       integer                                         ::  midx     !  Actual maximum aggregate index
        integer                                         ::  magg     !  Actual number of chemical species
        integer                                         ::  actstep  !
        integer                                         ::  newstep  !
 !
 ! Local variables
 !
+       real(kind=4),dimension(:,:),allocatable         ::  oldposi  !  Auxiliary coordinates
        real(kind=4),dimension(:,:),allocatable         ::  posi     !  Auxiliary coordinates
        real(kind=4),dimension(:,:),allocatable         ::  newposi  !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),allocatable,target  ::  oldtmpposi !  Auxiliary coordinates
        real(kind=4),dimension(:,:),allocatable,target  ::  tmpposi   !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),allocatable,target  ::  newtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(3)                       ::  oldbox   !
        real(kind=4),dimension(3)                       ::  box      !
        real(kind=4),dimension(3)                       ::  newbox   !
+       logical                                         ::  dobdir   !
        integer                                         ::  i        !
 !
 ! Declaration of time control variables
@@ -2989,9 +3165,11 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Initializing variables
 !
-       call system_clock(t1read)        
+       call system_clock(t1read)
 !
        nsteps  = 0
+!
+       dobdir  = trim(cconf) .eq. 'bodydir'
 !
        pim(:,:,:) = 0.0d0
 !
@@ -3011,16 +3189,30 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
+       allocate(oldmol(mnode),oldnode(mnode),oldtag(mnode),            &
+                oldagg(mnode))
+       allocate(oldidx(mnode),oldntype(mnode),olditype(mnode))
+       allocate(newmol(mnode),newnode(mnode),newtag(mnode),            &
+                newagg(mnode))
+       allocate(newidx(mnode),newntype(mnode),newitype(mnode))
+       allocate(cur2old(mnode),cur2new(mnode))
 !
        allocate(nmol(nmax),imol(nmax))
        allocate(nagg(nmax),iagg(nmax))
+       allocate(oldnmol(nmax),oldimol(nmax))
+       allocate(oldnagg(nmax),oldiagg(nmax))
+       allocate(newnmol(nmax),newimol(nmax))
+       allocate(newnagg(nmax),newiagg(nmax))
 !
-! Allocating variables depending on topological information 
+! Allocating variables depending on topological information
 !
+       allocate(oldposi(3,matms))
        allocate(newposi(3,matms))
        allocate(posi(3,matms))
 !
+       allocate(oldtmpposi(3,maxat))
        allocate(tmpposi(3,maxat))
+       allocate(newtmpposi(3,maxat))
 !
        coord => tmpposi(:,:)
 !
@@ -3034,29 +3226,44 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( xtcf%STAT .ne. 0 ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
 !
-       box  = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
+      oldbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(xtcf,oldtmpposi)                              &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+      do i = 1, maxat
+        oldtmpposi(:,i) = xtcf%pos(:,i)
+      end do
+!
+!$omp end parallel do
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first old-configuration
 !
        call cpu_time(tiadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
-       call nbuildadj(oldadj,posi,xtcf%pos,box,neidis,buildadjmol)
+       call nbuildadj(oldadj,oldposi,xtcf%pos,oldbox,neidis,           &
+                      buildadjmol)
 !
        call cpu_time(tfadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfadj - tiadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)    
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
+!
+       call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,     &
+                       oldntype,olditype,oldsize,oldnagg,oldiagg,      &
+                       oldnmol,oldimol,oldmagg,oldmidx,debug)
 !
 ! Initializing the actual configuration
 ! -------------------------------------
@@ -3070,16 +3277,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
-       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 ) 
+       do while ( mod(xtcf%STEP-minstep,nprint) .ne. 0 )
          call xtcf%read
          if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.ge.maxstep) ) then
            write(*,*)
            write(*,*) 'ERROR: Not enough steps'
-           write(*,*) 
+           write(*,*)
            call print_end()
          end if
        end do
@@ -3095,24 +3302,24 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          tmpposi(:,i) = xtcf%pos(:,i)
        end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the first configuration
 !
        call cpu_time(tadj)
-       call system_clock(t1adj) 
+       call system_clock(t1adj)
 !
        call nbuildadj(adj,posi,xtcf%pos,box,neidis,buildadjmol)
 !
        call cpu_time(tfadj)
-       call system_clock(t2adj) 
+       call system_clock(t2adj)
 !
        tcpuadj = tcpuadj + tfadj - tiadj
-       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+       tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
 ! Processing the remaining trajectory
 ! -----------------------------------
@@ -3126,7 +3333,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        if ( (xtcf%STAT.ne.0) .or. (xtcf%STEP.gt.maxstep) ) then
          write(*,*)
          write(*,*) 'ERROR:: Not enough steps'
-         write(*,*) 
+         write(*,*)
          call print_end()
        end if
 !
@@ -3135,28 +3342,42 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        do while ( (xtcf%STAT.eq.0) .and. (xtcf%STEP.le.maxstep) )
          if ( mod(xtcf%STEP-minstep,nprint) .eq. 0 ) then
 !
-           newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
-           newstep   = xtcf%STEP
-! 
-           nsteps = nsteps + 1
+          newbox(:) = (/xtcf%box(1,1),xtcf%box(2,2),xtcf%box(3,3)/)
+          newstep   = xtcf%STEP
 !
-           call system_clock(t2read)
+          nsteps = nsteps + 1
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(xtcf,newtmpposi)                              &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunklife)
+          do i = 1, maxat
+            newtmpposi(:,i) = xtcf%pos(:,i)
+          end do
+!
+!$omp end parallel do
+!
+          call system_clock(t2read)
+!
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Building adjacency matrix of the new-configuration
 !
            call cpu_time(tiadj)
-           call system_clock(t1adj) 
+           call system_clock(t1adj)
 !
            call nbuildadj(newadj,newposi,xtcf%pos,newbox,neidis,       &
                           buildadjmol)
 !
            call cpu_time(tfadj)
-           call system_clock(t2adj) 
+           call system_clock(t2adj)
 !
            tcpuadj = tcpuadj + tfadj - tiadj
-           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate) 
+           tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
+!
+           call nblockdiag(newadj,newmol,newnode,newtag,newagg,newidx, &
+                           newntype,newitype,newsize,newnagg,newiagg,  &
+                           newnmol,newimol,newmagg,newmidx,debug)
 !
 ! Screening interactions between the molecules
 !
@@ -3169,61 +3390,81 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfscrn - tiscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
 !
 ! Block-diagonalizing the interaction-corrected adjacency matrix
 !
            call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,       &
                            nsize,nagg,iagg,nmol,imol,magg,midx,debug)
 !
-! Analyzing aggregates by their connectivity ! TODO: needs corrected adjacency matrix of aggs
+           call ntrackagg(mtype,mnode,nmax,mmon,oldmidx,oldmol,midx,   &
+                          mol,oldnagg,oldiagg,oldnmol,oldimol,nagg,    &
+                          iagg,imol,cur2old)
+           call ntrackagg(mtype,mnode,nmax,mmon,newmidx,newmol,midx,   &
+                          mol,newnagg,newiagg,newnmol,newimol,nagg,    &
+                          iagg,imol,cur2new)
+!
+! Analyzing aggregates by their screened connectivity
 !
            if ( doconf ) then
              call system_clock(t1conf)
 !
-!~              call screentadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
-!~                               box,buildadjrep)     
+             if ( trim(cconf) .eq. 'grps' ) then
+             call printscrnadjgrps(nmax,nagg,iagg,imol,node,           &
+                   cur2old,cur2new,mnode,matms,posi,oldposi,           &
+                   newposi,tmpposi,oldtmpposi,newtmpposi,box,          &
+                   oldbox,newbox,buildadjrep,buildadjmon,screen,       &
+                   scrn,domon)
+            else
+             call printscrnadjbody(nmax,nagg,iagg,imol,node,           &
+                   cur2old,cur2new,mnode,matms,posi,oldposi,           &
+                   newposi,tmpposi,oldtmpposi,newtmpposi,box,          &
+                   oldbox,newbox,buildadjrep,buildadjmon,screen,       &
+                   scrn,domon,dobdir)
+             end if
 !
-             call system_clock(t2conf)     
+             call system_clock(t2conf)
 !
              tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
-           end if   
+           end if
 !
 ! Printing the population of every aggregate
-! 
+!
            call system_clock(t1read)
-!         
-           call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
+!
+           call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,       &
                           magg,nsolv,uniout)
 !
-           if ( docoord ) call nprint_coord(actstep,tmpposi,box,maxat, &
-                                 nmax,nagg,imol,mnode,mol,node,agg,    &
-                                 itype)
+           if ( docoord ) then
+             call nprint_coord(actstep,tmpposi,box,maxat,nmax,nagg,    &
+                               imol,mnode,mol,node,agg,itype)
+           end if
 !
            call system_clock(t2read)
 !
-           tread = tread + dble(t2read-t1read)/dble(count_rate) 
+           tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
 ! Adding up the pairwise interaction matrix of the current snapshot
-! 
+!
            if ( dopim ) then
              call cpu_time(tipim)
-             call system_clock(t1pim)     
+             call system_clock(t1pim)
 !
 !             call build_pim()
 !
              call cpu_time(tfpim)
-             call system_clock(t2pim)     
+             call system_clock(t2pim)
 !
              tcpupim = tcpupim + tfpim - tipim
-             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)   
-           end if       
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
+           end if
 !
 ! Keeping track the adjacency matrix information
 !
            call cpu_time(tiscrn)
            call system_clock(t1scrn)
 !
+           oldbox(:) = box(:)
            box(:)    = newbox(:)
            actstep   = newstep
 !
@@ -3237,34 +3478,51 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              adj(:,i)    = newadj(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(xtcf,tmpposi)                                 &
+!$omp             shared(oldtmpposi,tmpposi,newtmpposi)                &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunklife)
            do i = 1, maxat
-             tmpposi(:,i) = xtcf%pos(:,i)
+             oldtmpposi(:,i) = tmpposi(:,i)
+             tmpposi(:,i)    = newtmpposi(:,i)
            end do
 !
-!$omp end parallel do 
+!$omp end parallel do
 !
 !$omp parallel do num_threads(np)                                      &
-!$omp             shared(posi,newposi)                                 &
+!$omp             shared(oldposi,posi,newposi)                         &
 !$omp             private(i)                                           &
 !$omp             schedule(dynamic,chunkscrn)
 !
            do i = 1, matms
-             posi(:,i) = newposi(:,i)
+             oldposi(:,i) = posi(:,i)
+             posi(:,i)    = newposi(:,i)
            end do
 !
-!$omp end parallel do                   
+!$omp end parallel do
+!
+           oldmol(:)   = mol(:)
+           oldnode(:)  = node(:)
+           oldtag(:)   = tag(:)
+           oldagg(:)   = agg(:)
+           oldidx(:)   = idx(:)
+           oldntype(:) = ntype(:)
+           olditype(:) = itype(:)
+           oldnagg(:)  = nagg(:)
+           oldiagg(:)  = iagg(:)
+           oldnmol(:)  = nmol(:)
+           oldimol(:)  = imol(:)
+           oldsize     = nsize
+           oldmidx     = midx
+           oldmagg     = magg
 !
            call cpu_time(tfscrn)
            call system_clock(t2scrn)
 !
            tcpuscrn = tcpuscrn + tfscrn - tiscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate) 
+           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -3278,16 +3536,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Deallocate memory
 !
-       deallocate(posi,newposi)
+       deallocate(oldposi,posi,newposi)
+       deallocate(oldtmpposi,tmpposi,newtmpposi)
 !
        deallocate(adj,oldadj,newadj)
 !
        deallocate(mol,tag,agg,idx,ntype,itype)
+       deallocate(oldmol,oldnode,oldtag,oldagg,oldidx,oldntype,olditype)
+       deallocate(newmol,newnode,newtag,newagg,newidx,newntype,newitype)
+       deallocate(cur2old,cur2new)
        deallocate(nmol,imol,nagg,iagg)
+       deallocate(oldnmol,oldimol,oldnagg,oldiagg)
+       deallocate(newnmol,newimol,newnagg,newiagg)
 !
        call system_clock(t2read)
 !
-       tread = tread + dble(t2read-t1read)/dble(count_rate) 
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !
        return
        end subroutine naggscrn
@@ -3296,7 +3560,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! NPRINTPOP - N-components PRINT POPulations
 !
-! This subroutine 
+! This subroutine
 !
        subroutine nprintpop(step,box,nagg,imol,mnode,agg,itype,magg,  &
                             nsolv,iuni)
@@ -3331,7 +3595,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(mtype)              ::  comp   !
        integer,dimension(mtype,mnode)        ::  ihom   !
        integer,dimension(mnode)              ::  imix   !
-       integer                               ::  i      !  Index 
+       integer                               ::  i      !  Index
        integer                               ::  j      !  Index
        integer                               ::  k      !  Index
        integer                               ::  nsp    !  Number of species in aggregate
@@ -3347,8 +3611,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          num(i)  = num(i)  + nagg(i)
          pop(i)  = pop(i)  + real(nagg(i))/magg*100
          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
-         conc(i) = conc(i) + real(nagg(i))/box(1)**3 
-       end do                    
+         conc(i) = conc(i) + real(nagg(i))/box(1)**3
+       end do
 !
 ! Accumulating denominators and size distributions
 !
@@ -3431,9 +3695,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                                               real(nagg(:))/(magg+nsolv)
        write(iuni+3,'(I10,100(X,F10.6))') step,                        &
                                     real(nagg(:))/box(1)**3/(Na*1.0E-24)
-!~        write(iuni+4,'(I10,100(X,F10.6))') step,                        & 
-!~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability  
-       write(iuni+5,'(I10,100(X,I7))') step,nagg(:)  
+!~        write(iuni+4,'(I10,100(X,F10.6))') step,                        &
+!~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability
+       write(iuni+5,'(I10,100(X,I7))') step,nagg(:)
 !
        do i = 1, mtype
          hompop(i,:)  = hompop(i,:)  + dble(ihom(i,:))/dble(magg)*100.0d0
@@ -3458,7 +3722,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        subroutine nprint_coord(step,rcoord,box,natot,nmax,nagg,imol,  &
                                mnode,mol,node,agg,itype)
 !
-       use systeminf,   only:  sys,iat,mmon,mtype,nmon
+       use systeminf,   only:  sys,iat,mmon,mtype,agglabel
        use filenames,   only:  outp
        use lengths,     only:  lenout
        use geometry,    only:  sminimgvec
@@ -3534,18 +3798,22 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
              natagg = natagg + sys(q)%nat
            end do
 !
-           if ( iagg .ne. nmax ) comp(:) = nmon(:,iagg)
+           label = ''
+           if ( iagg .eq. nmax ) then
+             do q = 1, mtype
+               if ( comp(q) .eq. 0 ) cycle
+               write(aux,'(I0)') q
+               label = trim(label)//'_q'//trim(adjustl(aux))
+               write(aux,'(I0)') comp(q)
+               label = trim(label)//'n'//trim(adjustl(aux))
+             end do
+           else
+             label = agglabel(iagg)
+           end if
 !
-           label = 'stoich'
-           do q = 1, mtype
-             if ( comp(q) .eq. 0 ) cycle
-             write(aux,'(I0)') q
-             label = trim(label)//'_q'//trim(adjustl(aux))
-             write(aux,'(I0)') comp(q)
-             label = trim(label)//'n'//trim(adjustl(aux))
-           end do
-!
-           fname = trim(outp)//'_coord_'//trim(label)//'.xyz'
+           write(aux,'(I0)') iagg
+           fname = trim(outp)//'_id_'//                                &
+                   trim(adjustl(aux))//trim(label)//'.xyz'
 !
            newfile = .TRUE.
            do i = 1, nused
@@ -3618,7 +3886,360 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !======================================================================!
 !
-! PRINTADJBODY - PRINT ADJacency matrix 
+! BUILDCONFADJ - BUILD CONFormational ADJacency matrix
+!
+       subroutine buildconfadj(isize,node,madj,base,adj,matms,       &
+                                      posi,coordmat,box,mtype,nnode,  &
+                                      inode,iadjmon,buildadjrep,      &
+                                      buildadjmon,domon)
+!
+       use systeminf,   only:  coord
+!
+       implicit none
+!
+! Input/output variables
+!
+       logical,dimension(madj,madj),intent(in)       ::  base     !
+       logical,dimension(madj,madj),intent(out)      ::  adj      !
+       real(kind=4),dimension(3,matms),intent(in)    ::  posi     !
+       real(kind=4),dimension(:,:),target,intent(in) ::  coordmat !
+       real(kind=4),dimension(3),intent(in)          ::  box      !
+       integer,dimension(isize),intent(in)           ::  node     !
+       integer,dimension(mtype),intent(in)           ::  nnode    !
+       integer,dimension(mtype),intent(in)           ::  inode    !
+       integer,dimension(mtype),intent(in)           ::  iadjmon  !
+       integer,intent(in)                            ::  isize    !
+       integer,intent(in)                            ::  madj     !
+       integer,intent(in)                            ::  matms    !
+       integer,intent(in)                            ::  mtype    !
+       logical,intent(in)                            ::  domon    !
+!
+! External functions
+!
+       external                                      ::  buildadjrep
+       external                                      ::  buildadjmon
+!
+       coord => coordmat(:,:)
+       adj(:,:) = base(:,:)
+!
+       if ( domon ) then
+         call buildadjmon(isize,node,madj,adj,matms,posi,box,mtype,    &
+                          nnode,inode,iadjmon)
+       end if
+!
+       call buildadjrep(isize,node,madj,adj,matms,posi,box,mtype,      &
+                        nnode,inode,iadjmon)
+!
+       return
+       end subroutine buildconfadj
+!
+!======================================================================!
+!
+! SCRNADJREP - SCReeN ADJacency matrix in aggregate REPresentation
+!
+       subroutine scrnadjrep(scrn,madj,oldadj,adj,newadj,base,        &
+                             directed,screen)
+!
+       use lengths,     only:  lenschm
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=lenschm),intent(in)           ::  scrn      !
+       logical,dimension(madj,madj),intent(in)     ::  oldadj    !
+       logical,dimension(madj,madj),intent(inout)  ::  adj       !
+       logical,dimension(madj,madj),intent(in)     ::  newadj    !
+       logical,dimension(madj,madj),intent(in)     ::  base      !
+       logical,intent(in)                          ::  directed  !
+       integer,intent(in)                          ::  madj      !
+!
+! External functions
+!
+       external                                    ::  screen
+!
+! Local variables
+!
+       integer                                     ::  i,j       !
+!
+       if ( directed ) then
+         do i = 1, madj
+           do j = 1, madj
+             select case (trim(scrn))
+               case ('collisions')
+                 adj(i,j) = adj(i,j) .and. (oldadj(i,j) .or.          &
+                                            newadj(i,j))
+               case ('oscillations')
+                 adj(i,j) = adj(i,j) .or. (oldadj(i,j) .and.          &
+                                           newadj(i,j))
+               case default
+                 adj(i,j) = (oldadj(i,j) .and. adj(i,j)) .or.         &
+                            (adj(i,j) .and. newadj(i,j)) .or.         &
+                            (oldadj(i,j) .and. newadj(i,j))
+             end select
+           end do
+         end do
+       else
+         call screen(madj,oldadj,adj,newadj)
+       end if
+!
+       adj(:,:) = adj(:,:) .or. base(:,:)
+!
+       return
+       end subroutine scrnadjrep
+!
+!======================================================================!
+!
+! PRINTSCRNADJBODY - PRINT SCReeNed body ADJacency matrix
+!
+      subroutine printscrnadjbody(nmax,nagg,iaggidx,imol,node,       &
+                               cur2old,cur2new,mnode,matms,posi,      &
+                               oldposi,newposi,coordmat,oldcoord,     &
+                               newcoord,box,oldbox,newbox,            &
+                               buildadjbody,buildadjmon,screen,scrn,  &
+                               domon,directed)
+!
+       use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,         &
+                               ibodymon,adjbody,tmpbody
+       use properties,  only:  num
+       use lengths,     only:  lenschm
+       use units,       only:  uniadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg,iaggidx   !
+       integer,dimension(nmax),intent(in)          ::  imol           !
+      integer,dimension(mnode),intent(in)         ::  node           !
+      integer,dimension(mnode),intent(in)         ::  cur2old        !
+      integer,dimension(mnode),intent(in)         ::  cur2new        !
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi,oldposi   !
+       real(kind=4),dimension(3,matms),intent(in)  ::  newposi        !
+       real(kind=4),dimension(:,:),target,intent(in) :: coordmat      !
+       real(kind=4),dimension(:,:),target,intent(in) :: oldcoord      !
+       real(kind=4),dimension(:,:),target,intent(in) :: newcoord      !
+       real(kind=4),dimension(3),intent(in)        ::  box,oldbox     !
+       real(kind=4),dimension(3),intent(in)        ::  newbox         !
+       character(len=lenschm),intent(in)           ::  scrn           !
+       integer,intent(in)                          ::  nmax,mnode     !
+       integer,intent(in)                          ::  matms          !
+       logical,intent(in)                          ::  domon,directed !
+!
+! External functions
+!
+       external                                    ::  buildadjbody
+       external                                    ::  buildadjmon
+       external                                    ::  screen
+!
+! Local variables
+!
+       logical,dimension(:,:),allocatable          ::  oldrep,newrep  !
+       integer                                     ::  firstagg       !
+       integer                                     ::  iagg,madj      !
+       integer                                     ::  iocc,istart    !
+       integer                                     ::  curagg         !
+       integer                                     ::  ii,jj          !
+!
+       firstagg = mtype + 1
+       if ( domon ) firstagg = 1
+!
+       do iagg = firstagg, nmax-1
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         madj = mbodymon(iagg)
+         allocate(oldrep(madj,madj),newrep(madj,madj))
+!
+         if ( num(iagg) .eq. 0 ) then
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                action='write')
+           write(uniadj,*) trim(adjbody(iagg)%lab)
+           do ii = 1, madj
+             write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+         else
+           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
+                position='append',action='write')
+         end if
+!
+         istart = imol(iagg)
+         do iocc = 1, nagg(iagg)
+!
+           curagg = iaggidx(iagg) + iocc
+           oldrep(:,:) = .FALSE.
+           newrep(:,:) = .FALSE.
+           tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
+!
+           if ( cur2old(curagg) .gt. 0 ) then
+            call buildconfadj(mmon(iagg),                              &
+                  node(istart+1:istart+mmon(iagg)),madj,               &
+                  adjbody(iagg)%adj,oldrep,matms,oldposi,oldcoord,     &
+                  oldbox,mtype,nmon(:,iagg),imon(:,iagg),              &
+                  ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
+           end if
+!
+          call buildconfadj(mmon(iagg),                                &
+                node(istart+1:istart+mmon(iagg)),madj,                 &
+                adjbody(iagg)%adj,tmpbody(iagg)%adj,matms,posi,        &
+                coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),          &
+                ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
+!
+           if ( cur2new(curagg) .gt. 0 ) then
+            call buildconfadj(mmon(iagg),                              &
+                  node(istart+1:istart+mmon(iagg)),madj,               &
+                  adjbody(iagg)%adj,newrep,matms,newposi,newcoord,     &
+                  newbox,mtype,nmon(:,iagg),imon(:,iagg),              &
+                  ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
+           end if
+!
+          call scrnadjrep(scrn,madj,oldrep,tmpbody(iagg)%adj,newrep,   &
+                          adjbody(iagg)%adj,directed,screen)
+!
+           do ii = 1, madj
+             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+!
+           istart = istart + mmon(iagg)
+         end do
+!
+         close(uniadj)
+         deallocate(oldrep,newrep)
+       end do
+!
+       return
+      end subroutine printscrnadjbody
+!
+!======================================================================!
+!
+! PRINTSCRNADJGRPS - PRINT SCReeNed groups ADJacency matrix
+!
+      subroutine printscrnadjgrps(nmax,nagg,iaggidx,imol,node,         &
+                                  cur2old,cur2new,mnode,matms,posi,    &
+                                  oldposi,newposi,coordmat,oldcoord,   &
+                                  newcoord,box,oldbox,newbox,          &
+                                  buildadjgrps,buildadjmon,screen,     &
+                                  scrn,domon)
+!
+       use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,          &
+                               igrpsmon,adjgrps,tmpgrps
+       use properties,  only:  num
+       use lengths,     only:  lenschm
+       use units,       only:  uniadj
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)             ::  nagg     !
+       integer,dimension(nmax),intent(in)             ::  iaggidx  !
+       integer,dimension(nmax),intent(in)             ::  imol     !
+       integer,dimension(mnode),intent(in)            ::  node     !
+       integer,dimension(mnode),intent(in)            ::  cur2old  !
+       integer,dimension(mnode),intent(in)            ::  cur2new  !
+       real(kind=4),dimension(3,matms),intent(in)     ::  posi     !
+       real(kind=4),dimension(3,matms),intent(in)     ::  oldposi  !
+       real(kind=4),dimension(3,matms),intent(in)     ::  newposi  !
+       real(kind=4),dimension(:,:),target,intent(in)  :: coordmat  !
+       real(kind=4),dimension(:,:),target,intent(in)  :: oldcoord  !
+       real(kind=4),dimension(:,:),target,intent(in)  :: newcoord  !
+       real(kind=4),dimension(3),intent(in)           ::  box      !
+       real(kind=4),dimension(3),intent(in)           ::  oldbox   !
+       real(kind=4),dimension(3),intent(in)           ::  newbox   !
+       character(len=lenschm),intent(in)              ::  scrn     !
+       integer,intent(in)                             ::  nmax     !
+       integer,intent(in)                             ::  mnode    !
+       integer,intent(in)                             ::  matms    !
+       logical,intent(in)                             ::  domon    !
+!
+! External functions
+!
+       external                                    ::  buildadjgrps
+       external                                    ::  buildadjmon
+       external                                    ::  screen
+!
+! Local variables
+!
+       logical,dimension(:,:),allocatable          ::  oldrep      !
+       logical,dimension(:,:),allocatable          ::  newrep      !
+       integer                                     ::  firstagg    !
+       integer                                     ::  iagg        !
+       integer                                     ::  madj        !
+       integer                                     ::  iocc        !
+       integer                                     ::  istart      !
+       integer                                     ::  curagg      !
+       integer                                     ::  ii,jj       !
+!
+       firstagg = mtype + 1
+       if ( domon ) firstagg = 1
+!
+       do iagg = firstagg, nmax-1
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         madj = mgrpsmon(iagg)
+         allocate(oldrep(madj,madj),newrep(madj,madj))
+!
+         if ( num(iagg) .eq. 0 ) then
+           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
+                action='write')
+           write(uniadj,*) trim(adjgrps(iagg)%lab)
+           do ii = 1, madj
+             write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+         else
+           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
+                position='append',action='write')
+         end if
+!
+         istart = imol(iagg)
+         do iocc = 1, nagg(iagg)
+!
+           curagg = iaggidx(iagg) + iocc
+           oldrep(:,:) = .FALSE.
+           newrep(:,:) = .FALSE.
+           tmpgrps(iagg)%adj(:,:) = adjgrps(iagg)%adj(:,:)
+!
+           if ( cur2old(curagg) .gt. 0 ) then
+             call buildconfadj(mmon(iagg),                             &
+                   node(istart+1:istart+mmon(iagg)),madj,              &
+                   adjgrps(iagg)%adj,oldrep,matms,oldposi,oldcoord,    &
+                   oldbox,mtype,nmon(:,iagg),imon(:,iagg),             &
+                   igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
+           end if
+!
+           call buildconfadj(mmon(iagg),                               &
+                 node(istart+1:istart+mmon(iagg)),madj,                &
+                 adjgrps(iagg)%adj,tmpgrps(iagg)%adj,matms,posi,       &
+                 coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),         &
+                 igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
+!
+           if ( cur2new(curagg) .gt. 0 ) then
+             call buildconfadj(mmon(iagg),                             &
+                   node(istart+1:istart+mmon(iagg)),madj,              &
+                   adjgrps(iagg)%adj,newrep,matms,newposi,newcoord,    &
+                   newbox,mtype,nmon(:,iagg),imon(:,iagg),             &
+                   igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
+           end if
+!
+           call scrnadjrep(scrn,madj,oldrep,tmpgrps(iagg)%adj,newrep,  &
+                          adjgrps(iagg)%adj,.FALSE.,screen)
+!
+           do ii = 1, madj
+             write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
+           end do
+!
+           istart = istart + mmon(iagg)
+         end do
+!
+         close(uniadj)
+         deallocate(oldrep,newrep)
+       end do
+!
+       return
+      end subroutine printscrnadjgrps
+!
+!======================================================================!
+!
+! PRINTADJBODY - PRINT ADJacency matrix
 !                 in the n-BODY simplified representation
 !
        subroutine printadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
@@ -3634,15 +4255,15 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 ! Input/output variables
 !
-       integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
-       integer,dimension(nmax),intent(in)          ::  imol    !  
-       integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
-       real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
-       real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
-       integer,intent(in)                          ::  nmax    !
-       integer,intent(in)                          ::  mnode   !
-       integer,intent(in)                          ::  matms   !
-       logical,intent(in)                          ::  domon   !
+       integer,dimension(nmax),intent(in)          ::  nagg     !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol     !
+       integer,dimension(mnode),intent(in)         ::  node     !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi     !
+       real(kind=4),dimension(3),intent(in)        ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax     !
+       integer,intent(in)                          ::  mnode    !
+       integer,intent(in)                          ::  matms    !
+       logical,intent(in)                          ::  domon    !
 !
 ! External functions
 !
@@ -3652,10 +4273,10 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Local variables
 !
        integer                                     ::  firstagg !  Indexes
-       integer                                     ::  iagg    !  Indexes
-       integer                                     ::  madj    !  Indexes
-       integer                                     ::  i,j     !  Indexes
-       integer                                     ::  ii,jj   !  Indexes
+       integer                                     ::  iagg     !  Indexes
+       integer                                     ::  madj     !  Indexes
+       integer                                     ::  i,j      !  Indexes
+       integer                                     ::  ii,jj    !  Indexes
 !
 ! Printing adj matrix of the aggregates in the N-body simplified representation
 ! -----------------------------------------------------------------------------
@@ -3689,7 +4310,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            if ( domon ) then
              call buildadjmon(mmon(iagg),node(j+1:j+mmon(iagg)),madj,  &
                               tmpbody(iagg)%adj,matms,posi,box,mtype,  &
-                              nmon(:,iagg),imon(:,iagg),ibodymon(:,iagg))
+                              nmon(:,iagg),imon(:,iagg),               &
+                              ibodymon(:,iagg))
            end if
 !
            call buildadjbody(mmon(iagg),node(j+1:j+mmon(iagg)),madj,   &
@@ -3713,7 +4335,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !======================================================================!
 !
-! PRINTADJGRPS - PRINT ADJacency matrix 
+! PRINTADJGRPS - PRINT ADJacency matrix
 !                 in the GRouPS representation
 !
        subroutine printadjgrps(nmax,nagg,imol,mnode,node,matms,posi,   &
@@ -3730,7 +4352,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 ! Input/output variables
 !
        integer,dimension(nmax),intent(in)          ::  nagg    !  Number of aggregates of each size
-       integer,dimension(nmax),intent(in)          ::  imol    !  
+       integer,dimension(nmax),intent(in)          ::  imol    !
        integer,dimension(mnode),intent(in)         ::  node    !  Molecules identifier
        real(kind=4),dimension(3,matms),intent(in)  ::  posi    !
        real(kind=4),dimension(3),intent(in)        ::  box     !  Simulation box !FLAG: kind=8 to kind=4
