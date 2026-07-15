@@ -312,137 +312,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !======================================================================!
 !
-! NTRACKAGG - N-components TRACK AGGregates information
-!
-! This subroutine maps each target aggregate to the matching reference
-!  aggregate with the same stoichiometric identifier and molecule list.
-!
-       subroutine ntrackagg(mtype,nnode,nmax,nmon,rmidx,rmol,tmidx,   &
-                            tmol,rnagg,riagg,rnmol,rimol,tnagg,       &
-                            tiagg,timol,imap)
-!
-       use omp_var,  only:  np,chunklife
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,dimension(nmax),intent(in)    ::  nmon   !
-       integer,dimension(nnode),intent(in)   ::  rmol   !  Reference molecule identifiers
-       integer,dimension(nnode),intent(in)   ::  tmol   !  Target molecule identifiers
-       integer,dimension(nnode),intent(out)  ::  imap   !  Target-to-reference aggregate map
-       integer,dimension(nmax),intent(in)    ::  rnagg  !
-       integer,dimension(nmax),intent(in)    ::  riagg  !
-       integer,dimension(nmax),intent(in)    ::  tnagg  !
-       integer,dimension(nmax),intent(in)    ::  tiagg  !
-       integer,dimension(nmax),intent(in)    ::  rnmol  !
-       integer,dimension(nmax),intent(in)    ::  rimol  !
-       integer,dimension(nmax),intent(in)    ::  timol  !
-       integer,intent(in)                    ::  mtype  !
-       integer,intent(in)                    ::  nnode  !  Number of molecules
-       integer,intent(in)                    ::  nmax   !  Number of possible aggregates
-       integer,intent(in)                    ::  rmidx  !  Reference maximum aggregate identifier
-       integer,intent(in)                    ::  tmidx  !  Target maximum aggregate identifier
-!
-! Local variables
-!
-       integer                               ::  iiagg  !
-       integer                               ::  jiagg  !
-       integer                               ::  qiagg  !
-       integer                               ::  iimol  !
-       integer                               ::  jimol  !
-       integer                               ::  qimol  !
-       integer                               ::  msize  !
-       integer                               ::  isize  !
-       integer                               ::  jsize  !
-       integer                               ::  ni,nj  !
-!
-! Initializing the target-to-reference map
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(imap)                                         &
-!$omp             private(ni)                                          &
-!$omp             schedule(dynamic,chunklife)
-!
-       do ni = 1, nnode
-         imap(ni) = 0
-       end do
-!
-!$omp end parallel do
-!
-       msize = tmidx
-       if ( rmidx .lt. tmidx ) msize = rmidx
-       if ( nmax .lt. msize ) msize = nmax
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(imap,tnagg,tmol,rmol,tiagg,riagg,rnagg,       &
-!$omp                    rnmol,rimol,timol,msize,nmon)                 &
-!$omp             private(isize,qiagg,iimol,jimol,qimol,iiagg,ni,nj,   &
-!$omp                     jiagg,jsize)                                 &
-!$omp             schedule(dynamic,1)
-!
-       do isize = mtype+1, msize
-         if ( (tnagg(isize).ne.0) .and. (rnagg(isize).ne.0) ) then
-!
-           iimol = timol(isize)
-           jimol = rimol(isize)
-           qimol = jimol + rnmol(isize)
-!
-           qiagg = 1
-           iiagg = 1
-!
-           do while ( (iiagg.le.tnagg(isize)) .and. (jimol.lt.qimol) )
-!
-             ni = iimol + 1
-             nj = jimol + 1
-!
-             do jiagg = qiagg, rnagg(isize)
-!
-               nj = jimol + 1
-!
-               if ( tmol(ni) .lt. rmol(nj) ) then
-                 qiagg = jiagg
-                 exit
-!
-               else if ( tmol(ni) .eq. rmol(nj) ) then
-                 imap(tiagg(isize)+iiagg) = -1
-                 jsize = 2
-!
-                 do while ( (jsize.le.nmon(isize)) .and.               &
-                                      (imap(tiagg(isize)+iiagg).ne.0) )
-                   if ( tmol(iimol+jsize) .ne. rmol(jimol+jsize) )    &
-                     imap(tiagg(isize)+iiagg) = 0
-                   jsize = jsize + 1
-                 end do
-!
-                 if ( imap(tiagg(isize)+iiagg) .ne. 0 )               &
-                   imap(tiagg(isize)+iiagg) = riagg(isize)+jiagg
-!
-                 qiagg = jiagg + 1
-                 jimol = jimol + nmon(isize)
-                 exit
-!
-               else
-                 jimol = jimol + nmon(isize)
-               end if
-!
-             end do
-!
-             iimol = iimol + nmon(isize)
-             iiagg = iiagg + 1
-!
-           end do
-!
-         end if
-       end do
-!
-!$omp end parallel do
-!
-       return
-       end subroutine ntrackagg
-!
-!======================================================================!
-!
 ! AGGDIST - AGGregates DISTances algorithm
 !
 ! This subroutine obtains the size and the number of aggregates present
@@ -463,7 +332,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use xdr,         only:  xtcfile
 !
-       use properties,  only:  pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  pim,num,pop,frac,conc,volu
 !
        use units,       only:  uniout
 !
@@ -564,7 +433,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -712,7 +580,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use xdr,         only:  xtcfile
        use omp_lib
 !
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,volu
 !
        use omp_var
        use datatypes
@@ -852,7 +720,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -1183,7 +1050,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use xdr,         only:  xtcfile
        use omp_lib
 !
-       use properties,  only:  pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  pim,num,pop,frac,conc,volu
 !
        use omp_var
        use datatypes
@@ -1302,7 +1169,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -1590,7 +1456,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        use xdr,         only:  xtcfile
        use omp_lib
 !
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,volu
 !
        use omp_var
        use datatypes
@@ -1740,7 +1606,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -2195,7 +2060,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        subroutine printpop(step,nsize,msize,box,nnode,nagg,magg,       &
                            nsolv,cin,iuni)
 !
-       use properties,  only:  num,pop,frac,conc,prob,volu
+       use properties,  only:  num,pop,frac,conc,volu
 !
        use parameters,  only:  Na
 !
@@ -2227,7 +2092,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          pop(i)  = pop(i)  + real(nagg(i))/magg*100
          frac(i) = frac(i) + real(nagg(i))/(magg+nsolv)
          conc(i) = conc(i) + real(nagg(i))/box(1)**3
-         prob(i) = prob(i) + real(i*nagg(i))/nnode*100
        end do
 !
        dp1 = 0.0d0
@@ -2242,7 +2106,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          pop(msize)  = pop(msize)  + dp1/magg*100
          frac(msize) = frac(msize) + dp1/(magg+nsolv)
          conc(msize) = conc(msize) + dp1/box(1)**3
-         prob(msize) = prob(msize) + dp2/nnode*100
        end if
 !
        cin = cin + real(nnode)/box(1)**3
@@ -2258,8 +2121,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        write(iuni+3,'(I10,100(X,F10.6))') step,                        &
                       real(nagg(:msize-1))/box(1)**3/(Na*1.0E-24),     &
                                               dp1/box(1)**3/(Na*1.0E-24)
-       write(iuni+4,'(I10,100(X,F10.6))') step,                        &
-                            real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability
        write(iuni+5,'(I10,100(X,I10))') step,nagg(:msize-1),int(dp1)
 !
        return
@@ -2286,7 +2147,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                            docoord,debug)
 !
        use systeminf,   only:  xtcf,mnode,matms,maxat,coord
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tpim,tconf,       &
                                tcpuadj,tcpupim
@@ -2374,7 +2235,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin(:)  = 0.0d0
@@ -2526,7 +2386,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon,maxat,  &
                                coord
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
                                tcpuadj,tcpupim,tcpulife
@@ -2657,7 +2517,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -3029,9 +2888,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        use omp_lib
 !
-       use systeminf,   only:  xtcf,rep,mtype,mnode,matms,mmon,maxat,  &
+       use systeminf,   only:  xtcf,mnode,matms,maxat,                 &
                                coord
-       use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
+       use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
        use lengths,     only:  lenschm
 !
        use timings,     only:  count_rate,tread,tadj,tscrn,tpim,tconf, &
@@ -3083,9 +2942,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,dimension(:,:),allocatable              ::  adj      !  Adjacency matrix
        logical,dimension(:,:),allocatable              ::  oldadj   !  Adjacency matrix
        logical,dimension(:,:),allocatable              ::  newadj   !  Adjacency matrix
+       logical,dimension(:,:),allocatable              ::  sysbase  !  Global representation template matrix
+       logical,dimension(:,:),allocatable              ::  oldrep   !  Previous screened representation matrix
+       logical,dimension(:,:),allocatable              ::  sysrep   !  Current representation matrix
+       logical,dimension(:,:),allocatable              ::  newrep   !  Next representation matrix
        integer,dimension(:),allocatable                ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable                ::  node     !  Molecules identifier
-       integer,dimension(:),allocatable                ::  tag      !   Aggregates identifier
+       integer,dimension(:),allocatable                ::  tag      !  Aggregates identifier
        integer,dimension(:),allocatable                ::  agg      !  Aggregates size
        integer,dimension(:),allocatable                ::  idx      !  Aggregate identifier
        integer,dimension(:),allocatable                ::  ntype    !
@@ -3116,8 +2979,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer,dimension(:),allocatable                ::  newiagg  !
        integer,dimension(:),allocatable                ::  newnmol  !
        integer,dimension(:),allocatable                ::  newimol  !
-       integer,dimension(:),allocatable                ::  cur2old  !
-       integer,dimension(:),allocatable                ::  cur2new  !
+       integer,dimension(:),allocatable                ::  irepnode !  First representation index of each molecule
+       integer,dimension(:),allocatable                ::  nrepnode !  Number of representation sites per molecule
        integer                                         ::  oldsize  !  Old maximum aggregate size
        integer                                         ::  oldmidx  !  Old maximum aggregate index
        integer                                         ::  oldmagg  !  Old number of chemical species
@@ -3129,6 +2992,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        integer                                         ::  magg     !  Actual number of chemical species
        integer                                         ::  actstep  !
        integer                                         ::  newstep  !
+       integer                                         ::  msysrep  ! Total size of the global representation matrix
 !
 ! Local variables
 !
@@ -3142,6 +3006,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        real(kind=4),dimension(3)                       ::  box      !
        real(kind=4),dimension(3)                       ::  newbox   !
        logical                                         ::  dobdir   !
+       logical                                         ::  dobody   !
        integer                                         ::  i        !
 !
 ! Declaration of time control variables
@@ -3170,13 +3035,13 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        nsteps  = 0
 !
        dobdir  = trim(cconf) .eq. 'bodydir'
+       dobody  = dobdir .or. (trim(cconf) .eq. 'body')
 !
        pim(:,:,:) = 0.0d0
 !
        pop(:)  = 0.0d0
        conc(:) = 0.0d0
        frac(:) = 0.0d0
-       prob(:) = 0.0d0
        num(:)  = 0
 !
        cin     = 0.0d0
@@ -3195,7 +3060,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(newmol(mnode),newnode(mnode),newtag(mnode),            &
                 newagg(mnode))
        allocate(newidx(mnode),newntype(mnode),newitype(mnode))
-       allocate(cur2old(mnode),cur2new(mnode))
 !
        allocate(nmol(nmax),imol(nmax))
        allocate(nagg(nmax),iagg(nmax))
@@ -3203,6 +3067,18 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        allocate(oldnagg(nmax),oldiagg(nmax))
        allocate(newnmol(nmax),newimol(nmax))
        allocate(newnagg(nmax),newiagg(nmax))
+!
+       if ( doconf ) then
+         allocate(irepnode(mnode),nrepnode(mnode))
+         allocate(sysbase(msysrep,msysrep))
+         allocate(oldrep(msysrep,msysrep),sysrep(msysrep,msysrep),     &
+                  newrep(msysrep,msysrep))
+       end if
+!
+! Building template adjacency matrix in the selected topological representation
+!
+         call setsysrepidx(dobody,msysrep,irepnode,nrepnode)
+         call buildsysbaseadjrep(dobody,msysrep,irepnode,sysbase)
 !
 ! Allocating variables depending on topological information
 !
@@ -3265,6 +3141,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                        oldntype,olditype,oldsize,oldnagg,oldiagg,      &
                        oldnmol,oldimol,oldmagg,oldmidx,debug)
 !
+       if ( doconf ) then
+         call buildsysadjrep(nmax,oldnagg,oldimol,mnode,oldmol,        &
+                             oldnode,msysrep,irepnode,                 &
+                             nrepnode,oldrep,matms,oldposi,            &
+                             oldtmpposi,oldbox,buildadjrep,            &
+                             buildadjmon,domon,dobody)
+       end if
+!
 ! Initializing the actual configuration
 ! -------------------------------------
 !
@@ -3320,6 +3204,15 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        tcpuadj = tcpuadj + tfadj - tiadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
+!
+       if ( doconf ) then
+         call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,         &
+                         nsize,nagg,iagg,nmol,imol,magg,midx,debug)
+         call buildsysadjrep(nmax,nagg,imol,mnode,mol,node,            &
+                             msysrep,irepnode,nrepnode,sysrep,matms,   &
+                             posi,tmpposi,box,buildadjrep,             &
+                             buildadjmon,domon,dobody)
+       end if
 !
 ! Processing the remaining trajectory
 ! -----------------------------------
@@ -3379,6 +3272,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                            newntype,newitype,newsize,newnagg,newiagg,  &
                            newnmol,newimol,newmagg,newmidx,debug)
 !
+           if ( doconf ) then
+             call buildsysadjrep(nmax,newnagg,newimol,mnode,newmol,    &
+                                 newnode,msysrep,irepnode,nrepnode,    &
+                                 newrep,matms,newposi,newtmpposi,      &
+                                 newbox,buildadjrep,buildadjmon,       &
+                                 domon,dobody)
+           end if
+!
 ! Screening interactions between the molecules
 !
            call cpu_time(tiscrn)
@@ -3397,30 +3298,21 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,       &
                            nsize,nagg,iagg,nmol,imol,magg,midx,debug)
 !
-           call ntrackagg(mtype,mnode,nmax,mmon,oldmidx,oldmol,midx,   &
-                          mol,oldnagg,oldiagg,oldnmol,oldimol,nagg,    &
-                          iagg,imol,cur2old)
-           call ntrackagg(mtype,mnode,nmax,mmon,newmidx,newmol,midx,   &
-                          mol,newnagg,newiagg,newnmol,newimol,nagg,    &
-                          iagg,imol,cur2new)
-!
 ! Analyzing aggregates by their screened connectivity
 !
            if ( doconf ) then
              call system_clock(t1conf)
 !
-             if ( trim(cconf) .eq. 'grps' ) then
-             call printscrnadjgrps(nmax,nagg,iagg,imol,node,           &
-                   cur2old,cur2new,mnode,matms,posi,oldposi,           &
-                   newposi,tmpposi,oldtmpposi,newtmpposi,box,          &
-                   oldbox,newbox,buildadjrep,buildadjmon,screen,       &
-                   scrn,domon)
-            else
-             call printscrnadjbody(nmax,nagg,iagg,imol,node,           &
-                   cur2old,cur2new,mnode,matms,posi,oldposi,           &
-                   newposi,tmpposi,oldtmpposi,newtmpposi,box,          &
-                   oldbox,newbox,buildadjrep,buildadjmon,screen,       &
-                   scrn,domon,dobdir)
+             if ( .not. dobody ) then
+               call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
+                    sysbase,.FALSE.,screen)
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.FALSE.,domon)
+             else
+               call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
+                    sysbase,dobdir,screen)
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,domon)
              end if
 !
              call system_clock(t2conf)
@@ -3503,20 +3395,27 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !$omp end parallel do
 !
-           oldmol(:)   = mol(:)
-           oldnode(:)  = node(:)
-           oldtag(:)   = tag(:)
-           oldagg(:)   = agg(:)
-           oldidx(:)   = idx(:)
+           oldmol(:)  = mol(:)
+           oldnode(:) = node(:)
+           oldtag(:)  = tag(:)
+           oldagg(:)  = agg(:)
+           oldidx(:)  = idx(:)
+!
            oldntype(:) = ntype(:)
            olditype(:) = itype(:)
            oldnagg(:)  = nagg(:)
            oldiagg(:)  = iagg(:)
            oldnmol(:)  = nmol(:)
            oldimol(:)  = imol(:)
-           oldsize     = nsize
-           oldmidx     = midx
-           oldmagg     = magg
+!
+           oldsize = nsize
+           oldmidx = midx
+           oldmagg = magg
+!
+           if ( doconf ) then                                         
+             oldrep(:,:) = sysrep(:,:)                                
+             sysrep(:,:) = newrep(:,:)                                
+           end if                                                     
 !
            call cpu_time(tfscrn)
            call system_clock(t2scrn)
@@ -3541,10 +3440,14 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        deallocate(adj,oldadj,newadj)
 !
+       if ( doconf ) then                                            
+         deallocate(sysbase,oldrep,sysrep,newrep)                    
+         deallocate(irepnode,nrepnode)                               
+       end if                                                        
+!
        deallocate(mol,tag,agg,idx,ntype,itype)
        deallocate(oldmol,oldnode,oldtag,oldagg,oldidx,oldntype,olditype)
        deallocate(newmol,newnode,newtag,newagg,newidx,newntype,newitype)
-       deallocate(cur2old,cur2new)
        deallocate(nmol,imol,nagg,iagg)
        deallocate(oldnmol,oldimol,oldnagg,oldiagg)
        deallocate(newnmol,newimol,newnagg,newiagg)
@@ -3637,7 +3540,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          if ( nsp .eq. 1 ) then
            ihom(qhom,isize) = ihom(qhom,isize) + nagg(i)
            homxsize(qhom,isize) = homxsize(qhom,isize) +             &
-                                   dble(nagg(i))
+                                  dble(nagg(i))
            hompsize(qhom,isize) = hompsize(qhom,isize) +             &
                                    dble(isize*nagg(i))
          else
@@ -3684,6 +3587,16 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
          end do
        end if
 !
+       do i = 1, mtype
+         hompop(i,:)  = hompop(i,:)  + dble(ihom(i,:))/dble(magg)*100.0d0
+         homconc(i,:) = homconc(i,:) + dble(ihom(i,:))/dble(box(1)**3)
+         homnum(i,:)  = homnum(i,:)  + dble(ihom(i,:))
+       end do
+!
+       mixpop(:)  = mixpop(:)  + dble(imix(:))/dble(magg)*100.0d0
+       mixconc(:) = mixconc(:) + dble(imix(:))/dble(box(1)**3)
+       mixnum(:)  = mixnum(:)  + dble(imix(:))
+!
        cin(:) = cin(:) + real(nnode(:))/box(1)**3
 !
        volu = volu + box(1)**3
@@ -3695,19 +3608,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
                                               real(nagg(:))/(magg+nsolv)
        write(iuni+3,'(I10,100(X,F10.6))') step,                        &
                                     real(nagg(:))/box(1)**3/(Na*1.0E-24)
-!~        write(iuni+4,'(I10,100(X,F10.6))') step,                        &
-!~                             real(nagg(:msize-1))/nnode*100,dp2/nnode*100 ! TODO: print correct probability
        write(iuni+5,'(I10,100(X,I7))') step,nagg(:)
-!
-       do i = 1, mtype
-         hompop(i,:)  = hompop(i,:)  + dble(ihom(i,:))/dble(magg)*100.0d0
-         homconc(i,:) = homconc(i,:) + dble(ihom(i,:))/dble(box(1)**3)
-         homnum(i,:)  = homnum(i,:)  + dble(ihom(i,:))
-       end do
-!
-       mixpop(:)  = mixpop(:)  + dble(imix(:))/dble(magg)*100.0d0
-       mixconc(:) = mixconc(:) + dble(imix(:))/dble(box(1)**3)
-       mixnum(:)  = mixnum(:)  + dble(imix(:))
 !
        return
        end subroutine nprintpop
@@ -3886,12 +3787,336 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
 !======================================================================!
 !
+! SETSYSREPIDX - SET SYStem REPresentation InDeXes                   
+!                                                                     
+       subroutine setsysrepidx(dobody,msysrep,irepnode,nrepnode)      
+!                                                                     
+       use systeminf,   only:  rep,mtype,nnode,inode                  
+!                                                                     
+       implicit none                                                  
+!                                                                     
+! Input/output variables                                              
+!                                                                     
+       integer,dimension(:),intent(out)  ::  irepnode                 ! First representation index of each molecule
+       integer,dimension(:),intent(out)  ::  nrepnode                 ! Number of representation sites per molecule
+       integer,intent(out)               ::  msysrep                  ! Total size of global representation matrix 
+       logical,intent(in)                ::  dobody                   ! Body representation flag 
+!                                                                     
+! Local variables                                                     
+!                                                                     
+       integer                           ::  q                        ! Molecule type index 
+       integer                           ::  imol                     ! Local molecule index within a type
+       integer                           ::  molid                    ! Global molecule identifier
+       integer                           ::  nrep                     ! Representation sites in one molecule
+!                                                                      
+       msysrep = 0                                                     
+       do q = 1, mtype                                                 
+         if ( dobody ) then                                            
+           nrep = rep(q)%mbody                                         
+         else                                                          
+           nrep = rep(q)%mgrps                                         
+         end if                                                        
+         do imol = 1, nnode(q)                                         
+           molid = inode(q) + imol                                     
+           irepnode(molid) = msysrep + 1                               
+           nrepnode(molid) = nrep                                      
+           msysrep = msysrep + nrep                                    
+         end do                                                        
+       end do                                                          
+!                                                                      
+       return                                                          
+       end subroutine setsysrepidx                                     
+!                                                                       
+!======================================================================!
+!                                                                       
+! BUILDSYSBASEADJREP - BUILD SYStem BASE ADJacency in REPresentation    
+!                                                                       
+       subroutine buildsysbaseadjrep(dobody,msysrep,irepnode,base)    
+!                                                                    
+       use systeminf,   only:  rep,mtype,nnode,inode                
+!                                                                       
+       implicit none                                               
+!                                                                       
+! Input/output variables                                                
+!                                                                       
+       logical,dimension(msysrep,msysrep),intent(out)  ::  base        ! Global template adjacency matrix 
+       integer,dimension(:),intent(in)                 ::  irepnode    ! First representation index of each molecule
+       integer,intent(in)                              ::  msysrep     ! Total size of global representation matrix
+       logical,intent(in)                              ::  dobody      ! Body representation flag
+!                                                                        
+! Local variables                                                        
+!                                                                        
+       integer                                         ::  q           ! Molecule type index 
+       integer                                         ::  imol        ! Local molecule index within a type
+       integer                                         ::  molid       ! Global molecule identifier 
+       integer                                         ::  i0          ! Initial global representation index
+       integer                                         ::  nrep        ! Representation sites in one molecule
+!                                                                      
+       base(:,:) = .FALSE.                                             
+       do q = 1, mtype                                                 
+         if ( dobody ) then                                            
+           nrep = rep(q)%mbody                                         
+         else                                                          
+           nrep = rep(q)%mgrps                                         
+         end if                                                        
+         do imol = 1, nnode(q)                                         
+           molid = inode(q) + imol                                     
+           i0 = irepnode(molid)                                        
+           if ( dobody ) then                                          
+             base(i0:i0+nrep-1,i0:i0+nrep-1) = rep(q)%adjbody(:,:)     
+           else                                                        
+             base(i0:i0+nrep-1,i0:i0+nrep-1) = rep(q)%adjgrps(:,:)     
+           end if                                                      
+         end do                                                        
+       end do                                                          
+!                                                                      
+       return                                                          
+       end subroutine buildsysbaseadjrep                               
+!                                                                       
+!======================================================================!
+!                                                                       
+! BUILDSYSADJREP - BUILD SYStem ADJacency in aggregate REPresentation   
+!                                                                       
+       subroutine buildsysadjrep(nmax,nagg,imol,mnode,mol,node,        &
+                                 msysrep,irepnode,nrepnode,sysadj,     &
+                                 matms,posi,coordmat,box,buildadjrep,  &
+                                 buildadjmon,domon,dobody)              
+!                                                                       
+       use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,          &
+                               mbodymon,igrpsmon,ibodymon,adjgrps,     &
+                               adjbody                                  
+!                                                                       
+       implicit none                                                   
+!                                                                       
+! Input/output variables                                                
+!                                                                       
+       logical,dimension(msysrep,msysrep),intent(out) ::  sysadj       ! Global raw representation adjacency matrix 
+       real(kind=4),dimension(3,matms),intent(in)     ::  posi         ! Reduced coordinates for this frame 
+       real(kind=4),dimension(:,:),target,intent(in)  ::  coordmat     ! Atomistic coordinates for this frame
+       real(kind=4),dimension(3),intent(in)           ::  box          ! Simulation box for this frame 
+       integer,dimension(nmax),intent(in)             ::  nagg         ! Number of aggregates per stoichiometry 
+       integer,dimension(nmax),intent(in)             ::  imol         ! Initial molecule-list index per stoichiometry
+       integer,dimension(mnode),intent(in)            ::  mol          ! Global molecule identifiers in aggregate lists
+       integer,dimension(mnode),intent(in)            ::  node         ! Local molecule identifiers in aggregate lists
+       integer,dimension(:),intent(in)                ::  irepnode     ! First representation index of each molecule 
+       integer,dimension(:),intent(in)                ::  nrepnode     ! Number of representation sites per molecule
+       integer,intent(in)                             ::  nmax         ! Maximum aggregate identifier plus overflow
+       integer,intent(in)                             ::  mnode        ! Total number of molecules 
+       integer,intent(in)                             ::  msysrep      ! Total size of global representation matrix
+       integer,intent(in)                             ::  matms        ! Total number of reduced coordinate sites 
+       logical,intent(in)                             ::  domon        ! Monomer intramolecular edge flag 
+       logical,intent(in)                             ::  dobody       ! Body representation flag 
+!                                                                       
+! External functions                                                    
+!                                                                       
+       external                                       ::  buildadjrep  ! Aggregate representation builder
+       external                                       ::  buildadjmon  ! Monomer intramolecular edge builder
+!                                                                      
+! Local variables                                                      
+!                                                                      
+       logical,dimension(:,:),allocatable             ::  locadj       ! Local aggregate representation adjacency matrix
+       integer                                        ::  firstagg     ! First aggregate identifier to process
+       integer                                        ::  iagg         ! Stoichiometric aggregate identifier
+       integer                                        ::  iocc         ! Aggregate occurrence index
+       integer                                        ::  istart       ! Initial molecule-list index for current aggregate
+       integer                                        ::  madj         ! Local aggregate matrix dimension
+       integer                                        ::  im           ! Local source molecule position
+       integer                                        ::  jm           ! Local target molecule position
+       integer                                        ::  iloc         ! Initial source index in local matrix 
+       integer                                        ::  jloc         ! Initial target index in local matrix 
+       integer                                        ::  isys         ! Initial source index in global matrix
+       integer                                        ::  jsys         ! Initial target index in global matrix
+       integer                                        ::  ni           ! Source molecule representation size 
+       integer                                        ::  nj           ! Target molecule representation size
+!                                                                      
+       sysadj(:,:) = .FALSE.                                           
+       firstagg = mtype + 1                                            
+!
+       if ( domon ) firstagg = 1                                       
+!                                                                      
+       do iagg = firstagg, nmax-1                                      
+!
+         if ( nagg(iagg) .eq. 0 ) cycle                                
+!
+         if ( dobody ) then                                            
+           madj = mbodymon(iagg)                                       
+         else                                                          
+           madj = mgrpsmon(iagg)                                       
+         end if   
+!         
+         allocate(locadj(madj,madj))                                   
+!
+         istart = imol(iagg)                                           
+         do iocc = 1, nagg(iagg)                                       
+           if ( dobody ) then                                          
+             call buildconfadj(mmon(iagg),node(istart+1:istart+        & 
+                  mmon(iagg)),madj,adjbody(iagg)%adj,locadj,matms,     & 
+                  posi,coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),   & 
+                  ibodymon(:,iagg),buildadjrep,buildadjmon,domon)        
+           else                                                        
+             call buildconfadj(mmon(iagg),node(istart+1:istart+        & 
+                  mmon(iagg)),madj,adjgrps(iagg)%adj,locadj,matms,     & 
+                  posi,coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),   & 
+                  igrpsmon(:,iagg),buildadjrep,buildadjmon,domon)        
+           end if                                                      
+           iloc = 1                                                    
+           do im = 1, mmon(iagg)                                       
+             isys = irepnode(mol(istart+im))                           
+             ni = nrepnode(mol(istart+im))                             
+             jloc = 1                                                  
+             do jm = 1, mmon(iagg)                                     
+               jsys = irepnode(mol(istart+jm))                         
+               nj = nrepnode(mol(istart+jm))                           
+               sysadj(isys:isys+ni-1,jsys:jsys+nj-1) =                 &
+                    locadj(iloc:iloc+ni-1,jloc:jloc+nj-1)              
+               jloc = jloc + nj                                        
+             end do                                                    
+             iloc = iloc + ni                                          
+           end do                                                      
+           istart = istart + mmon(iagg)                                
+         end do   
+!         
+         deallocate(locadj)                                            
+!
+       end do                                                          
+!                                                                      
+       return                                                          
+       end subroutine buildsysadjrep                                   
+!                                                                       
+!======================================================================!
+!                                                                       
+! PRINTSYSADJREP - PRINT SYStem-screened aggregate REPresentation       
+!                                                                       
+       subroutine printsysadjrep(nmax,nagg,imol,mnode,mol,msysrep,     &
+                                 irepnode,nrepnode,sysadj,dobody,domon)                          
+!                                                                       
+       use systeminf,   only:  mtype,mmon,mgrpsmon,mbodymon,adjgrps,   &
+                               adjbody                                  
+       use properties,  only:  num                                      
+       use units,       only:  uniadj                                   
+!                                                                       
+       implicit none                                                   
+!                                                                       
+! Input/output variables                                                
+!                                                                       
+       logical,dimension(msysrep,msysrep),intent(in) ::  sysadj        ! Global screened representation adjacency matrix 
+       integer,dimension(nmax),intent(in)            ::  nagg          ! Number of aggregates per stoichiometry 
+       integer,dimension(nmax),intent(in)            ::  imol          ! Initial molecule-list index per stoichiometry 
+       integer,dimension(mnode),intent(in)           ::  mol           ! Global molecule identifiers in aggregate lists 
+       integer,dimension(:),intent(in)               ::  irepnode      ! First representation index of each molecule 
+       integer,dimension(:),intent(in)               ::  nrepnode      ! Number of representation sites per molecule 
+       integer,intent(in)                            ::  nmax          ! Maximum aggregate identifier plus overflow 
+       integer,intent(in)                            ::  mnode         ! Total number of molecules 
+       integer,intent(in)                            ::  msysrep       ! Total size of global representation matrix 
+       logical,intent(in)                            ::  dobody        ! Body representation flag 
+       logical,intent(in)                            ::  domon         ! Monomer intramolecular edge flag
+!                                                                     
+! Local variables                                                     
+!                                                                     
+       logical,dimension(:,:),allocatable            ::  locadj        ! Local matrix extracted for one aggregate 
+       integer                                       ::  firstagg      ! First aggregate identifier to print 
+       integer                                       ::  iagg          ! Stoichiometric aggregate identifier 
+       integer                                       ::  iocc          ! Aggregate occurrence index 
+       integer                                       ::  istart        ! Initial molecule-list index for current aggregate 
+       integer                                       ::  madj          ! Local aggregate matrix dimension 
+       integer                                       ::  im            ! Local source molecule position 
+       integer                                       ::  jm            ! Local target molecule position 
+       integer                                       ::  iloc          ! Initial source index in local matrix 
+       integer                                       ::  jloc          ! Initial target index in local matrix 
+       integer                                       ::  isys          ! Initial source index in global matrix 
+       integer                                       ::  jsys          ! Initial target index in global matrix 
+       integer                                       ::  ni            ! Source molecule representation size 
+       integer                                       ::  nj            ! Target molecule representation size 
+       integer                                       ::  ii            ! Matrix row index 
+       integer                                       ::  jj            ! Matrix column index 
+!                                                                        
+       firstagg = mtype + 1                                            
+       if ( domon ) firstagg = 1                                       
+!                                                                        
+       do iagg = firstagg, nmax-1                                      
+!
+         if ( nagg(iagg) .eq. 0 ) cycle                                
+         if ( dobody ) then                                            
+           madj = mbodymon(iagg)                                       
+         else                                                          
+           madj = mgrpsmon(iagg)                                       
+         end if                                                        
+!
+         allocate(locadj(madj,madj))                                   
+!
+         if ( num(iagg) .eq. 0 ) then                                  
+!
+           if ( dobody ) then                                          
+             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           & 
+                  action='write')                                      
+             write(uniadj,*) trim(adjbody(iagg)%lab)                   
+             do ii = 1, madj                                           
+               write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)    
+             end do                                                    
+           else                                                        
+             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           & 
+                  action='write')                                      
+             write(uniadj,*) trim(adjgrps(iagg)%lab)                   
+             do ii = 1, madj                                           
+               write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)    
+             end do                                                    
+           end if    
+!           
+         else    
+!                 
+           if ( dobody ) then                                          
+             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           & 
+                  position='append',action='write')                    
+           else                                                        
+             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           & 
+                  position='append',action='write')                    
+           end if   
+!           
+         end if                                                        
+!
+         istart = imol(iagg)                                           
+         do iocc = 1, nagg(iagg)                                       
+!
+           iloc = 1                                                    
+!
+           do im = 1, mmon(iagg)                                       
+             isys = irepnode(mol(istart+im))                           
+             ni = nrepnode(mol(istart+im))                             
+             jloc = 1                                                  
+             do jm = 1, mmon(iagg)                                     
+               jsys = irepnode(mol(istart+jm))                         
+               nj = nrepnode(mol(istart+jm))                           
+               locadj(iloc:iloc+ni-1,jloc:jloc+nj-1) =                 & 
+                    sysadj(isys:isys+ni-1,jsys:jsys+nj-1)              
+               jloc = jloc + nj                                        
+             end do                                                    
+             iloc = iloc + ni                                          
+           end do 
+!           
+           do ii = 1, madj                                             
+             write(uniadj,*) (locadj(ii,jj),jj=1,madj)                 
+           end do                                                      
+!
+           istart = istart + mmon(iagg)                                
+!
+         end do      
+!         
+         close(uniadj)                                                 
+!
+         deallocate(locadj)   
+!         
+       end do                                                          
+!                                                                        
+       return                                                          
+       end subroutine printsysadjrep                                   
+!                                                                        
+!======================================================================! 
+!                                                                        
 ! BUILDCONFADJ - BUILD CONFormational ADJacency matrix
 !
-       subroutine buildconfadj(isize,node,madj,base,adj,matms,       &
-                                      posi,coordmat,box,mtype,nnode,  &
-                                      inode,iadjmon,buildadjrep,      &
-                                      buildadjmon,domon)
+       subroutine buildconfadj(isize,node,madj,base,adj,matms,posi,   &
+                               coordmat,box,mtype,nnode,inode,        &
+                               iadjmon,buildadjrep,buildadjmon,domon)
 !
        use systeminf,   only:  coord
 !
@@ -3987,255 +4212,6 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        return
        end subroutine scrnadjrep
-!
-!======================================================================!
-!
-! PRINTSCRNADJBODY - PRINT SCReeNed body ADJacency matrix
-!
-      subroutine printscrnadjbody(nmax,nagg,iaggidx,imol,node,       &
-                               cur2old,cur2new,mnode,matms,posi,      &
-                               oldposi,newposi,coordmat,oldcoord,     &
-                               newcoord,box,oldbox,newbox,            &
-                               buildadjbody,buildadjmon,screen,scrn,  &
-                               domon,directed)
-!
-       use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,         &
-                               ibodymon,adjbody,tmpbody
-       use properties,  only:  num
-       use lengths,     only:  lenschm
-       use units,       only:  uniadj
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,dimension(nmax),intent(in)          ::  nagg,iaggidx   !
-       integer,dimension(nmax),intent(in)          ::  imol           !
-      integer,dimension(mnode),intent(in)         ::  node           !
-      integer,dimension(mnode),intent(in)         ::  cur2old        !
-      integer,dimension(mnode),intent(in)         ::  cur2new        !
-       real(kind=4),dimension(3,matms),intent(in)  ::  posi,oldposi   !
-       real(kind=4),dimension(3,matms),intent(in)  ::  newposi        !
-       real(kind=4),dimension(:,:),target,intent(in) :: coordmat      !
-       real(kind=4),dimension(:,:),target,intent(in) :: oldcoord      !
-       real(kind=4),dimension(:,:),target,intent(in) :: newcoord      !
-       real(kind=4),dimension(3),intent(in)        ::  box,oldbox     !
-       real(kind=4),dimension(3),intent(in)        ::  newbox         !
-       character(len=lenschm),intent(in)           ::  scrn           !
-       integer,intent(in)                          ::  nmax,mnode     !
-       integer,intent(in)                          ::  matms          !
-       logical,intent(in)                          ::  domon,directed !
-!
-! External functions
-!
-       external                                    ::  buildadjbody
-       external                                    ::  buildadjmon
-       external                                    ::  screen
-!
-! Local variables
-!
-       logical,dimension(:,:),allocatable          ::  oldrep,newrep  !
-       integer                                     ::  firstagg       !
-       integer                                     ::  iagg,madj      !
-       integer                                     ::  iocc,istart    !
-       integer                                     ::  curagg         !
-       integer                                     ::  ii,jj          !
-!
-       firstagg = mtype + 1
-       if ( domon ) firstagg = 1
-!
-       do iagg = firstagg, nmax-1
-         if ( nagg(iagg) .eq. 0 ) cycle
-!
-         madj = mbodymon(iagg)
-         allocate(oldrep(madj,madj),newrep(madj,madj))
-!
-         if ( num(iagg) .eq. 0 ) then
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                action='write')
-           write(uniadj,*) trim(adjbody(iagg)%lab)
-           do ii = 1, madj
-             write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-         else
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                position='append',action='write')
-         end if
-!
-         istart = imol(iagg)
-         do iocc = 1, nagg(iagg)
-!
-           curagg = iaggidx(iagg) + iocc
-           oldrep(:,:) = .FALSE.
-           newrep(:,:) = .FALSE.
-           tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
-!
-           if ( cur2old(curagg) .gt. 0 ) then
-            call buildconfadj(mmon(iagg),                              &
-                  node(istart+1:istart+mmon(iagg)),madj,               &
-                  adjbody(iagg)%adj,oldrep,matms,oldposi,oldcoord,     &
-                  oldbox,mtype,nmon(:,iagg),imon(:,iagg),              &
-                  ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
-           end if
-!
-          call buildconfadj(mmon(iagg),                                &
-                node(istart+1:istart+mmon(iagg)),madj,                 &
-                adjbody(iagg)%adj,tmpbody(iagg)%adj,matms,posi,        &
-                coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),          &
-                ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
-!
-           if ( cur2new(curagg) .gt. 0 ) then
-            call buildconfadj(mmon(iagg),                              &
-                  node(istart+1:istart+mmon(iagg)),madj,               &
-                  adjbody(iagg)%adj,newrep,matms,newposi,newcoord,     &
-                  newbox,mtype,nmon(:,iagg),imon(:,iagg),              &
-                  ibodymon(:,iagg),buildadjbody,buildadjmon,domon)
-           end if
-!
-          call scrnadjrep(scrn,madj,oldrep,tmpbody(iagg)%adj,newrep,   &
-                          adjbody(iagg)%adj,directed,screen)
-!
-           do ii = 1, madj
-             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-!
-           istart = istart + mmon(iagg)
-         end do
-!
-         close(uniadj)
-         deallocate(oldrep,newrep)
-       end do
-!
-       return
-      end subroutine printscrnadjbody
-!
-!======================================================================!
-!
-! PRINTSCRNADJGRPS - PRINT SCReeNed groups ADJacency matrix
-!
-      subroutine printscrnadjgrps(nmax,nagg,iaggidx,imol,node,         &
-                                  cur2old,cur2new,mnode,matms,posi,    &
-                                  oldposi,newposi,coordmat,oldcoord,   &
-                                  newcoord,box,oldbox,newbox,          &
-                                  buildadjgrps,buildadjmon,screen,     &
-                                  scrn,domon)
-!
-       use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,          &
-                               igrpsmon,adjgrps,tmpgrps
-       use properties,  only:  num
-       use lengths,     only:  lenschm
-       use units,       only:  uniadj
-!
-       implicit none
-!
-! Input/output variables
-!
-       integer,dimension(nmax),intent(in)             ::  nagg     !
-       integer,dimension(nmax),intent(in)             ::  iaggidx  !
-       integer,dimension(nmax),intent(in)             ::  imol     !
-       integer,dimension(mnode),intent(in)            ::  node     !
-       integer,dimension(mnode),intent(in)            ::  cur2old  !
-       integer,dimension(mnode),intent(in)            ::  cur2new  !
-       real(kind=4),dimension(3,matms),intent(in)     ::  posi     !
-       real(kind=4),dimension(3,matms),intent(in)     ::  oldposi  !
-       real(kind=4),dimension(3,matms),intent(in)     ::  newposi  !
-       real(kind=4),dimension(:,:),target,intent(in)  :: coordmat  !
-       real(kind=4),dimension(:,:),target,intent(in)  :: oldcoord  !
-       real(kind=4),dimension(:,:),target,intent(in)  :: newcoord  !
-       real(kind=4),dimension(3),intent(in)           ::  box      !
-       real(kind=4),dimension(3),intent(in)           ::  oldbox   !
-       real(kind=4),dimension(3),intent(in)           ::  newbox   !
-       character(len=lenschm),intent(in)              ::  scrn     !
-       integer,intent(in)                             ::  nmax     !
-       integer,intent(in)                             ::  mnode    !
-       integer,intent(in)                             ::  matms    !
-       logical,intent(in)                             ::  domon    !
-!
-! External functions
-!
-       external                                    ::  buildadjgrps
-       external                                    ::  buildadjmon
-       external                                    ::  screen
-!
-! Local variables
-!
-       logical,dimension(:,:),allocatable          ::  oldrep      !
-       logical,dimension(:,:),allocatable          ::  newrep      !
-       integer                                     ::  firstagg    !
-       integer                                     ::  iagg        !
-       integer                                     ::  madj        !
-       integer                                     ::  iocc        !
-       integer                                     ::  istart      !
-       integer                                     ::  curagg      !
-       integer                                     ::  ii,jj       !
-!
-       firstagg = mtype + 1
-       if ( domon ) firstagg = 1
-!
-       do iagg = firstagg, nmax-1
-         if ( nagg(iagg) .eq. 0 ) cycle
-!
-         madj = mgrpsmon(iagg)
-         allocate(oldrep(madj,madj),newrep(madj,madj))
-!
-         if ( num(iagg) .eq. 0 ) then
-           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
-                action='write')
-           write(uniadj,*) trim(adjgrps(iagg)%lab)
-           do ii = 1, madj
-             write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-         else
-           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
-                position='append',action='write')
-         end if
-!
-         istart = imol(iagg)
-         do iocc = 1, nagg(iagg)
-!
-           curagg = iaggidx(iagg) + iocc
-           oldrep(:,:) = .FALSE.
-           newrep(:,:) = .FALSE.
-           tmpgrps(iagg)%adj(:,:) = adjgrps(iagg)%adj(:,:)
-!
-           if ( cur2old(curagg) .gt. 0 ) then
-             call buildconfadj(mmon(iagg),                             &
-                   node(istart+1:istart+mmon(iagg)),madj,              &
-                   adjgrps(iagg)%adj,oldrep,matms,oldposi,oldcoord,    &
-                   oldbox,mtype,nmon(:,iagg),imon(:,iagg),             &
-                   igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
-           end if
-!
-           call buildconfadj(mmon(iagg),                               &
-                 node(istart+1:istart+mmon(iagg)),madj,                &
-                 adjgrps(iagg)%adj,tmpgrps(iagg)%adj,matms,posi,       &
-                 coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),         &
-                 igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
-!
-           if ( cur2new(curagg) .gt. 0 ) then
-             call buildconfadj(mmon(iagg),                             &
-                   node(istart+1:istart+mmon(iagg)),madj,              &
-                   adjgrps(iagg)%adj,newrep,matms,newposi,newcoord,    &
-                   newbox,mtype,nmon(:,iagg),imon(:,iagg),             &
-                   igrpsmon(:,iagg),buildadjgrps,buildadjmon,domon)
-           end if
-!
-           call scrnadjrep(scrn,madj,oldrep,tmpgrps(iagg)%adj,newrep,  &
-                          adjgrps(iagg)%adj,.FALSE.,screen)
-!
-           do ii = 1, madj
-             write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-!
-           istart = istart + mmon(iagg)
-         end do
-!
-         close(uniadj)
-         deallocate(oldrep,newrep)
-       end do
-!
-       return
-      end subroutine printscrnadjgrps
 !
 !======================================================================!
 !
