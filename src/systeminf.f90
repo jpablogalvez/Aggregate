@@ -37,6 +37,7 @@
        integer,dimension(:,:),allocatable     ::  nbodymon  !  Number of bodies per monomer type
        integer,dimension(:,:),allocatable     ::  igrpsmon  !  Accumulation of grps per monomer type
        integer,dimension(:,:),allocatable     ::  ibodymon  !  Accumulation of bodies per monomer type
+       character(len=128),dimension(:),allocatable ::  agglabel !  Aggregate stoichiometry labels
        integer                                ::  mtype     !  Number of molecule types
        integer                                ::  mnode     !  Total number of molecules
        integer                                ::  maxat     !  Total number of atoms in the system
