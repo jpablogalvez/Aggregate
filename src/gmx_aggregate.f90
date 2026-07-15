@@ -9,7 +9,7 @@
                                  nat,iat,maxat,mat,ngrps,igrps,mgrps,  &
                                  mmon,nmon,imon,mgrpsmon,mbodymon,     &
                                  ngrpsmon,nbodymon,igrpsmon,ibodymon,  &
-                                 tmpgrps,tmpbody
+                                 tmpgrps,tmpbody,agglabel
        use properties,    only:  msize,nmax,pim,num,pop,frac,conc,     &
                                  prob,cin,volu,xagg,pagg,pqagg,xsize,  &
                                  psize,pqsize,homxsize,mixxsize,       &
@@ -659,6 +659,7 @@
        allocate(tmpgrps(nmax),tmpbody(nmax))
 !
        allocate(mmon(nmax),nmon(mtype,nmax),imon(mtype,nmax))
+       allocate(agglabel(nmax))
        allocate(mgrpsmon(nmax),mbodymon(nmax))
        allocate(ngrpsmon(mtype,nmax),nbodymon(mtype,nmax))
        allocate(igrpsmon(mtype,nmax),ibodymon(mtype,nmax))
@@ -669,6 +670,7 @@
 !
        call setidx(msize,mtype,nmax,mmon,nmon,imon,mgrpsmon,ngrpsmon,  &
                    igrpsmon,mbodymon,nbodymon,ibodymon)
+       call setagglabels()
 !
        if ( debug ) then
          write(*,*) 'Aggregate stoichiometry identifiers'
@@ -1163,7 +1165,7 @@
        deallocate(adjgrps,adjbody)
        deallocate(tmpgrps,tmpbody)
 !
-       deallocate(mmon,nmon,imon)
+       deallocate(mmon,nmon,imon,agglabel)
        deallocate(mgrpsmon,ngrpsmon,igrpsmon)
        deallocate(mbodymon,nbodymon,ibodymon)
 !
@@ -1670,7 +1672,7 @@
                                                          'ier algorithm'
        write(*,*)
        write(*,'(2X,A)') '-r,--restraints       Interaction criter'//  &
-                                                          'ia algorithm' 
+                                                          'ia algorithm'
        write(*,'(2X,A)') '                        [distances|angles]'
        write(*,'(2X,A)') '-s,--screen-scheme    Screening algorithm'
        write(*,'(2X,A)') '                        [complete|collis'//  &
@@ -1753,6 +1755,47 @@
 !
 !======================================================================!
 !
+! SETAGGLABELS - set aggregate stoichiometry labels
+!
+! This subroutine
+!
+       subroutine setagglabels()
+!
+       use systeminf,   only:  mtype,nmon,agglabel
+       use properties,  only:  nmax
+!
+       implicit none
+!
+! Local variables
+!
+       character(len=16)  ::  aux   !  Auxiliary string
+       integer            ::  iagg  !  Aggregate index
+       integer            ::  q     !  Molecule type
+!
+! Setting stoichiometry labels for aggregate identifiers
+! -----------------------------------------------------
+!
+       agglabel(:) = ''
+!
+       do iagg = 1, nmax-1
+         do q = 1, mtype
+           if ( nmon(q,iagg) .eq. 0 ) cycle
+!
+           write(aux,'(I0)') q
+           agglabel(iagg) = trim(agglabel(iagg))//'_q'//              &
+                            trim(adjustl(aux))
+!
+           write(aux,'(I0)') nmon(q,iagg)
+           agglabel(iagg) = trim(agglabel(iagg))//'n'//               &
+                            trim(adjustl(aux))
+         end do
+       end do
+!
+       return
+       end subroutine setagglabels
+!
+!======================================================================!
+!
 ! TEMPLATEADJ - generate TEMPLATEs of the ADJacency matrices
 !
 ! This subroutine
@@ -1761,7 +1804,7 @@
 !
        use systeminf,   only:  mtype,nmon,rep,adjgrps,adjbody,         &
                                mgrpsmon,mbodymon,igrpsmon,ibodymon,    &
-                               tmpgrps,tmpbody
+                               tmpgrps,tmpbody,agglabel
        use properties,  only:  nmax
 !
        use lengths,     only:  lenout
@@ -1806,8 +1849,10 @@
          write(aux,*) iagg
          aux = adjustl(aux)
 !
-         adjbody(iagg)%outp = trim(outp)//'_adjbody_'//trim(aux)//'.txt'
-         adjgrps(iagg)%outp = trim(outp)//'_adjgrps_'//trim(aux)//'.txt'
+         adjbody(iagg)%outp = trim(outp)//'_adjbody_'//trim(aux)//    &
+                              trim(agglabel(iagg))//'.txt'
+         adjgrps(iagg)%outp = trim(outp)//'_adjgrps_'//trim(aux)//    &
+                              trim(agglabel(iagg))//'.txt'
 !
 ! Filling the adjacency matrix in the groups presentation
 !
