@@ -14,6 +14,7 @@
          integer,dimension(:),allocatable           ::  renum   !  Residue number
          character(len=5),dimension(:),allocatable  ::  rename  !  Residue name
          character(len=5),dimension(:),allocatable  ::  atname  !  Atom name
+         character(len=2),dimension(:),allocatable  ::  atsymb  !  Atomic symbol
          integer,dimension(:),allocatable           ::  atnum   !  Atom number
          real(kind=8),dimension(:),allocatable      ::  mass    !  Atom mass
          real(kind=8),dimension(:,:),allocatable    ::  coord   !  Coordinates

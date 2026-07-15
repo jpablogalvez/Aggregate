@@ -17,7 +17,7 @@
 !
        subroutine driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,   &
                          avlife,nlife,dopim,doconf,domon,schm,scrn,    &
-                         cconf,doscrn,dolife,debug)
+                         cconf,doscrn,dolife,docoord,debug)
 !
        use systeminf,   only:  mnode,rep,xtcf,mtype,nnode,natms
        use properties,  only:  nmax,msize,cin
@@ -63,6 +63,7 @@
        logical,intent(in)                          ::  dopim    !  PIM calculation flag
        logical,intent(in)                          ::  doconf   !  Conformational analysis flag
        logical,intent(in)                          ::  domon    !  Monomer intramolecular edges flag
+       logical,intent(in)                          ::  docoord  !  Coordinate printing flag
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -281,19 +282,20 @@
              call naggdist(neidis,nsteps,nprint,minstep,maxstep,       &
                            nsolv,dopim,doconf,domon,subnbuildadj,      &
                            subnbuildadjrep,subnbuildadjmon,            &
-                           subnprintadjrep,debug)
+                           subnprintadjrep,docoord,debug)
 !
            case ('life')
 !
              call nagglife(neidis,nsteps,nprint,minstep,maxstep,       &
                            nsolv,avlife,nlife,dopim,doconf,domon,      &
                            subnbuildadj,subnbuildadjrep,               &
-                           subnbuildadjmon,subnprintadjrep,debug)
+                           subnbuildadjmon,subnprintadjrep,docoord,debug)
 !
            case ('scrn')
 !
              call naggscrn(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,subnbuildadj,subscrnint,debug)
+                           dopim,doconf,subnbuildadj,subscrnint,       &
+                           docoord,debug)
 !
            case ('scrnlife')
 !
@@ -2148,7 +2150,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        subroutine naggdist(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
                            dopim,doconf,domon,buildadjmol,             &
-                           buildadjrep,buildadjmon,printadjrep,debug)
+                           buildadjrep,buildadjmon,printadjrep,        &
+                           docoord,debug)
 !
        use systeminf,   only:  xtcf,mnode,matms,maxat,coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,prob,cin,volu
@@ -2176,6 +2179,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,intent(in)                          ::  dopim    !  PIM calculation flag
        logical,intent(in)                          ::  doconf   !  Conformational analysis flag
        logical,intent(in)                          ::  domon    !  Monomer intramolecular edges flag
+       logical,intent(in)                          ::  docoord  !  Coordinate printing flag
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -2315,9 +2319,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call nprintpop(xtcf%STEP,box,nagg,imol,mnode,agg,itype,    &
                           magg,nsolv,uniout)
 !
-!           if ( debug ) then
-!             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!           end if
+           if ( docoord ) call nprint_coord(xtcf%STEP,xtcf%pos,box,    &
+                              maxat,                                    &
+                              nmax,nagg,imol,mnode,mol,node,agg,itype)
 !
            call system_clock(t2read)
 !
@@ -2383,7 +2387,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        subroutine nagglife(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
                            avlife,nlife,dopim,doconf,domon,            &
                            buildadjmol,buildadjrep,buildadjmon,        &
-                           printadjrep,debug)
+                           printadjrep,docoord,debug)
 !
        use omp_lib
 !
@@ -2425,6 +2429,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
        logical,intent(in)                              ::  dopim     !  PIM calculation flag
        logical,intent(in)                              ::  doconf    !  Conformational analysis flag
        logical,intent(in)                              ::  domon     !  Monomer intramolecular edges flag
+       logical,intent(in)                              ::  docoord   !  Coordinate printing flag
        logical,intent(in)                              ::  debug     !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -2709,9 +2714,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
                           magg,nsolv,uniout)
 !
-!           if ( debug ) then
-!             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!           end if
+           if ( docoord ) call nprint_coord(actstep,tmpposi,box,maxat, &
+                                 nmax,nagg,imol,mnode,mol,node,agg,    &
+                                 itype)
 !
            call system_clock(t2read)
 !
@@ -2885,7 +2890,8 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !  the former and the following configurations (adding oscillations).
 !
        subroutine naggscrn(neidis,nsteps,nprint,minstep,maxstep,nsolv, &
-                           dopim,doconf,buildadjmol,screen,debug)
+                           dopim,doconf,buildadjmol,screen,docoord,     &
+                           debug)
 !
        use omp_lib
 !
@@ -2919,6 +2925,7 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        logical,intent(in)                              ::  dopim    !  PIM calculation flag
        logical,intent(in)                              ::  doconf   !  Conformational analysis flag
+       logical,intent(in)                              ::  docoord  !  Coordinate printing flag
        logical,intent(in)                              ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -3189,9 +3196,9 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
            call nprintpop(actstep,box,nagg,imol,mnode,agg,itype,      &
                           magg,nsolv,uniout)
 !
-!           if ( debug ) then
-!             call nprint_coord(xtcf,sys,outp,msize,nagg,nnode,mol,agg)
-!           end if
+           if ( docoord ) call nprint_coord(actstep,tmpposi,box,maxat, &
+                                 nmax,nagg,imol,mnode,mol,node,agg,    &
+                                 itype)
 !
            call system_clock(t2read)
 !
@@ -3440,6 +3447,174 @@ stop 'Screening+lifetimes algorithm for N-components systems not yet implemented
 !
        return
        end subroutine nprintpop
+!
+!======================================================================!
+!
+! NPRINT_COORD - N-components PRINT aggregate COORDinates
+!
+! This subroutine prints the atomic coordinates of each aggregate in XYZ
+! format for the current snapshot.
+!
+       subroutine nprint_coord(step,rcoord,box,natot,nmax,nagg,imol,  &
+                               mnode,mol,node,agg,itype)
+!
+       use systeminf,   only:  sys,iat,mmon,mtype,nmon
+       use filenames,   only:  outp
+       use lengths,     only:  lenout
+       use geometry,    only:  sminimgvec
+!
+       implicit none
+!
+! Input/Output variables
+!
+       real(kind=4),dimension(3,natot),intent(in)  ::  rcoord  !
+       real(kind=4),dimension(3),intent(in)        ::  box     !
+       integer,dimension(nmax),intent(in)          ::  nagg    !
+       integer,dimension(nmax),intent(in)          ::  imol    !
+       integer,dimension(mnode),intent(in)         ::  mol     !
+       integer,dimension(mnode),intent(in)         ::  node    !
+       integer,dimension(mnode),intent(in)         ::  agg     !
+       integer,dimension(mnode),intent(in)         ::  itype   !
+       integer,intent(in)                          ::  step    !
+       integer,intent(in)                          ::  natot   !
+       integer,intent(in)                          ::  nmax    !
+       integer,intent(in)                          ::  mnode   !
+!
+! Local variables
+!
+       character(len=lenout+128),allocatable,save, &
+                              dimension(:)         ::  used    !
+       character(len=lenout+128)                   ::  fname   !
+       character(len=lenout+64)                    ::  label   !
+       character(len=16)                           ::  aux     !
+       logical                                     ::  newfile !
+       integer,dimension(mtype)                    ::  comp    !
+       real(kind=4),dimension(3)                   ::  bar     !  Geometrical center
+       real(kind=4),dimension(3)                   ::  refpos  !  Aggregate reference position
+       real(kind=4),dimension(3)                   ::  molpos  !  Rebuilt molecule reference
+       real(kind=4),dimension(3)                   ::  rpos    !  Rebuilt atom position
+       integer                                     ::  iagg    !  Aggregate index
+       integer                                     ::  iocc    !  Aggregate occurrence
+       integer                                     ::  im      !  Molecule index
+       integer                                     ::  ia      !  Atom index
+       integer                                     ::  i       !  Index
+       integer                                     ::  imini   !  Initial molecule index
+       integer                                     ::  imax    !  Final molecule index
+       integer                                     ::  isize   !  Aggregate size
+       integer                                     ::  q       !  Molecule type
+       integer                                     ::  iatom   !  Initial atom index
+       integer                                     ::  natagg  !  Number of atoms
+       integer                                     ::  iuni    !  Output unit
+       integer,save                                ::  nused=0 !
+!
+       if ( .not. allocated(used) ) then
+         allocate(used(mnode))
+         used(:) = ''
+       end if
+!
+       do iagg = 1, nmax
+         if ( nagg(iagg) .eq. 0 ) cycle
+!
+         imini = imol(iagg)
+!
+         do iocc = 1, nagg(iagg)
+           if ( iagg .eq. nmax ) then
+             isize = agg(imini+1)
+           else
+             isize = mmon(iagg)
+           end if
+!
+           imax   = imini + isize
+           natagg = 0
+           comp(:) = 0
+!
+           do im = imini+1, imax
+             q      = itype(im)
+             comp(q) = comp(q) + 1
+             natagg = natagg + sys(q)%nat
+           end do
+!
+           if ( iagg .ne. nmax ) comp(:) = nmon(:,iagg)
+!
+           label = 'stoich'
+           do q = 1, mtype
+             if ( comp(q) .eq. 0 ) cycle
+             write(aux,'(I0)') q
+             label = trim(label)//'_q'//trim(adjustl(aux))
+             write(aux,'(I0)') comp(q)
+             label = trim(label)//'n'//trim(adjustl(aux))
+           end do
+!
+           fname = trim(outp)//'_coord_'//trim(label)//'.xyz'
+!
+           newfile = .TRUE.
+           do i = 1, nused
+             if ( trim(used(i)) .eq. trim(fname) ) then
+               newfile = .FALSE.
+               exit
+             end if
+           end do
+!
+           if ( newfile ) then
+             nused = nused + 1
+             used(nused) = fname
+             open(newunit=iuni,file=trim(fname),status='replace',     &
+                  action='write')
+           else
+             open(newunit=iuni,file=trim(fname),status='old',         &
+                  position='append',action='write')
+           end if
+!
+           write(iuni,'(I10)') natagg
+           write(iuni,'(A,I0,A)',advance='no') 'snapshot ',step,      &
+                                               ' molecule_ids'
+           do im = imini+1, imax
+             write(iuni,'(1X,I0)',advance='no') mol(im)
+           end do
+           write(iuni,*)
+!
+           q      = itype(imini+1)
+           iatom  = iat(q) + (node(imini+1)-1)*sys(q)%nat
+           refpos = rcoord(:,iatom+1)
+           bar(:) = 0.0
+!
+           do im = imini+1, imax
+             q     = itype(im)
+             iatom = iat(q) + (node(im)-1)*sys(q)%nat
+             molpos(:) = refpos(:) + sminimgvec(refpos,               &
+                                  rcoord(:,iatom+1),box)
+             do ia = 1, sys(q)%nat
+               rpos(:) = molpos(:) + sminimgvec(rcoord(:,iatom+1),     &
+                                                 rcoord(:,iatom+ia),box)
+               bar(:) = bar(:) + rpos(:)
+             end do
+           end do
+!
+           bar(:) = bar(:)/real(natagg)
+!
+           do im = imini+1, imax
+             q     = itype(im)
+             iatom = iat(q) + (node(im)-1)*sys(q)%nat
+             molpos(:) = refpos(:) + sminimgvec(refpos,                &
+                                  rcoord(:,iatom+1),box)
+             do ia = 1, sys(q)%nat
+               rpos(:) = molpos(:) + sminimgvec(rcoord(:,iatom+1),     &
+                                                 rcoord(:,iatom+ia),box)
+               write(iuni,'(A2,3(1X,F14.6))') sys(q)%atsymb(ia),       &
+                                              (rpos(1)-bar(1))*10,     &
+                                              (rpos(2)-bar(2))*10,     &
+                                              (rpos(3)-bar(3))*10
+             end do
+           end do
+!
+           close(iuni)
+!
+           imini = imax
+         end do
+       end do
+!
+       return
+       end subroutine nprint_coord
 !
 !======================================================================!
 !

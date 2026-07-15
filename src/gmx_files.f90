@@ -16,6 +16,7 @@
                    read_bond,                                          &
                    read_system,                                        &
                    read_molecules,                                     &
+                   mass2symbol,                                       &
                    top_parser,                                         &
                    count_bond,                                         &
                    count_moltype
@@ -57,8 +58,11 @@
        allocate(sys%renum(sys%nat)   ,  &
                 sys%rename(sys%nat)  ,  &
                 sys%atname(sys%nat)  ,  &
+                sys%atsymb(sys%nat)  ,  &
                 sys%atnum(sys%nat)   ,  &
                 sys%mass(sys%nat))
+!
+       sys%mass(:) = 0.0d0
 !
        do i = 1, sys%nat       ! TODO: check if lines are correctly read (fixed format)
          read(uni,'(I5,2A5,I5,3F8.3)') sys%renum(i),   &
@@ -72,6 +76,142 @@
 !
        return
        end subroutine read_gro
+!
+!======================================================================!
+!
+! MASS2SYMBOL - assign atomic SYMBOLS from atom names and MASSes
+!
+! This subroutine removes numeric labels from atom names and assigns
+!  the atomic symbol using the atomic mass whenever possible.
+!
+       subroutine mass2symbol(ntype)
+!
+       use systeminf,  only:  sys
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,intent(in)  ::  ntype  !
+!
+! Local variables
+!
+       integer             ::  i      !  Molecule type index
+       integer             ::  j      !  Atom index
+!
+       do i = 1, ntype
+         do j = 1, sys(i)%nat
+           sys(i)%atsymb(j) = symbol_from_mass(sys(i)%mass(j),        &
+                                               clean_atom_symbol(      &
+                                               sys(i)%atname(j)))
+         end do
+       end do
+!
+       return
+       end subroutine mass2symbol
+!
+!======================================================================!
+!
+! CLEAN_ATOM_SYMBOL - CLEAN ATOM name to infer SYMBOL
+!
+       function clean_atom_symbol(atname) result(symb)
+!
+       implicit none
+!
+! Input/output variables
+!
+       character(len=*),intent(in)  ::  atname  !
+       character(len=2)             ::  symb    !
+!
+! Local variables
+!
+       character(len=2)             ::  tmp     !
+       integer                      ::  i       !  Index
+       integer                      ::  n       !  Number of letters
+       integer                      ::  ich     !  Character code
+!
+       tmp  = '  '
+       symb = 'X '
+       n    = 0
+!
+       do i = 1, len_trim(atname)
+         ich = iachar(atname(i:i))
+         if ( ((ich.ge.iachar('A')).and.(ich.le.iachar('Z'))) .or.    &
+              ((ich.ge.iachar('a')).and.(ich.le.iachar('z'))) ) then
+           n = n + 1
+           if ( n .eq. 1 ) then
+             if ( (ich.ge.iachar('a')).and.(ich.le.iachar('z')) )     &
+               ich = ich - 32
+             tmp(1:1) = achar(ich)
+           else if ( n .eq. 2 ) then
+             if ( (ich.ge.iachar('A')).and.(ich.le.iachar('Z')) )     &
+               ich = ich + 32
+             tmp(2:2) = achar(ich)
+             exit
+           end if
+         end if
+       end do
+!
+       if ( n .gt. 0 ) symb = tmp
+!
+       return
+       end function clean_atom_symbol
+!
+!======================================================================!
+!
+! SYMBOL_FROM_MASS - infer atomic SYMBOL FROM atomic MASS
+!
+       function symbol_from_mass(mass,fallback) result(symb)
+!
+       implicit none
+!
+! Input/output variables
+!
+       real(kind=8),intent(in)       ::  mass      !
+       character(len=2),intent(in)   ::  fallback  !
+       character(len=2)              ::  symb      !
+!
+! Local variables
+!
+       integer,parameter             ::  nelem = 36
+       character(len=2),dimension(nelem),parameter  ::  esym = (/     &
+         'H ','He','Li','Be','B ','C ','N ','O ','F ','Ne','Na','Mg', &
+         'Al','Si','P ','S ','Cl','Ar','K ','Ca','Sc','Ti','V ','Cr', &
+         'Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr'/)
+       real(kind=8),dimension(nelem),parameter      ::  emass = (/    &
+          1.008d0,  4.0026d0,  6.94d0,   9.0122d0, 10.81d0,          &
+         12.011d0, 14.007d0,  15.999d0, 18.998d0, 20.180d0,          &
+         22.990d0, 24.305d0,  26.982d0, 28.085d0, 30.974d0,          &
+         32.06d0,  35.45d0,   39.948d0, 39.098d0, 40.078d0,          &
+         44.956d0, 47.867d0,  50.942d0, 51.996d0, 54.938d0,          &
+         55.845d0, 58.933d0,  58.693d0, 63.546d0, 65.38d0,           &
+         69.723d0, 72.630d0,  74.922d0, 78.971d0, 79.904d0,          &
+         83.798d0 /)
+       real(kind=8)                  ::  diff      !
+       real(kind=8)                  ::  mindiff   !
+       real(kind=8)                  ::  tol       !
+       integer                       ::  i         !  Index
+       integer                       ::  ibest     !  Best mass index
+!
+       symb = fallback
+       if ( mass .le. 0.5d0 ) return
+!
+       mindiff = abs(mass-emass(1))
+       ibest   = 1
+!
+       do i = 2, nelem
+         diff = abs(mass-emass(i))
+         if ( diff .lt. mindiff ) then
+           mindiff = diff
+           ibest   = i
+         end if
+       end do
+!
+       tol = max(0.35d0,0.02d0*emass(ibest))
+       if ( mindiff .le. tol ) symb = esym(ibest)
+!
+       return
+       end function symbol_from_mass
 !
 !======================================================================!
 !
@@ -131,6 +271,7 @@
          allocate(sys(i)%renum(sys(i)%nat)   ,  &
                   sys(i)%rename(sys(i)%nat)  ,  &
                   sys(i)%atname(sys(i)%nat)  ,  &
+                  sys(i)%atsymb(sys(i)%nat)  ,  &
                   sys(i)%atnum(sys(i)%nat)   ,  &
                   sys(i)%mass(sys(i)%nat))
 !

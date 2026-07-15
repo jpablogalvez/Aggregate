@@ -43,7 +43,8 @@
        use mathtools,     only:  setidx
 !
        use input_section, only:  read_inp
-       use gmx_files,     only:  read_gro,top_parser,count_moltype
+       use gmx_files,     only:  read_gro,top_parser,count_moltype,    &
+                                 mass2symbol
 !
        implicit none
 !
@@ -80,6 +81,7 @@
        logical                                ::  dolife   !  Lifetimes calculation flag
        logical                                ::  doconf   !  Conformational analysis flag
        logical                                ::  domon    !  Monomer intramolecular edges flag
+       logical                                ::  docoord  !  Coordinate printing flag
        logical                                ::  dopim    !  PIM calculation flag
        logical                                ::  seed     !  Random seed flag
        logical                                ::  debug    !  Debug mode
@@ -138,7 +140,7 @@
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    &
                          msize,neidis,schm,scrn,cconf,dopim,doconf,    &
-                         domon,dolife,doscrn,seed,np,chunkadj,         &
+                         domon,docoord,dolife,doscrn,seed,np,chunkadj,  &
                          chunkscrn,chunklife,weight,nsolv,debug)
 !
 !
@@ -188,6 +190,8 @@
        call line_log(6,2,'Conformational analysis',lin,':',doconf,lfin)
        call line_log(6,2,'Add intramolecular interactions',lin,':',    &
                                                              domon,lfin)
+       call line_log(6,2,'Print aggregate coordinates',lin,':',        &
+                                                            docoord,lfin)
        write(*,*)
 !
        call line_sp(6,2,'Screening distance',lin,':','F5.2',           &
@@ -228,6 +232,7 @@
          allocate(nnode(1))        ! TODO: only reads 1 gro file, only one molecule type
 !                                  !        input # gro files and # number of molecules
          call read_gro(uniinp,conf,sys(1))
+         call mass2symbol(1)
 !
          nnode(1) = xtcf%natoms/sys(1)%nat
 !
@@ -244,6 +249,7 @@
          allocate(ngrps(mtype),igrps(mtype))
 !
          call top_parser(uniinp,conf,mtype,nnode)
+         call mass2symbol(mtype)
 !
        else
          write(*,*) 'Incorrect extension!' !  TODO: Input .gro .top .xyz ...
@@ -783,7 +789,7 @@
 !
        call driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,avlife,  &
                    nlife,dopim,doconf,domon,schm,scrn,cconf,doscrn,    &
-                   dolife,debug)
+                   dolife,docoord,debug)
 !
        call system_clock(t1read)
 !
@@ -1212,9 +1218,9 @@
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,scrn,cconf,   &
-                               dopim,doconf,domon,dolife,doscrn,seed,  &
-                               np,chunkadj,chunkscrn,chunklife,        &
-                               weight,nsolv,debug)
+                               dopim,doconf,domon,docoord,dolife,       &
+                               doscrn,seed,np,chunkadj,chunkscrn,      &
+                               chunklife,weight,nsolv,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
@@ -1247,6 +1253,7 @@
        logical,intent(out)                       ::  dopim      !  PIM calculation flag
        logical,intent(out)                       ::  doconf     !  Conformational analysis flag
        logical,intent(out)                       ::  domon      !  Monomer intramolecular edges flag
+       logical,intent(out)                       ::  docoord    !  Coordinate printing flag
        logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
        logical,intent(out)                       ::  doscrn     !  Screening calculation flag
        logical,intent(out)                       ::  debug      !  Debug mode
@@ -1292,6 +1299,7 @@
 !
        doconf  = .FALSE.
        domon   = .FALSE.
+       docoord  = .FALSE.
        dopim   = .FALSE.
 !
        seed    = .FALSE.
@@ -1569,6 +1577,15 @@
              doconf = .TRUE.
            case ('-nomonomer','--nomonomer','--no-monomer')
              domon = .FALSE.
+           case ('-coord','--coord','--do-coord','-print-coord',       &
+                 '--print-coord','--print-coords',                     &
+                 '--print-coordinate','--print-coordinates')
+             docoord = .TRUE.
+           case ('-nocoord','--nocoord','--no-coord','-noprint-coord', &
+                 '--noprint-coord','--no-print-coord',                 &
+                 '--no-print-coords','--no-print-coordinate',          &
+                 '--no-print-coordinates')
+             docoord = .FALSE.
            case ('-life','-lifetime','-lifetimes','--lifetime',        &
                                                           '--lifetimes')
              dolife = .TRUE.
@@ -1653,11 +1670,14 @@
                                                          'ier algorithm'
        write(*,*)
        write(*,'(2X,A)') '-r,--restraints       Interaction criter'//  &
-                                       'ia algorithm [distances|angles]'
-       write(*,'(2X,A)') '-s,--screen-scheme    Screening algorith'//  &
-                                  'm [complete|collisions|oscillations]'
+                                                          'ia algorithm' 
+       write(*,'(2X,A)') '                        [distances|angles]'
+       write(*,'(2X,A)') '-s,--screen-scheme    Screening algorithm'
+       write(*,'(2X,A)') '                        [complete|collis'//  &
+                                                    'ions|oscillations]'
        write(*,'(2X,A)') '-c,--conf-repre       Representation for'//  &
-                      ' the conformational analysis [body|grps|bodydir]'
+                                          ' the conformational analysis'
+       write(*,'(2X,A)') '                        [body|grps|bodydir]'
        write(*,*)
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
@@ -1665,6 +1685,8 @@
                                                          'onal analysis'
        write(*,'(2X,A)') '-[no]monomer          Add intramolecular'//  &
                                       ' edges to conformational matrices'
+       write(*,'(2X,A)') '-[no]coord            Print aggregate co'//  &
+                                             'ordinates grouped by type'
        write(*,'(2X,A)') '-[no]pim              Compute pairwise i'//  &
                                                      'nteraction matrix'
        write(*,*)
