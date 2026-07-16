@@ -2177,8 +2177,8 @@
        use systeminf,   only:  xtcf,mnode,matms,maxat,coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
-       use timings,     only:  count_rate,tread,tadj,tpim,tconf,       &
-                               tcpuadj,tcpupim,tcpuconf
+       use timings,     only:  count_rate,tread,tadj,tpim,             &
+                               tcpuadj,tcpupim
 !
        use units,       only:  uniout
 !
@@ -2241,8 +2241,6 @@
 !
        real(kind=8)                                ::  tiadj    !  Initial CPU building time
        real(kind=8)                                ::  tfadj    !  Final CPU building time
-       real(kind=8)                                ::  ticonf   !  Initial CPU conformational time
-       real(kind=8)                                ::  tfconf   !  Final CPU conformational time
        real(kind=8)                                ::  tipim    !  Initial CPU PIM time
        real(kind=8)                                ::  tfpim    !  Final CPU PIM time
        integer                                     ::  t1read   !  Initial reading time
@@ -2251,8 +2249,6 @@
        integer                                     ::  t2adj    !  Final building time
        integer                                     ::  t1pim    !  Initial PIM analysis time
        integer                                     ::  t2pim    !  Final PIM analysis time
-       integer                                     ::  t1conf   !  Initial conformational analysis time
-       integer                                     ::  t2conf   !  Final conformational analysis time
 !
 ! Initializing variables
 !
@@ -2324,17 +2320,8 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
-             call cpu_time(ticonf)
-             call system_clock(t1conf)
-!
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
-!
-             call cpu_time(tfconf)
-             call system_clock(t2conf)
-!
-             tcpuconf = tcpuconf + tfconf - ticonf
-             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -2421,8 +2408,8 @@
                                coord
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
-       use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
-                               tcpuadj,tcpupim,tcpulife,tcpuconf
+       use timings,     only:  count_rate,tread,tadj,tlife,tpim,       &
+                               tcpuadj,tcpupim,tcpulife
 !
        use units,       only:  uniout
 !
@@ -2526,8 +2513,6 @@
        real(kind=8)                                    ::  tfadj     !  Final CPU building time
        real(kind=8)                                    ::  tipim     !  Initial CPU PIM time
        real(kind=8)                                    ::  tfpim     !  Final CPU PIM time
-       real(kind=8)                                    ::  ticonf    !  Initial CPU conformational time
-       real(kind=8)                                    ::  tfconf    !  Final CPU conformational time
        real(kind=8)                                    ::  tilife    !  Initial CPU lifetimes time
        real(kind=8)                                    ::  tflife    !  Final CPU lifetimes time
        integer                                         ::  t1read    !  Initial reading time
@@ -2536,8 +2521,6 @@
        integer                                         ::  t2adj     !  Final building time
        integer                                         ::  t1pim     !  Initial PIM analysis time
        integer                                         ::  t2pim     !  Final PIM analysis time
-       integer                                         ::  t1conf    !  Initial conformational analysis time
-       integer                                         ::  t2conf    !  Final conformational analysis time
        integer                                         ::  t1life    !  Initial lifetimes time
        integer                                         ::  t2life    !  Final lifetimes time
 !
@@ -2724,17 +2707,8 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
-             call cpu_time(ticonf)
-             call system_clock(t1conf)
-!
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
-!
-             call cpu_time(tfconf)
-             call system_clock(t2conf)
-!
-             tcpuconf = tcpuconf + tfconf - ticonf
-             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -3217,11 +3191,18 @@
          call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,   &
                          oldntype,olditype,oldsize,oldnagg,oldiagg,    &
                          oldnmol,oldimol,oldmagg,oldmidx,debug)
+         call cpu_time(ticonf)
+         call system_clock(t1conf)
          call buildsysadjrep(nmax,oldnagg,oldimol,mnode,oldmol,        &
                              oldnode,msysrep,irepnode,                 &
                              nrepnode,oldrep,matms,oldposi,            &
                              oldtmpposi,oldbox,buildadjrep,            &
                              buildadjmon,domon,dobody)
+         call cpu_time(tfconf)
+         call system_clock(t2conf)
+!
+         tcpuconf = tcpuconf + tfconf - ticonf
+         tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
        end if
 !
 ! Initializing the actual configuration
@@ -3283,10 +3264,17 @@
        if ( doconf ) then
          call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,         &
                          nsize,nagg,iagg,nmol,imol,magg,midx,debug)
+         call cpu_time(ticonf)
+         call system_clock(t1conf)
          call buildsysadjrep(nmax,nagg,imol,mnode,mol,node,            &
                              msysrep,irepnode,nrepnode,sysrep,matms,   &
                              posi,tmpposi,box,buildadjrep,             &
                              buildadjmon,domon,dobody)
+         call cpu_time(tfconf)
+         call system_clock(t2conf)
+!
+         tcpuconf = tcpuconf + tfconf - ticonf
+         tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
        end if
 !
 ! Processing the remaining trajectory
@@ -3348,11 +3336,18 @@
                              newidx,newntype,newitype,newsize,newnagg,  &
                              newiagg,newnmol,newimol,newmagg,newmidx,   &
                              debug)
+             call cpu_time(ticonf)
+             call system_clock(t1conf)
              call buildsysadjrep(nmax,newnagg,newimol,mnode,newmol,    &
                                  newnode,msysrep,irepnode,nrepnode,    &
                                  newrep,matms,newposi,newtmpposi,      &
                                  newbox,buildadjrep,buildadjmon,       &
                                  domon,dobody)
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Screening interactions between the molecules
@@ -3398,24 +3393,15 @@
 !
 ! Printing corrected adjacency matrix in the topological representation
 !
-             call cpu_time(ticonf)
-             call system_clock(t1conf)
-!
              if ( .not. dobody ) then
                call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
                     msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
                     .FALSE.,domon)
              else
                call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
-                    dobdir,domon)
+                   msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
+                   dobdir,domon)
              end if
-!
-             call cpu_time(tfconf)
-             call system_clock(t2conf)
-!
-             tcpuconf = tcpuconf + tfconf - ticonf
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -3868,11 +3854,18 @@
          call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,   &
                          oldntype,olditype,oldsize,oldnagg,oldiagg,    &
                          oldnmol,oldimol,oldmagg,oldmidx,debug)
+         call cpu_time(ticonf)
+         call system_clock(t1conf)
          call buildsysadjrep(nmax,oldnagg,oldimol,mnode,oldmol,        &
                              oldnode,msysrep,irepnode,                 &
                              nrepnode,oldrep,matms,oldposi,            &
                              oldtmpposi,oldbox,buildadjrep,            &
                              buildadjmon,domon,dobody)
+         call cpu_time(tfconf)
+         call system_clock(t2conf)
+!
+         tcpuconf = tcpuconf + tfconf - ticonf
+         tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
        end if
 !
 ! Initializing the actual configuration
@@ -3934,10 +3927,17 @@
        if ( doconf ) then
          call nblockdiag(adj,mol,node,tag,agg,idx,ntype,itype,         &
                          nsize,nagg,iagg,nmol,imol,magg,midx,debug)
+         call cpu_time(ticonf)
+         call system_clock(t1conf)
          call buildsysadjrep(nmax,nagg,imol,mnode,mol,node,            &
                              msysrep,irepnode,nrepnode,sysrep,matms,   &
                              posi,tmpposi,box,buildadjrep,             &
                              buildadjmon,domon,dobody)
+         call cpu_time(tfconf)
+         call system_clock(t2conf)
+!
+         tcpuconf = tcpuconf + tfconf - ticonf
+         tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
        end if
 !
 ! Processing the remaining trajectory
@@ -3999,11 +3999,18 @@
                              newidx,newntype,newitype,newsize,newnagg,  &
                              newiagg,newnmol,newimol,newmagg,newmidx,   &
                              debug)
+             call cpu_time(ticonf)
+             call system_clock(t1conf)
              call buildsysadjrep(nmax,newnagg,newimol,mnode,newmol,    &
                                  newnode,msysrep,irepnode,nrepnode,    &
                                  newrep,matms,newposi,newtmpposi,      &
                                  newbox,buildadjrep,buildadjmon,       &
                                  domon,dobody)
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Screening interactions between the molecules
@@ -4071,24 +4078,15 @@
 !
 ! Printing actual adjacency matrix in the topological representation
 !
-             call cpu_time(ticonf)
-             call system_clock(t1conf)
-!
              if ( .not. dobody ) then
                call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
                     msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
                     .FALSE.,domon)
              else
                call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
-                    dobdir,domon)
+                   msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
+                   dobdir,domon)
              end if
-!
-             call cpu_time(tfconf)
-             call system_clock(t2conf)
-!
-             tcpuconf = tcpuconf + tfconf - ticonf
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -4771,6 +4769,8 @@
        use properties,  only:  num
        use units,       only:  uniadj
        use isotools,    only:  classify_iso_graph
+       use timings,     only:  count_rate,tread,tconf,tiso,tcpuconf,  &
+                               tcpuiso
 !                                                                       
        implicit none                                                   
 !                                                                       
@@ -4807,7 +4807,19 @@
        integer                                       ::  nj            ! Target molecule representation size 
        integer                                       ::  ii            ! Matrix row index
        integer                                       ::  jj            ! Matrix column index
-!                                                                        
+       real(kind=8)                                  ::  tiiso         ! Initial CPU isomorphism time
+       real(kind=8)                                  ::  tfiso         ! Final CPU isomorphism time
+       real(kind=8)                                  ::  ticonf        ! Initial CPU conformational time
+       real(kind=8)                                  ::  tfconf        ! Final CPU conformational time
+       integer                                       ::  t1iso         ! Initial isomorphism time
+       integer                                       ::  t2iso         ! Final isomorphism time
+       integer                                       ::  t1conf        ! Initial conformational time
+       integer                                       ::  t2conf        ! Final conformational time
+       integer                                       ::  t1read        ! Initial unclassified time
+       integer                                       ::  t2read        ! Final unclassified time
+!
+       call system_clock(t1read)
+!
        firstagg = mtype + 1                                            
        if ( domon ) firstagg = 1                                       
 !                                                                        
@@ -4823,6 +4835,7 @@
          allocate(locadj(madj,madj))                                   
 !
          if ( .not. doiso_global ) then
+!
            if ( num(iagg) .eq. 0 ) then
              if ( dobody ) then
                open(unit=uniadj,file=trim(adjbody(iagg)%outp),         &
@@ -4848,6 +4861,7 @@
                     position='append',action='write')
              end if
            end if
+!
          end if
 !
          istart = imol(iagg)                                           
@@ -4870,6 +4884,14 @@
            end do 
 !           
            if ( doiso_global ) then
+!
+!
+             call system_clock(t2read)
+             tread = tread + dble(t2read-t1read)/dble(count_rate)
+!
+             call cpu_time(tiiso)
+             call system_clock(t1iso)
+!
              if ( dobody ) then
                call classify_iso_graph(iagg,adjbody(iagg)%lab,        &
                     adjbody(iagg)%outp,locadj,directed)
@@ -4877,10 +4899,35 @@
                call classify_iso_graph(iagg,adjgrps(iagg)%lab,        &
                     adjgrps(iagg)%outp,locadj,.FALSE.)
              end if
+!
+             call cpu_time(tfiso)
+             call system_clock(t2iso)
+!
+             tcpuiso = tcpuiso + tfiso - tiiso
+             tiso = tiso + dble(t2iso-t1iso)/dble(count_rate)
+!
+             call system_clock(t1read)
+!
            else
+!
+             call system_clock(t2read)
+             tread = tread + dble(t2read-t1read)/dble(count_rate)
+!
+             call cpu_time(ticonf)
+             call system_clock(t1conf)
+!
              do ii = 1, madj
                write(uniadj,*) (locadj(ii,jj),jj=1,madj)
              end do
+!
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+!
+             call system_clock(t1read)
+!
            end if
 !
            istart = istart + mmon(iagg)                                
@@ -4891,7 +4938,10 @@
 !
          deallocate(locadj)   
 !         
-       end do                                                          
+       end do
+!
+       call system_clock(t2read)
+       tread = tread + dble(t2read-t1read)/dble(count_rate)
 !                                                                        
        return                                                          
        end subroutine printsysadjrep                                   
@@ -5080,6 +5130,7 @@
        use properties,  only:  num
        use units,       only:  uniadj
        use isotools,    only:  classify_iso_graph
+       use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
 !
@@ -5108,6 +5159,16 @@
        integer                                     ::  madj     !  Indexes
        integer                                     ::  i,j      !  Indexes
        integer                                     ::  ii,jj    !  Indexes
+       real(kind=8)                                ::  tiiso    !  Initial CPU isomorphism time
+       real(kind=8)                                ::  tfiso    !  Final CPU isomorphism time
+       real(kind=8)                                ::  cpuiso   !  CPU isomorphism time increment
+       real(kind=8)                                ::  walliso  !  Wall isomorphism time increment
+       real(kind=8)                                ::  ticonf   !  Initial CPU conformational time
+       real(kind=8)                                ::  tfconf   !  Final CPU conformational time
+       integer                                     ::  t1iso    !  Initial isomorphism time
+       integer                                     ::  t2iso    !  Final isomorphism time
+       integer                                     ::  t1conf   !  Initial conformational time
+       integer                                     ::  t2conf   !  Final conformational time
 !
 ! Classifying adj matrix of the aggregates in the N-body simplified representation
 ! --------------------------------------------------------------------------------
@@ -5138,6 +5199,9 @@
 !
          do i = 1, nagg(iagg)
 !
+           call cpu_time(ticonf)
+           call system_clock(t1conf)
+!
            tmpbody(iagg)%adj(:,:) = adjbody(iagg)%adj(:,:)
 !
            if ( domon ) then
@@ -5154,12 +5218,35 @@
            j = j + mmon(iagg)
 !
            if ( doiso_global ) then
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+!
+             call cpu_time(tiiso)
+             call system_clock(t1iso)
+!
              call classify_iso_graph(iagg,adjbody(iagg)%lab,          &
                   adjbody(iagg)%outp,tmpbody(iagg)%adj,directed)
+!
+             call cpu_time(tfiso)
+             call system_clock(t2iso)
+!
+             cpuiso = tfiso - tiiso
+             walliso = dble(t2iso-t1iso)/dble(count_rate)
+             tcpuiso = tcpuiso + cpuiso
+             tiso = tiso + walliso
            else
              do ii = 1, madj
                write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
              end do
+!
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
          end do
@@ -5184,6 +5271,7 @@
        use properties,  only:  num
        use units,       only:  uniadj
        use isotools,    only:  classify_iso_graph
+       use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
 !
@@ -5211,6 +5299,16 @@
        integer                                     ::  madj    !  Indexes
        integer                                     ::  i,j     !  Indexes
        integer                                     ::  ii,jj   !  Indexes
+       real(kind=8)                                ::  tiiso   !  Initial CPU isomorphism time
+       real(kind=8)                                ::  tfiso   !  Final CPU isomorphism time
+       real(kind=8)                                ::  cpuiso  !  CPU isomorphism time increment
+       real(kind=8)                                ::  walliso !  Wall isomorphism time increment
+       real(kind=8)                                ::  ticonf  !  Initial CPU conformational time
+       real(kind=8)                                ::  tfconf  !  Final CPU conformational time
+       integer                                     ::  t1iso   !  Initial isomorphism time
+       integer                                     ::  t2iso   !  Final isomorphism time
+       integer                                     ::  t1conf  !  Initial conformational time
+       integer                                     ::  t2conf  !  Final conformational time
 !
 ! Classifying adj matrix of the aggregates in the groups representation
 ! --------------------------------------------------------------------
@@ -5241,6 +5339,9 @@
 !
          do i = 1, nagg(iagg)
 !
+           call cpu_time(ticonf)
+           call system_clock(t1conf)
+!
            tmpgrps(iagg)%adj(:,:) = adjgrps(iagg)%adj(:,:)
 !
            if ( domon ) then
@@ -5256,12 +5357,35 @@
            j = j + mmon(iagg)
 !
            if ( doiso_global ) then
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+!
+             call cpu_time(tiiso)
+             call system_clock(t1iso)
+!
              call classify_iso_graph(iagg,adjgrps(iagg)%lab,          &
                   adjgrps(iagg)%outp,tmpgrps(iagg)%adj,.FALSE.)
+!
+             call cpu_time(tfiso)
+             call system_clock(t2iso)
+!
+             cpuiso = tfiso - tiiso
+             walliso = dble(t2iso-t1iso)/dble(count_rate)
+             tcpuiso = tcpuiso + cpuiso
+             tiso = tiso + walliso
            else
              do ii = 1, madj
                write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
              end do
+!
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
          end do

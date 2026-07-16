@@ -21,9 +21,11 @@
        use thresholds,    only:  neidis,thr,thrang,neiang
 !
        use timings,       only:  count_rate,count_max,twall,tcpu,      &
-                                 tread,tadj,tbfs,tsort,tscrn,tlife,    &
-                                 tpim,tconf,tcpuadj,tcpubfs,tcpusort,  &
-                                 tcpuscrn,tcpulife,tcpupim,tcpuconf
+                                 tread,tadj,tbfs,tsort,tscrn,tshift,   &
+                                 tlife,tpim,tconf,trepscrn,tiso,       &
+                                 tcpuadj,tcpubfs,tcpusort,tcpuscrn,    &
+                                 tcpushift,tcpulife,tcpupim,tcpuconf,  &
+                                 tcpurepscrn,tcpuiso
 !
        use parameters,    only:  pi,Na,zero
        use lengths,       only:  lenschm
@@ -39,6 +41,7 @@
        use utils,         only:  rndmseed
 !
        use aggtools,      only:  driver
+       use isotools,      only:  init_iso,write_iso_results,clear_iso
        use graphtools,    only:  bonds2adj,adj2adjatms,reduceadj
        use mathtools,     only:  setidx
 !
@@ -54,6 +57,7 @@
        integer                                ::  minstep  !  First step for analysis
        integer                                ::  maxstep  !  Last step for analysis
        integer                                ::  nsteps   !  Number of snapshots analyzed
+       integer                                ::  max_iso_classes ! Maximum isomorphism classes per aggregate
 !
 ! Lifetimes calculation variables
 !
@@ -80,6 +84,7 @@
        logical                                ::  doscrn   !  Screening calculation flag
        logical                                ::  dolife   !  Lifetimes calculation flag
        logical                                ::  doconf   !  Conformational analysis flag
+       logical                                ::  doiso    !  On-the-fly isomorphism classification flag
        logical                                ::  domon    !  Monomer intramolecular edges flag
        logical                                ::  docoord  !  Coordinate printing flag
        logical                                ::  dopim    !  PIM calculation flag
@@ -125,23 +130,30 @@
        tbfs  = 0.0d0
        tsort = 0.0d0
        tscrn = 0.0d0
+       tshift = 0.0d0
        tpim  = 0.0d0
        tconf = 0.0d0
+       trepscrn = 0.0d0
+       tiso = 0.0d0
 !
        tcpuadj  = 0.0d0
        tcpubfs  = 0.0d0
        tcpusort = 0.0d0
        tcpuscrn = 0.0d0
+       tcpushift = 0.0d0
        tcpulife = 0.0d0
        tcpupim  = 0.0d0
        tcpuconf = 0.0d0
+       tcpurepscrn = 0.0d0
+       tcpuiso = 0.0d0
 !
 ! Reading command line options
 !
        call command_line(traj,conf,inp,outp,nprint,minstep,maxstep,    &
                          msize,neidis,schm,scrn,cconf,dopim,doconf,    &
-                         domon,docoord,dolife,doscrn,seed,np,chunkadj,  &
-                         chunkscrn,chunklife,weight,nsolv,debug)
+                         doiso,domon,docoord,dolife,doscrn,seed,np,    &
+                         chunkadj,chunkscrn,chunklife,weight,nsolv,    &
+                         max_iso_classes,debug)
 !
 !
 !
@@ -188,6 +200,8 @@
        call line_log(6,2,'Screening calculation',lin,':',doscrn,lfin)
        call line_log(6,2,'Lifetimes calculation',lin,':',dolife,lfin)
        call line_log(6,2,'Conformational analysis',lin,':',doconf,lfin)
+       call line_log(6,2,'On-the-fly isomorphism analysis',lin,':',    &
+                     doiso,lfin)
        call line_log(6,2,'Add intramolecular interactions',lin,':',    &
                                                              domon,lfin)
        call line_log(6,2,'Print aggregate coordinates',lin,':',        &
@@ -200,6 +214,8 @@
                      'I6',nsolv,lfin)
        call line_int(6,2,'Maximum aggregate size',lin,':','I4',        &
                      msize,lfin)
+       if ( doiso ) call line_int(6,2,'Maximum isomorphism classes',   &
+                                  lin,':','I12',max_iso_classes,lfin)
        call line_int(6,2,'First step for analysis',lin,':','I12',      &
                      minstep,lfin)
        call line_int(6,2,'Last step for analysis',lin,':','I12',       &
@@ -696,6 +712,7 @@
 ! Generating templates for the adjacency matrices of the aggregates
 !
        call templateadj(domon)
+       if ( doiso ) call init_iso(nmax,max_iso_classes)
 !
        if ( debug .and. doconf ) then
 !
@@ -791,7 +808,12 @@
 !
        call driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,avlife,  &
                    nlife,dopim,doconf,domon,schm,scrn,cconf,doscrn,    &
-                   dolife,docoord,debug)
+                   dolife,docoord,doiso,debug)
+!
+       if ( doiso ) then
+         call write_iso_results()
+         call clear_iso()
+       end if
 !
        call system_clock(t1read)
 !
@@ -1198,6 +1220,8 @@
 !
        if ( doscrn ) call print_speed(6,1,'Total screening time',35,   &
                                       tscrn,tcpuscrn)
+       if ( doscrn ) call print_speed(6,1,'Total state-shift time',35, &
+                                      tshift,tcpushift)
 !
        call print_time(6,1,'Total BFS time',35,tbfs)
        call print_time(6,1,'Total sorting time',35,tsort)
@@ -1207,6 +1231,21 @@
 !
        if ( dopim ) call print_speed(6,1,'Total PIM time',35,tpim,     &
                                      tcpupim)
+!
+       if ( doconf ) then
+         call print_speed(6,1,'Total conformational analysis time',45, &
+                          tconf,tcpuconf)
+       end if
+!
+       if ( doconf .and. doscrn ) then
+         call print_speed(6,1,'Total conf screen time',45,             &
+                          trepscrn,tcpurepscrn)
+       end if
+!
+       if ( doiso ) then
+         call print_speed(6,1,'Total graph isomorphism time',45,       &
+                          tiso,tcpuiso)
+       end if
 !
        write(*,*)
 !
@@ -1220,9 +1259,10 @@
 !
        subroutine command_line(traj,conf,inp,outp,nprint,minstep,      &
                                maxstep,msize,neidis,schm,scrn,cconf,   &
-                               dopim,doconf,domon,docoord,dolife,       &
-                               doscrn,seed,np,chunkadj,chunkscrn,      &
-                               chunklife,weight,nsolv,debug)
+                               dopim,doconf,doiso,domon,docoord,       &
+                               dolife,doscrn,seed,np,chunkadj,         &
+                               chunkscrn,chunklife,weight,nsolv,       &
+                               max_iso_classes,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
 !
@@ -1247,6 +1287,7 @@
        integer,intent(out)                       ::  chunkscrn  !
        integer,intent(out)                       ::  chunklife  !
        integer,intent(out)                       ::  nsolv      !
+       integer,intent(out)                       ::  max_iso_classes !
        integer,intent(out)                       ::  msize      !  Maximum aggregate size
        integer,intent(out)                       ::  nprint     !  Populations printing steps interval
        integer,intent(out)                       ::  minstep    !  First step for analysis
@@ -1254,6 +1295,7 @@
        logical,intent(out)                       ::  seed       !  Random seed flag
        logical,intent(out)                       ::  dopim      !  PIM calculation flag
        logical,intent(out)                       ::  doconf     !  Conformational analysis flag
+       logical,intent(out)                       ::  doiso      !  On-the-fly isomorphism classification flag
        logical,intent(out)                       ::  domon      !  Monomer intramolecular edges flag
        logical,intent(out)                       ::  docoord    !  Coordinate printing flag
        logical,intent(out)                       ::  dolife     !  Lifetimes calculation flag
@@ -1294,12 +1336,14 @@
 !
        msize = 10
        nsolv = 10000
+       max_iso_classes = 1000000
 !
        neidis  = 1.5d0
 !
        cconf = 'body'
 !
        doconf  = .FALSE.
+       doiso   = .FALSE.
        domon   = .FALSE.
        docoord  = .FALSE.
        dopim   = .FALSE.
@@ -1537,6 +1581,12 @@
              call get_command_argument(i,next,status=io)
              read(next,*) msize
              i = i + 1
+           case ('-maxiso','--max-iso-classes',                       &
+                 '--maximum-isomorphism-classes')
+             call get_command_argument(i,next,status=io)
+             call check_arg(next,io,arg,cmd)
+             read(next,*) max_iso_classes
+             i = i + 1
            case ('-n','-nprint','--nprint','--print-steps')
              call get_command_argument(i,next,status=io)
              read(next,*) nprint
@@ -1574,6 +1624,13 @@
              doconf = .TRUE.
            case ('-noconf','--noconf','--no-conf')
              doconf = .FALSE.
+             doiso  = .FALSE.
+           case ('-iso','--iso','--do-iso')
+             cconf  = 'body'
+             doconf = .TRUE.
+             doiso  = .TRUE.
+           case ('-noiso','--noiso','--no-iso')
+             doiso  = .FALSE.
            case ('-monomer','--monomer','--do-monomer')
              domon  = .TRUE.
              doconf = .TRUE.
@@ -1634,6 +1691,20 @@
        io = index(conf,'.')
        if ( io .eq. 0 ) conf = trim(conf)//'.gro'
 !
+       if ( max_iso_classes .le. 0 ) then
+         write(*,*)
+         write(*,'(2X,68("="))')
+         write(*,'(3X,A)') 'ERROR:  Invalid value introduced for '//  &
+                           '--max-iso-classes option'
+         write(*,*)
+         write(*,'(3X,A,I0)') 'Value introduced : ',max_iso_classes
+         write(*,*)
+         write(*,'(3X,A)') 'Please, use a positive integer.'
+         write(*,'(2X,68("="))')
+         write(*,*)
+         call print_end()
+       end if
+!
        if ( outp(len_trim(outp)-3:) .eq. '.dat' )                      &
                                           outp = outp(:len_trim(outp)-4)
 !
@@ -1666,6 +1737,9 @@
        write(*,'(2X,A)') '-nsolv,--nsolvent     Number of solvent '//  &
                                                              'molecules'
        write(*,'(2X,A)') '-m,--msize            Maximum aggregate size'
+       write(*,'(2X,A)') '-maxiso,--max-iso-classes'
+       write(*,'(2X,A)') '                        Maximum isomorphi'// &
+                                     'sm classes per aggregate type'
        write(*,'(2X,A)') '-d,--neidis           Neighbour list cutoff'
        write(*,*)
        write(*,'(2X,A)') '-schm,--scheme        Aggregates identif'//  &
@@ -1684,7 +1758,9 @@
        write(*,'(2X,A)') '-[no]life             Compute lifetimes'
        write(*,'(2X,A)') '-[no]scrn             Screen interactions'
        write(*,'(2X,A)') '-[no]conf             Perform conformati'//  &
-                                                         'onal analysis'
+                                  'onal matrix printing'
+       write(*,'(2X,A)') '-[no]iso              Classify conformati'//  &
+                                  'onal matrices on the fly'
        write(*,'(2X,A)') '-[no]monomer          Add intramolecular'//  &
                                       ' edges to conformational matrices'
        write(*,'(2X,A)') '-[no]coord            Print aggregate co'//  &
