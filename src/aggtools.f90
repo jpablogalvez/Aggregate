@@ -7,8 +7,6 @@
        private
        public   ::  driver
 !
-       logical  ::  doiso_global = .FALSE.
-!
        contains
 !
 !======================================================================!
@@ -36,6 +34,7 @@
                                nbuildadjbodymonbubdir,                 &
                                nbuildadjbodymonangdir
        use screening,   only:  scrnint,scrnosc,scrncol
+       use isotools,    only:  doiso_global
 !
        implicit none
 !
@@ -4768,7 +4767,7 @@
                                adjbody                                  
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph
+       use isotools,    only:  classify_iso_graph,doiso_global
        use timings,     only:  count_rate,tread,tconf,tiso,tcpuconf,  &
                                tcpuiso
 !                                                                       
@@ -5129,7 +5128,7 @@
                                adjbody,tmpbody
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph
+       use isotools,    only:  classify_iso_graph,doiso_global
        use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
@@ -5270,7 +5269,7 @@
                                adjgrps,tmpgrps
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph
+       use isotools,    only:  classify_iso_graph,doiso_global
        use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
