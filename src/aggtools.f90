@@ -7,6 +7,8 @@
        private
        public   ::  driver
 !
+       logical  ::  doiso_global = .FALSE.
+!
        contains
 !
 !======================================================================!
@@ -17,7 +19,7 @@
 !
        subroutine driver(neidis,nsteps,nprint,minstep,maxstep,nsolv,   &
                          avlife,nlife,dopim,doconf,domon,schm,scrn,    &
-                         cconf,doscrn,dolife,docoord,debug)
+                         cconf,doscrn,dolife,docoord,doiso,debug)
 !
        use systeminf,   only:  mnode,rep,xtcf,mtype,nnode,natms
        use properties,  only:  nmax,msize,cin
@@ -64,6 +66,7 @@
        logical,intent(in)                          ::  doconf   !  Conformational analysis flag
        logical,intent(in)                          ::  domon    !  Monomer intramolecular edges flag
        logical,intent(in)                          ::  docoord  !  Coordinate printing flag
+       logical,intent(in)                          ::  doiso    !  On-the-fly isomorphism classification flag
        logical,intent(in)                          ::  debug    !  Debug mode
 !
 ! AnalysisPhenolMD variables
@@ -162,6 +165,8 @@
        procedure(nsubadjrep),pointer  ::  subnbuildadjmon => null()
        procedure(nsubprint),pointer   ::  subnprintadjrep => null()
        procedure(subscrn),pointer     ::  subscrnint      => null()
+!
+       doiso_global = doiso
 !
 ! Selection of the aggregation algorithm ! FIXME: count reading time in this section
 ! --------------------------------------
@@ -266,7 +271,7 @@
              subnbuildadjmon => nbuildadjgrpsmonang
            end if
          else if ( trim(cconf) .eq. 'bodydir' ) then
-           subnprintadjrep => printadjbody
+           subnprintadjrep => printadjbodydir
            if ( trim(schm) .eq. 'distances' ) then
              subnbuildadjrep => nbuildadjbodybubdir
              subnbuildadjmon => nbuildadjbodymonbubdir
@@ -340,7 +345,7 @@
        use units,       only:  uniout
 !
        use timings,     only:  count_rate,tread,tadj,tpim,tconf,       &
-                               tcpuadj,tcpupim
+                               tcpuadj,tcpupim,tcpuconf
 !
        implicit none
 !
@@ -407,6 +412,8 @@
        real(kind=8)                                ::  tfinadj  !  Final CPU building time
        real(kind=8)                                ::  tinpim   !  Initial CPU PIM time
        real(kind=8)                                ::  tfinpim  !  Final CPU PIM time
+       real(kind=8)                                ::  tinconf  !  Initial CPU conformational time
+       real(kind=8)                                ::  tfinconf !  Final CPU conformational time
        integer                                     ::  t1read   !  Initial reading time
        integer                                     ::  t2read   !  Final reading time
        integer                                     ::  t1adj    !  Initial building time
@@ -523,13 +530,16 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
+             call cpu_time(tinconf)
              call system_clock(t1conf)
 !
 !             call isomorphism()
 !
+             call cpu_time(tfinconf)
              call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+             tcpuconf = tcpuconf + tfinconf - tinconf
+             tconf    = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
            call system_clock(t1read)
@@ -695,6 +705,8 @@
        real(kind=8)                                             ::  tfinadj   !  Final CPU building time
        real(kind=8)                                             ::  tinlife   !  Initial CPU lifetimes time
        real(kind=8)                                             ::  tfinlife  !  Final CPU lifetimes time
+       real(kind=8)                                             ::  tinpim    !  Initial CPU PIM time
+       real(kind=8)                                             ::  tfinpim   !  Final CPU PIM time
        integer                                                  ::  t1read    !  Initial reading time
        integer                                                  ::  t2read    !  Final reading time
        integer                                                  ::  t1adj     !  Initial building time
@@ -893,13 +905,16 @@
 ! Adding up the pairwise interaction matrix of the current snapshot
 !
            if ( dopim ) then
+             call cpu_time(tinpim)
              call system_clock(t1pim)
 !
 !             call build_pim()
 !
+             call cpu_time(tfinpim)
              call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+             tcpupim = tcpupim + tfinpim - tinpim
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
            end if
 !
 ! Adding up lifetimes of the aggregates
@@ -1140,6 +1155,8 @@
        real(kind=8)                                             ::  tfinadj   !  Final CPU building time
        real(kind=8)                                             ::  tinscrn   !  Initial CPU screening time
        real(kind=8)                                             ::  tfinscrn  !  Final CPU screening time
+       real(kind=8)                                             ::  tinpim    !  Initial CPU PIM time
+       real(kind=8)                                             ::  tfinpim   !  Final CPU PIM time
        integer                                                  ::  t1read    !  Initial reading time
        integer                                                  ::  t2read    !  Final reading time
        integer                                                  ::  t1adj     !  Initial building time
@@ -1347,13 +1364,16 @@
 ! Adding up the pairwise interaction matrix of the current snapshot
 !
            if ( dopim ) then
+             call cpu_time(tinpim)
              call system_clock(t1pim)
 !
 !             call build_pim()
 !
+             call cpu_time(tfinpim)
              call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+             tcpupim = tcpupim + tfinpim - tinpim
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
            end if
 !
 ! Analyzing aggregates by their connectivity ! TODO: needs corrected adjacency matrix of aggs
@@ -1570,6 +1590,8 @@
        real(kind=8)                                             ::  tfinscrn  !  Final CPU screening time
        real(kind=8)                                             ::  tinlife   !  Initial CPU lifetimes time
        real(kind=8)                                             ::  tfinlife  !  Final CPU lifetimes time
+       real(kind=8)                                             ::  tinpim    !  Initial CPU PIM time
+       real(kind=8)                                             ::  tfinpim   !  Final CPU PIM time
        integer                                                  ::  t1read    !  Initial reading time
        integer                                                  ::  t2read    !  Final reading time
        integer                                                  ::  t1adj     !  Initial building time
@@ -1918,13 +1940,16 @@
 ! Adding up the pairwise interaction matrix of the current snapshot
 !
            if ( dopim ) then
+             call cpu_time(tinpim)
              call system_clock(t1pim)
 !
 !             call build_pim()
 !
+             call cpu_time(tfinpim)
              call system_clock(t2pim)
 !
-             tpim = tpim + dble(t2pim-t1pim)/dble(count_rate)
+             tcpupim = tcpupim + tfinpim - tinpim
+             tpim    = tpim    + dble(t2pim-t1pim)/dble(count_rate)
            end if
 !
 ! Adding up lifetimes of the aggregates
@@ -2153,7 +2178,7 @@
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tpim,tconf,       &
-                               tcpuadj,tcpupim
+                               tcpuadj,tcpupim,tcpuconf
 !
        use units,       only:  uniout
 !
@@ -2216,6 +2241,8 @@
 !
        real(kind=8)                                ::  tiadj    !  Initial CPU building time
        real(kind=8)                                ::  tfadj    !  Final CPU building time
+       real(kind=8)                                ::  ticonf   !  Initial CPU conformational time
+       real(kind=8)                                ::  tfconf   !  Final CPU conformational time
        real(kind=8)                                ::  tipim    !  Initial CPU PIM time
        real(kind=8)                                ::  tfpim    !  Final CPU PIM time
        integer                                     ::  t1read   !  Initial reading time
@@ -2297,14 +2324,17 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
+             call cpu_time(ticonf)
              call system_clock(t1conf)
 !
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
 !
+             call cpu_time(tfconf)
              call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -2392,7 +2422,7 @@
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
 !
        use timings,     only:  count_rate,tread,tadj,tlife,tpim,tconf, &
-                               tcpuadj,tcpupim,tcpulife
+                               tcpuadj,tcpupim,tcpulife,tcpuconf
 !
        use units,       only:  uniout
 !
@@ -2496,6 +2526,8 @@
        real(kind=8)                                    ::  tfadj     !  Final CPU building time
        real(kind=8)                                    ::  tipim     !  Initial CPU PIM time
        real(kind=8)                                    ::  tfpim     !  Final CPU PIM time
+       real(kind=8)                                    ::  ticonf    !  Initial CPU conformational time
+       real(kind=8)                                    ::  tfconf    !  Final CPU conformational time
        real(kind=8)                                    ::  tilife    !  Initial CPU lifetimes time
        real(kind=8)                                    ::  tflife    !  Final CPU lifetimes time
        integer                                         ::  t1read    !  Initial reading time
@@ -2692,14 +2724,17 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
+             call cpu_time(ticonf)
              call system_clock(t1conf)
 !
              call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
                               box,buildadjrep,buildadjmon,domon)
 !
+             call cpu_time(tfconf)
              call system_clock(t2conf)
 !
-             tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
+             tcpuconf = tcpuconf + tfconf - ticonf
+             tconf    = tconf    + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
 ! Printing the population of every aggregate
@@ -2896,14 +2931,16 @@
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
        use lengths,     only:  lenschm
 !
-       use timings,     only:  count_rate,tread,tadj,tscrn,tpim,tconf, &
-                               tcpuadj,tcpuscrn,tcpupim
+       use timings,     only:  count_rate,tread,tadj,tscrn,tshift,    &
+                               tpim,tconf,trepscrn,tcpuadj,           &
+                               tcpuscrn,tcpushift,tcpupim,tcpuconf,   &
+                               tcpurepscrn
 !
        use units,       only:  uniout
 !
        use printings,   only:  print_end
 !
-       use omp_var,     only:  np,chunkscrn,chunklife
+       use omp_var,     only:  np,chunklife
 !
        implicit none
 !
@@ -2942,9 +2979,13 @@
 !
 ! Aggregates information in the molecule-based representation
 !
-       logical,dimension(:,:),allocatable              ::  adj      !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  oldadj   !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  newadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  adj      !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  oldadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  newadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  tmpadj   !  Auxiliary adjacency pointer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf1  !  Adjacency matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf2  !  Adjacency matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf3  !  Adjacency matrix buffer
        integer,dimension(:),allocatable                ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable                ::  node     !  Molecules identifier
        integer,dimension(:),allocatable                ::  tag      !  Aggregates identifier
@@ -2993,21 +3034,33 @@
 ! Aggregates information in the selected virtual representation
 !
        logical,dimension(:,:),allocatable              ::  sysbase  !  Global representation template matrix
-       logical,dimension(:,:),allocatable              ::  oldrep   !  Previous screened representation matrix
-       logical,dimension(:,:),allocatable              ::  sysrep   !  Current representation matrix
-       logical,dimension(:,:),allocatable              ::  newrep   !  Next representation matrix
+       logical,dimension(:,:),pointer                  ::  oldrep   !  Previous screened representation matrix
+       logical,dimension(:,:),pointer                  ::  sysrep   !  Current representation matrix
+       logical,dimension(:,:),pointer                  ::  newrep   !  Next representation matrix
+       logical,dimension(:,:),pointer                  ::  tmprep   !  Auxiliary representation pointer
+       logical,dimension(:,:),allocatable,target       ::  repbuf1  !  Global representation matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  repbuf2  !  Global representation matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  repbuf3  !  Global representation matrix buffer
        integer,dimension(:),allocatable                ::  irepnode !  First representation index of each molecule
        integer,dimension(:),allocatable                ::  nrepnode !  Number of representation sites per molecule
        integer                                         ::  msysrep  ! Total size of the global representation matrix
 !
 ! Local variables
 !
-       real(kind=4),dimension(:,:),allocatable         ::  oldposi  !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable         ::  posi     !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable         ::  newposi  !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  oldtmpposi !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  tmpposi   !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  newtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  oldposi  !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  posi     !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  newposi  !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpposi1 !  Auxiliary coordinates pointer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf1 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf2 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf3 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),pointer             ::  oldtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpposi   !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  newtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpcoord !  Auxiliary coordinates pointer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf1 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf2 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf3 !  Auxiliary coordinates buffer
        real(kind=4),dimension(3)                       ::  oldbox   !
        real(kind=4),dimension(3)                       ::  box      !
        real(kind=4),dimension(3)                       ::  newbox   !
@@ -3021,6 +3074,10 @@
        real(kind=8)                                    ::  tfadj    !  Final CPU building time
        real(kind=8)                                    ::  tiscrn   !  Initial CPU screening time
        real(kind=8)                                    ::  tfscrn   !  Final CPU screening time
+       real(kind=8)                                    ::  tishift  !  Initial CPU state-shift time
+       real(kind=8)                                    ::  tfshift  !  Final CPU state-shift time
+       real(kind=8)                                    ::  ticonf   !  Initial CPU conformational time
+       real(kind=8)                                    ::  tfconf   !  Final CPU conformational time
        real(kind=8)                                    ::  tipim    !  Initial CPU PIM time
        real(kind=8)                                    ::  tfpim    !  Final CPU PIM time
        integer                                         ::  t1read   !  Initial reading time
@@ -3029,6 +3086,8 @@
        integer                                         ::  t2adj    !  Final building time
        integer                                         ::  t1scrn   !  Initial screening time
        integer                                         ::  t2scrn   !  Final screening time
+       integer                                         ::  t1shift  !  Initial state-shift time
+       integer                                         ::  t2shift  !  Final state-shift time
        integer                                         ::  t1pim    !  Initial PIM analysis time
        integer                                         ::  t2pim    !  Final PIM analysis time
        integer                                         ::  t1conf   !  Initial conformational analysis time
@@ -3055,8 +3114,12 @@
 !
 ! Allocating variables depending on system size
 !
-       allocate(adj(mnode,mnode))
-       allocate(oldadj(mnode,mnode),newadj(mnode,mnode))
+       allocate(adjbuf1(mnode,mnode))
+       allocate(adjbuf2(mnode,mnode))
+       allocate(adjbuf3(mnode,mnode))
+       oldadj => adjbuf1
+       adj    => adjbuf2
+       newadj => adjbuf3
 !
        allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
@@ -3078,20 +3141,30 @@
          allocate(irepnode(mnode),nrepnode(mnode))
          call setsysrepidx(dobody,msysrep,irepnode,nrepnode)
          allocate(sysbase(msysrep,msysrep))
-         allocate(oldrep(msysrep,msysrep),sysrep(msysrep,msysrep),     &
-                  newrep(msysrep,msysrep))
+         allocate(repbuf1(msysrep,msysrep))
+         allocate(repbuf2(msysrep,msysrep))
+         allocate(repbuf3(msysrep,msysrep))
+         oldrep => repbuf1
+         sysrep => repbuf2
+         newrep => repbuf3
          call buildsysbaseadjrep(dobody,msysrep,irepnode,sysbase)
        end if
 !
 ! Allocating variables depending on topological information
 !
-       allocate(oldposi(3,matms))
-       allocate(newposi(3,matms))
-       allocate(posi(3,matms))
+       allocate(posibuf1(3,matms))
+       allocate(posibuf2(3,matms))
+       allocate(posibuf3(3,matms))
+       oldposi => posibuf1
+       posi    => posibuf2
+       newposi => posibuf3
 !
-       allocate(oldtmpposi(3,maxat))
-       allocate(tmpposi(3,maxat))
-       allocate(newtmpposi(3,maxat))
+       allocate(coordbuf1(3,maxat))
+       allocate(coordbuf2(3,maxat))
+       allocate(coordbuf3(3,maxat))
+       oldtmpposi => coordbuf1
+       tmpposi    => coordbuf2
+       newtmpposi => coordbuf3
 !
        coord => tmpposi(:,:)
 !
@@ -3140,11 +3213,10 @@
        tcpuadj = tcpuadj + tfadj - tiadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
-       call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,     &
-                       oldntype,olditype,oldsize,oldnagg,oldiagg,      &
-                       oldnmol,oldimol,oldmagg,oldmidx,debug)
-!
        if ( doconf ) then
+         call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,   &
+                         oldntype,olditype,oldsize,oldnagg,oldiagg,    &
+                         oldnmol,oldimol,oldmagg,oldmidx,debug)
          call buildsysadjrep(nmax,oldnagg,oldimol,mnode,oldmol,        &
                              oldnode,msysrep,irepnode,                 &
                              nrepnode,oldrep,matms,oldposi,            &
@@ -3197,7 +3269,7 @@
 !
 ! Building adjacency matrix of the first configuration
 !
-       call cpu_time(tadj)
+       call cpu_time(tiadj)
        call system_clock(t1adj)
 !
        call nbuildadj(adj,posi,xtcf%pos,box,neidis,buildadjmol)
@@ -3271,11 +3343,11 @@
            tcpuadj = tcpuadj + tfadj - tiadj
            tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
-           call nblockdiag(newadj,newmol,newnode,newtag,newagg,newidx, &
-                           newntype,newitype,newsize,newnagg,newiagg,  &
-                           newnmol,newimol,newmagg,newmidx,debug)
-!
            if ( doconf ) then
+             call nblockdiag(newadj,newmol,newnode,newtag,newagg,       &
+                             newidx,newntype,newitype,newsize,newnagg,  &
+                             newiagg,newnmol,newimol,newmagg,newmidx,   &
+                             debug)
              call buildsysadjrep(nmax,newnagg,newimol,mnode,newmol,    &
                                  newnode,msysrep,irepnode,nrepnode,    &
                                  newrep,matms,newposi,newtmpposi,      &
@@ -3304,22 +3376,45 @@
 ! Analyzing aggregates by their screened connectivity
 !
            if ( doconf ) then
+             call cpu_time(ticonf)
              call system_clock(t1conf)
 !
              if ( .not. dobody ) then
+!
+! Screening actual adyacency matrix in the topological representation
+!
                call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
                     sysbase,.FALSE.,screen)
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.FALSE.,domon)
              else
                call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
                     sysbase,dobdir,screen)
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,domon)
              end if
 !
+             call cpu_time(tfconf)
              call system_clock(t2conf)
 !
+             tcpurepscrn = tcpurepscrn + tfconf - ticonf
+             trepscrn = trepscrn + dble(t2conf-t1conf)/dble(count_rate)
+!
+! Printing corrected adjacency matrix in the topological representation
+!
+             call cpu_time(ticonf)
+             call system_clock(t1conf)
+!
+             if ( .not. dobody ) then
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
+                    .FALSE.,domon)
+             else
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
+                    dobdir,domon)
+             end if
+!
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
              tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
@@ -3356,47 +3451,28 @@
 !
 ! Keeping track the adjacency matrix information
 !
-           call cpu_time(tiscrn)
-           call system_clock(t1scrn)
+           call cpu_time(tishift)
+           call system_clock(t1shift)
 !
            oldbox(:) = box(:)
            box(:)    = newbox(:)
            actstep   = newstep
 !
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(adj,oldadj,newadj)                            &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+           tmpadj => oldadj
+           oldadj => adj
+           adj    => newadj
+           newadj => tmpadj
 !
-           do i = 1, mnode
-             oldadj(:,i) = adj(:,i)
-             adj(:,i)    = newadj(:,i)
-           end do
+           tmpcoord   => oldtmpposi
+           oldtmpposi => tmpposi
+           tmpposi    => newtmpposi
+           newtmpposi => tmpcoord
+           coord      => tmpposi(:,:)
 !
-!$omp end parallel do
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(oldtmpposi,tmpposi,newtmpposi)                &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunklife)
-           do i = 1, maxat
-             oldtmpposi(:,i) = tmpposi(:,i)
-             tmpposi(:,i)    = newtmpposi(:,i)
-           end do
-!
-!$omp end parallel do
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(oldposi,posi,newposi)                         &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
-!
-           do i = 1, matms
-             oldposi(:,i) = posi(:,i)
-             posi(:,i)    = newposi(:,i)
-           end do
-!
-!$omp end parallel do
+           tmpposi1 => oldposi
+           oldposi  => posi
+           posi     => newposi
+           newposi  => tmpposi1
 !
            oldmol(:)  = mol(:)
            oldnode(:) = node(:)
@@ -3416,15 +3492,17 @@
            oldmagg = magg
 !
            if ( doconf ) then
-             oldrep(:,:) = sysrep(:,:)
-             sysrep(:,:) = newrep(:,:)
+             tmprep => oldrep
+             oldrep => sysrep
+             sysrep => newrep
+             newrep => tmprep
            end if
 !
-           call cpu_time(tfscrn)
-           call system_clock(t2scrn)
+           call cpu_time(tfshift)
+           call system_clock(t2shift)
 !
-           tcpuscrn = tcpuscrn + tfscrn - tiscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
+           tcpushift = tcpushift + tfshift - tishift
+           tshift = tshift + dble(t2shift-t1shift)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -3438,13 +3516,13 @@
 !
 ! Deallocate memory
 !
-       deallocate(oldposi,posi,newposi)
-       deallocate(oldtmpposi,tmpposi,newtmpposi)
+       deallocate(posibuf1,posibuf2,posibuf3)
+       deallocate(coordbuf1,coordbuf2,coordbuf3)
 !
-       deallocate(adj,oldadj,newadj)
+       deallocate(adjbuf1,adjbuf2,adjbuf3)
 !
        if ( doconf ) then
-         deallocate(sysbase,oldrep,sysrep,newrep)
+         deallocate(sysbase,repbuf1,repbuf2,repbuf3)
          deallocate(irepnode,nrepnode)
        end if
 !
@@ -3478,9 +3556,10 @@
        use properties,  only:  nmax,pim,num,pop,frac,conc,cin,volu
        use lengths,     only:  lenschm
 !
-       use timings,     only:  count_rate,tread,tadj,tscrn,tpim,tconf, &
-                               tlife,tcpuadj,tcpuscrn,tcpupim,         &
-                               tcpulife
+       use timings,     only:  count_rate,tread,tadj,tscrn,tshift,    &
+                               tpim,tconf,trepscrn,tlife,             &
+                               tcpuadj,tcpuscrn,tcpushift,tcpupim,    &
+                               tcpuconf,tcpurepscrn,tcpulife
 !
        use units,       only:  uniout
 !
@@ -3488,7 +3567,7 @@
 !
        use lifetimes,   only:  ntracklife,ncalclife
 !
-       use omp_var,     only:  np,chunkscrn,chunklife
+       use omp_var,     only:  np,chunklife
 !
        implicit none
 !
@@ -3532,9 +3611,13 @@
 !
 ! Aggregates information in the molecule-based representation
 !
-       logical,dimension(:,:),allocatable              ::  adj      !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  oldadj   !  Adjacency matrix
-       logical,dimension(:,:),allocatable              ::  newadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  adj      !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  oldadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  newadj   !  Adjacency matrix
+       logical,dimension(:,:),pointer                  ::  tmpadj   !  Auxiliary adjacency pointer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf1  !  Adjacency matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf2  !  Adjacency matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  adjbuf3  !  Adjacency matrix buffer
        integer,dimension(:),allocatable                ::  mol      !  Molecules identifier
        integer,dimension(:),allocatable                ::  node     !  Molecules identifier
        integer,dimension(:),allocatable                ::  tag      !  Aggregates identifier
@@ -3588,21 +3671,33 @@
 ! Aggregates information in the selected virtual representation
 !
        logical,dimension(:,:),allocatable              ::  sysbase  !  Global representation template matrix
-       logical,dimension(:,:),allocatable              ::  oldrep   !  Previous screened representation matrix
-       logical,dimension(:,:),allocatable              ::  sysrep   !  Current representation matrix
-       logical,dimension(:,:),allocatable              ::  newrep   !  Next representation matrix
+       logical,dimension(:,:),pointer                  ::  oldrep   !  Previous screened representation matrix
+       logical,dimension(:,:),pointer                  ::  sysrep   !  Current representation matrix
+       logical,dimension(:,:),pointer                  ::  newrep   !  Next representation matrix
+       logical,dimension(:,:),pointer                  ::  tmprep   !  Auxiliary representation pointer
+       logical,dimension(:,:),allocatable,target       ::  repbuf1  !  Global representation matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  repbuf2  !  Global representation matrix buffer
+       logical,dimension(:,:),allocatable,target       ::  repbuf3  !  Global representation matrix buffer
        integer,dimension(:),allocatable                ::  irepnode !  First representation index of each molecule
        integer,dimension(:),allocatable                ::  nrepnode !  Number of representation sites per molecule
        integer                                         ::  msysrep  ! Total size of the global representation matrix
 !
 ! Local variables
 !
-       real(kind=4),dimension(:,:),allocatable         ::  oldposi  !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable         ::  posi     !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable         ::  newposi  !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  oldtmpposi !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  tmpposi   !  Auxiliary coordinates
-       real(kind=4),dimension(:,:),allocatable,target  ::  newtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  oldposi  !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  posi     !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  newposi  !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpposi1 !  Auxiliary coordinates pointer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf1 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf2 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  posibuf3 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),pointer             ::  oldtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpposi   !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  newtmpposi !  Auxiliary coordinates
+       real(kind=4),dimension(:,:),pointer             ::  tmpcoord !  Auxiliary coordinates pointer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf1 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf2 !  Auxiliary coordinates buffer
+       real(kind=4),dimension(:,:),allocatable,target  ::  coordbuf3 !  Auxiliary coordinates buffer
        real(kind=4),dimension(3)                       ::  oldbox   !
        real(kind=4),dimension(3)                       ::  box      !
        real(kind=4),dimension(3)                       ::  newbox   !
@@ -3617,6 +3712,10 @@
        real(kind=8)                                    ::  tfadj    !  Final CPU building time
        real(kind=8)                                    ::  tiscrn   !  Initial CPU screening time
        real(kind=8)                                    ::  tfscrn   !  Final CPU screening time
+       real(kind=8)                                    ::  tishift  !  Initial CPU state-shift time
+       real(kind=8)                                    ::  tfshift  !  Final CPU state-shift time
+       real(kind=8)                                    ::  ticonf   !  Initial CPU conformational time
+       real(kind=8)                                    ::  tfconf   !  Final CPU conformational time
        real(kind=8)                                    ::  tipim    !  Initial CPU PIM time
        real(kind=8)                                    ::  tfpim    !  Final CPU PIM time
        real(kind=8)                                    ::  tilife   !  Initial CPU lifetimes time
@@ -3627,6 +3726,8 @@
        integer                                         ::  t2adj    !  Final building time
        integer                                         ::  t1scrn   !  Initial screening time
        integer                                         ::  t2scrn   !  Final screening time
+       integer                                         ::  t1shift  !  Initial state-shift time
+       integer                                         ::  t2shift  !  Final state-shift time
        integer                                         ::  t1pim    !  Initial PIM analysis time
        integer                                         ::  t2pim    !  Final PIM analysis time
        integer                                         ::  t1life   !  Initial lifetimes time
@@ -3659,8 +3760,12 @@
 !
 ! Allocating variables depending on system size
 !
-       allocate(adj(mnode,mnode))
-       allocate(oldadj(mnode,mnode),newadj(mnode,mnode))
+       allocate(adjbuf1(mnode,mnode))
+       allocate(adjbuf2(mnode,mnode))
+       allocate(adjbuf3(mnode,mnode))
+       oldadj => adjbuf1
+       adj    => adjbuf2
+       newadj => adjbuf3
 !
        allocate(mol(mnode),node(mnode),tag(mnode),agg(mnode))
        allocate(idx(mnode),ntype(mnode),itype(mnode))
@@ -3687,20 +3792,30 @@
          allocate(irepnode(mnode),nrepnode(mnode))
          call setsysrepidx(dobody,msysrep,irepnode,nrepnode)
          allocate(sysbase(msysrep,msysrep))
-         allocate(oldrep(msysrep,msysrep),sysrep(msysrep,msysrep),     &
-                  newrep(msysrep,msysrep))
+         allocate(repbuf1(msysrep,msysrep))
+         allocate(repbuf2(msysrep,msysrep))
+         allocate(repbuf3(msysrep,msysrep))
+         oldrep => repbuf1
+         sysrep => repbuf2
+         newrep => repbuf3
          call buildsysbaseadjrep(dobody,msysrep,irepnode,sysbase)
        end if
 !
 ! Allocating variables depending on topological information
 !
-       allocate(oldposi(3,matms))
-       allocate(newposi(3,matms))
-       allocate(posi(3,matms))
+       allocate(posibuf1(3,matms))
+       allocate(posibuf2(3,matms))
+       allocate(posibuf3(3,matms))
+       oldposi => posibuf1
+       posi    => posibuf2
+       newposi => posibuf3
 !
-       allocate(oldtmpposi(3,maxat))
-       allocate(tmpposi(3,maxat))
-       allocate(newtmpposi(3,maxat))
+       allocate(coordbuf1(3,maxat))
+       allocate(coordbuf2(3,maxat))
+       allocate(coordbuf3(3,maxat))
+       oldtmpposi => coordbuf1
+       tmpposi    => coordbuf2
+       newtmpposi => coordbuf3
 !
        coord => tmpposi(:,:)
 !
@@ -3749,11 +3864,10 @@
        tcpuadj = tcpuadj + tfadj - tiadj
        tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
-       call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,     &
-                       oldntype,olditype,oldsize,oldnagg,oldiagg,      &
-                       oldnmol,oldimol,oldmagg,oldmidx,debug)
-!
        if ( doconf ) then
+         call nblockdiag(oldadj,oldmol,oldnode,oldtag,oldagg,oldidx,   &
+                         oldntype,olditype,oldsize,oldnagg,oldiagg,    &
+                         oldnmol,oldimol,oldmagg,oldmidx,debug)
          call buildsysadjrep(nmax,oldnagg,oldimol,mnode,oldmol,        &
                              oldnode,msysrep,irepnode,                 &
                              nrepnode,oldrep,matms,oldposi,            &
@@ -3806,7 +3920,7 @@
 !
 ! Building adjacency matrix of the first configuration
 !
-       call cpu_time(tadj)
+       call cpu_time(tiadj)
        call system_clock(t1adj)
 !
        call nbuildadj(adj,posi,xtcf%pos,box,neidis,buildadjmol)
@@ -3880,11 +3994,11 @@
            tcpuadj = tcpuadj + tfadj - tiadj
            tadj = tadj + dble(t2adj-t1adj)/dble(count_rate)
 !
-           call nblockdiag(newadj,newmol,newnode,newtag,newagg,newidx, &
-                           newntype,newitype,newsize,newnagg,newiagg,  &
-                           newnmol,newimol,newmagg,newmidx,debug)
-!
            if ( doconf ) then
+             call nblockdiag(newadj,newmol,newnode,newtag,newagg,       &
+                             newidx,newntype,newitype,newsize,newnagg,  &
+                             newiagg,newnmol,newimol,newmagg,newmidx,   &
+                             debug)
              call buildsysadjrep(nmax,newnagg,newimol,mnode,newmol,    &
                                  newnode,msysrep,irepnode,nrepnode,    &
                                  newrep,matms,newposi,newtmpposi,      &
@@ -3935,22 +4049,45 @@
 ! Analyzing aggregates by their screened connectivity
 !
            if ( doconf ) then
+!
+! Screening actual adjacency matrix in the topological representation
+!
+             call cpu_time(ticonf)
              call system_clock(t1conf)
 !
              if ( .not. dobody ) then
                call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
                     sysbase,.FALSE.,screen)
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.FALSE.,domon)
              else
                call scrnadjrep(scrn,msysrep,oldrep,sysrep,newrep,      &
                     sysbase,dobdir,screen)
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
-                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,domon)
              end if
 !
+             call cpu_time(tfconf)
              call system_clock(t2conf)
 !
+             tcpurepscrn = tcpurepscrn + tfconf - ticonf
+             trepscrn = trepscrn + dble(t2conf-t1conf)/dble(count_rate)
+!
+! Printing actual adjacency matrix in the topological representation
+!
+             call cpu_time(ticonf)
+             call system_clock(t1conf)
+!
+             if ( .not. dobody ) then
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
+                    .FALSE.,domon)
+             else
+               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
+                    dobdir,domon)
+             end if
+!
+             call cpu_time(tfconf)
+             call system_clock(t2conf)
+!
+             tcpuconf = tcpuconf + tfconf - ticonf
              tconf = tconf + dble(t2conf-t1conf)/dble(count_rate)
            end if
 !
@@ -3997,47 +4134,28 @@
 !
 ! Keeping track the adjacency matrix information
 !
-           call cpu_time(tiscrn)
-           call system_clock(t1scrn)
+           call cpu_time(tishift)
+           call system_clock(t1shift)
 !
            oldbox(:) = box(:)
            box(:)    = newbox(:)
            actstep   = newstep
 !
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(adj,oldadj,newadj)                            &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
+           tmpadj => oldadj
+           oldadj => adj
+           adj    => newadj
+           newadj => tmpadj
 !
-           do i = 1, mnode
-             oldadj(:,i) = adj(:,i)
-             adj(:,i)    = newadj(:,i)
-           end do
+           tmpcoord   => oldtmpposi
+           oldtmpposi => tmpposi
+           tmpposi    => newtmpposi
+           newtmpposi => tmpcoord
+           coord      => tmpposi(:,:)
 !
-!$omp end parallel do
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(oldtmpposi,tmpposi,newtmpposi)                &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunklife)
-           do i = 1, maxat
-             oldtmpposi(:,i) = tmpposi(:,i)
-             tmpposi(:,i)    = newtmpposi(:,i)
-           end do
-!
-!$omp end parallel do
-!
-!$omp parallel do num_threads(np)                                      &
-!$omp             shared(oldposi,posi,newposi)                         &
-!$omp             private(i)                                           &
-!$omp             schedule(dynamic,chunkscrn)
-!
-           do i = 1, matms
-             oldposi(:,i) = posi(:,i)
-             posi(:,i)    = newposi(:,i)
-           end do
-!
-!$omp end parallel do
+           tmpposi1 => oldposi
+           oldposi  => posi
+           posi     => newposi
+           newposi  => tmpposi1
 !
            auxlife(:) = 0
            if ( haslife ) then
@@ -4066,15 +4184,17 @@
            haslife = .TRUE.
 !
            if ( doconf ) then                                         
-             oldrep(:,:) = sysrep(:,:)                                
-             sysrep(:,:) = newrep(:,:)                                
+             tmprep => oldrep
+             oldrep => sysrep
+             sysrep => newrep
+             newrep => tmprep
            end if                                                     
 !
-           call cpu_time(tfscrn)
-           call system_clock(t2scrn)
+           call cpu_time(tfshift)
+           call system_clock(t2shift)
 !
-           tcpuscrn = tcpuscrn + tfscrn - tiscrn
-           tscrn = tscrn + dble(t2scrn-t1scrn)/dble(count_rate)
+           tcpushift = tcpushift + tfshift - tishift
+           tshift = tshift + dble(t2shift-t1shift)/dble(count_rate)
 !
            call system_clock(t1read)
 !
@@ -4088,13 +4208,13 @@
 !
 ! Deallocate memory
 !
-       deallocate(oldposi,posi,newposi)
-       deallocate(oldtmpposi,tmpposi,newtmpposi)
+       deallocate(posibuf1,posibuf2,posibuf3)
+       deallocate(coordbuf1,coordbuf2,coordbuf3)
 !
-       deallocate(adj,oldadj,newadj)
+       deallocate(adjbuf1,adjbuf2,adjbuf3)
 !
        if ( doconf ) then                                            
-         deallocate(sysbase,oldrep,sysrep,newrep)                    
+         deallocate(sysbase,repbuf1,repbuf2,repbuf3)
          deallocate(irepnode,nrepnode)                               
        end if                                                        
 !
@@ -4643,12 +4763,14 @@
 ! PRINTSYSADJREP - PRINT SYStem-screened aggregate REPresentation       
 !                                                                       
        subroutine printsysadjrep(nmax,nagg,imol,mnode,mol,msysrep,     &
-                                 irepnode,nrepnode,sysadj,dobody,domon)                          
+                                 irepnode,nrepnode,sysadj,dobody,      &
+                                 directed,domon)
 !                                                                       
        use systeminf,   only:  mtype,mmon,mgrpsmon,mbodymon,adjgrps,   &
                                adjbody                                  
-       use properties,  only:  num                                      
-       use units,       only:  uniadj                                   
+       use properties,  only:  num
+       use units,       only:  uniadj
+       use isotools,    only:  classify_iso_graph
 !                                                                       
        implicit none                                                   
 !                                                                       
@@ -4664,6 +4786,7 @@
        integer,intent(in)                            ::  mnode         ! Total number of molecules 
        integer,intent(in)                            ::  msysrep       ! Total size of global representation matrix 
        logical,intent(in)                            ::  dobody        ! Body representation flag 
+       logical,intent(in)                            ::  directed      ! Directed graph flag
        logical,intent(in)                            ::  domon         ! Monomer intramolecular edge flag
 !                                                                     
 ! Local variables                                                     
@@ -4682,8 +4805,8 @@
        integer                                       ::  jsys          ! Initial target index in global matrix 
        integer                                       ::  ni            ! Source molecule representation size 
        integer                                       ::  nj            ! Target molecule representation size 
-       integer                                       ::  ii            ! Matrix row index 
-       integer                                       ::  jj            ! Matrix column index 
+       integer                                       ::  ii            ! Matrix row index
+       integer                                       ::  jj            ! Matrix column index
 !                                                                        
        firstagg = mtype + 1                                            
        if ( domon ) firstagg = 1                                       
@@ -4699,35 +4822,33 @@
 !
          allocate(locadj(madj,madj))                                   
 !
-         if ( num(iagg) .eq. 0 ) then                                  
-!
-           if ( dobody ) then                                          
-             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           & 
-                  action='write')                                      
-             write(uniadj,*) trim(adjbody(iagg)%lab)                   
-             do ii = 1, madj                                           
-               write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)    
-             end do                                                    
-           else                                                        
-             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           & 
-                  action='write')                                      
-             write(uniadj,*) trim(adjgrps(iagg)%lab)                   
-             do ii = 1, madj                                           
-               write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)    
-             end do                                                    
-           end if    
-!           
-         else    
-!                 
-           if ( dobody ) then                                          
-             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           & 
-                  position='append',action='write')                    
-           else                                                        
-             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           & 
-                  position='append',action='write')                    
-           end if   
-!           
-         end if                                                        
+         if ( .not. doiso_global ) then
+           if ( num(iagg) .eq. 0 ) then
+             if ( dobody ) then
+               open(unit=uniadj,file=trim(adjbody(iagg)%outp),         &
+                    action='write')
+               write(uniadj,*) trim(adjbody(iagg)%lab)
+               do ii = 1, madj
+                 write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
+               end do
+             else
+               open(unit=uniadj,file=trim(adjgrps(iagg)%outp),         &
+                    action='write')
+               write(uniadj,*) trim(adjgrps(iagg)%lab)
+               do ii = 1, madj
+                 write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
+               end do
+             end if
+           else
+             if ( dobody ) then
+               open(unit=uniadj,file=trim(adjbody(iagg)%outp),         &
+                    position='append',action='write')
+             else
+               open(unit=uniadj,file=trim(adjgrps(iagg)%outp),         &
+                    position='append',action='write')
+             end if
+           end if
+         end if
 !
          istart = imol(iagg)                                           
          do iocc = 1, nagg(iagg)                                       
@@ -4748,15 +4869,25 @@
              iloc = iloc + ni                                          
            end do 
 !           
-           do ii = 1, madj                                             
-             write(uniadj,*) (locadj(ii,jj),jj=1,madj)                 
-           end do                                                      
+           if ( doiso_global ) then
+             if ( dobody ) then
+               call classify_iso_graph(iagg,adjbody(iagg)%lab,        &
+                    adjbody(iagg)%outp,locadj,directed)
+             else
+               call classify_iso_graph(iagg,adjgrps(iagg)%lab,        &
+                    adjgrps(iagg)%outp,locadj,.FALSE.)
+             end if
+           else
+             do ii = 1, madj
+               write(uniadj,*) (locadj(ii,jj),jj=1,madj)
+             end do
+           end if
 !
            istart = istart + mmon(iagg)                                
 !
-         end do      
-!         
-         close(uniadj)                                                 
+         end do
+!
+         if ( .not. doiso_global ) close(uniadj)
 !
          deallocate(locadj)   
 !         
@@ -4876,11 +5007,39 @@
        subroutine printadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
                                box,buildadjbody,buildadjmon,domon)
 !
-       use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,ibodymon, &
-                               adjbody,tmpbody
-       use properties,  only:  num
+       implicit none
 !
-       use units,       only:  uniadj
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg     !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol     !
+       integer,dimension(mnode),intent(in)         ::  node     !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi     !
+       real(kind=4),dimension(3),intent(in)        ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax     !
+       integer,intent(in)                          ::  mnode    !
+       integer,intent(in)                          ::  matms    !
+       logical,intent(in)                          ::  domon    !
+!
+! External functions
+!
+       external                                    ::  buildadjbody
+       external                                    ::  buildadjmon
+!
+       call classadjbody(nmax,nagg,imol,mnode,node,matms,posi,box,     &
+                         buildadjbody,buildadjmon,domon,.FALSE.)
+!
+       return
+       end subroutine printadjbody
+!
+!======================================================================!
+!
+! PRINTADJBODYDIR - PRINT ADJacency matrix
+!                    in the directed n-BODY simplified representation
+!
+       subroutine printadjbodydir(nmax,nagg,imol,mnode,node,matms,     &
+                                  posi,box,buildadjbody,buildadjmon,   &
+                                  domon)
 !
        implicit none
 !
@@ -4901,6 +5060,47 @@
        external                                    ::  buildadjbody
        external                                    ::  buildadjmon
 !
+       call classadjbody(nmax,nagg,imol,mnode,node,matms,posi,box,     &
+                         buildadjbody,buildadjmon,domon,.TRUE.)
+!
+       return
+       end subroutine printadjbodydir
+!
+!======================================================================!
+!
+! CLASSADJBODY - CLASSify ADJacency matrix
+!                in the n-BODY simplified representation
+!
+       subroutine classadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
+                               box,buildadjbody,buildadjmon,domon,     &
+                               directed)
+!
+       use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,ibodymon, &
+                               adjbody,tmpbody
+       use properties,  only:  num
+       use units,       only:  uniadj
+       use isotools,    only:  classify_iso_graph
+!
+       implicit none
+!
+! Input/output variables
+!
+       integer,dimension(nmax),intent(in)          ::  nagg     !  Number of aggregates of each size
+       integer,dimension(nmax),intent(in)          ::  imol     !
+       integer,dimension(mnode),intent(in)         ::  node     !  Molecules identifier
+       real(kind=4),dimension(3,matms),intent(in)  ::  posi     !
+       real(kind=4),dimension(3),intent(in)        ::  box      !  Simulation box !FLAG: kind=8 to kind=4
+       integer,intent(in)                          ::  nmax     !
+       integer,intent(in)                          ::  mnode    !
+       integer,intent(in)                          ::  matms    !
+       logical,intent(in)                          ::  domon    !
+       logical,intent(in)                          ::  directed !
+!
+! External functions
+!
+       external                                    ::  buildadjbody
+       external                                    ::  buildadjmon
+!
 ! Local variables
 !
        integer                                     ::  firstagg !  Indexes
@@ -4909,8 +5109,8 @@
        integer                                     ::  i,j      !  Indexes
        integer                                     ::  ii,jj    !  Indexes
 !
-! Printing adj matrix of the aggregates in the N-body simplified representation
-! -----------------------------------------------------------------------------
+! Classifying adj matrix of the aggregates in the N-body simplified representation
+! --------------------------------------------------------------------------------
 !
        firstagg = mtype + 1
        if ( domon ) firstagg = 1
@@ -4920,16 +5120,18 @@
 !
          madj = mbodymon(iagg)
 !
-         if ( num(iagg) .eq. 0 ) then
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                action='write')
-           write(uniadj,*) trim(adjbody(iagg)%lab)
-           do ii = 1, madj
-             write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-         else
-           open(unit=uniadj,file=trim(adjbody(iagg)%outp),             &
-                position='append',action='write')
+         if ( .not. doiso_global ) then
+           if ( num(iagg) .eq. 0 ) then
+             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           &
+                  action='write')
+             write(uniadj,*) trim(adjbody(iagg)%lab)
+             do ii = 1, madj
+               write(uniadj,*) (adjbody(iagg)%adj(ii,jj),jj=1,madj)
+             end do
+           else
+             open(unit=uniadj,file=trim(adjbody(iagg)%outp),           &
+                  position='append',action='write')
+           end if
          end if
 !
          j = imol(iagg)
@@ -4951,18 +5153,23 @@
 !
            j = j + mmon(iagg)
 !
-           do ii = 1, madj
-             write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
-           end do
+           if ( doiso_global ) then
+             call classify_iso_graph(iagg,adjbody(iagg)%lab,          &
+                  adjbody(iagg)%outp,tmpbody(iagg)%adj,directed)
+           else
+             do ii = 1, madj
+               write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
+             end do
+           end if
 !
          end do
 !
-         close(uniadj)
+         if ( .not. doiso_global ) close(uniadj)
 !
        end do
 !
        return
-       end subroutine printadjbody
+       end subroutine classadjbody
 !
 !======================================================================!
 !
@@ -4975,8 +5182,8 @@
        use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,igrpsmon, &
                                adjgrps,tmpgrps
        use properties,  only:  num
-!
        use units,       only:  uniadj
+       use isotools,    only:  classify_iso_graph
 !
        implicit none
 !
@@ -5005,8 +5212,8 @@
        integer                                     ::  i,j     !  Indexes
        integer                                     ::  ii,jj   !  Indexes
 !
-! Printing adj matrix of the aggregates in the groups representation
-! ------------------------------------------------------------------
+! Classifying adj matrix of the aggregates in the groups representation
+! --------------------------------------------------------------------
 !
        firstagg = mtype + 1
        if ( domon ) firstagg = 1
@@ -5016,16 +5223,18 @@
 !
          madj = mgrpsmon(iagg)
 !
-         if ( num(iagg) .eq. 0 ) then
-           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
-                action='write')
-           write(uniadj,*) trim(adjgrps(iagg)%lab)
-           do ii = 1, madj
-             write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
-           end do
-         else
-           open(unit=uniadj,file=trim(adjgrps(iagg)%outp),             &
-                position='append',action='write')
+         if ( .not. doiso_global ) then
+           if ( num(iagg) .eq. 0 ) then
+             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           &
+                  action='write')
+             write(uniadj,*) trim(adjgrps(iagg)%lab)
+             do ii = 1, madj
+               write(uniadj,*) (adjgrps(iagg)%adj(ii,jj),jj=1,madj)
+             end do
+           else
+             open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           &
+                  position='append',action='write')
+           end if
          end if
 !
          j = imol(iagg)
@@ -5046,13 +5255,18 @@
 !
            j = j + mmon(iagg)
 !
-           do ii = 1, madj
-             write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
-           end do
+           if ( doiso_global ) then
+             call classify_iso_graph(iagg,adjgrps(iagg)%lab,          &
+                  adjgrps(iagg)%outp,tmpgrps(iagg)%adj,.FALSE.)
+           else
+             do ii = 1, madj
+               write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
+             end do
+           end if
 !
          end do
 !
-         close(uniadj)
+         if ( .not. doiso_global ) close(uniadj)
 !
        end do
 !

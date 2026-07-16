@@ -34,6 +34,7 @@ SRCMOD  = xdr.F90            \
           sorting.f90        \
           screening.f90      \
           lifetimes.f90      \
+          isotools.f90       \
           aggtools.f90
 
 # Find all source files, create a list of corresponding object files
