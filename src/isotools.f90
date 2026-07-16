@@ -155,6 +155,7 @@
        integer  ::  i
 !
        if ( .not. allocated(buckets) ) return
+!
        do i = 1, size(buckets)
          if ( buckets(i)%active ) call write_iso_bucket(buckets(i))
        end do
