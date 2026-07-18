@@ -14,6 +14,7 @@
        integer,parameter  ::  initial_iso_assignment_capacity = 1024
        integer            ::  max_iso_class_capacity = 1000000
        logical            ::  doiso_global = .FALSE.
+       logical            ::  doiconf_global = .FALSE.
 !
        type iso_graph
 !        Labeled graph used for aggregate-conformation classification.
@@ -53,7 +54,7 @@
        type(iso_bucket),dimension(:),allocatable      ::  buckets
 !
        public  ::  init_iso,clear_iso,classify_iso_graph,write_iso_results
-       public  ::  doiso_global
+       public  ::  doiso_global,doiconf_global
 !
        contains
 !

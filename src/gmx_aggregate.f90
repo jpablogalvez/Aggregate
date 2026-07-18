@@ -41,7 +41,8 @@
        use utils,         only:  rndmseed
 !
        use aggtools,      only:  driver
-       use isotools,      only:  init_iso,write_iso_results,clear_iso
+       use isotools,      only:  init_iso,write_iso_results,clear_iso, &
+                                 doiconf_global
        use graphtools,    only:  bonds2adj,adj2adjatms,reduceadj
        use mathtools,     only:  setidx
 !
@@ -202,6 +203,8 @@
        call line_log(6,2,'Conformational analysis',lin,':',doconf,lfin)
        call line_log(6,2,'On-the-fly isomorphism analysis',lin,':',    &
                      doiso,lfin)
+       call line_log(6,2,'Isomorphism matrix printing',lin,':',        &
+                     doiconf_global,lfin)
        call line_log(6,2,'Add intramolecular interactions',lin,':',    &
                                                              domon,lfin)
        call line_log(6,2,'Print aggregate coordinates',lin,':',        &
@@ -1265,6 +1268,7 @@
                                max_iso_classes,debug)
 !
        use lengths, only: leninp,lenout,lenschm,lencmd,lenarg
+       use isotools, only: doiconf_global
 !
        use printings
        use utils
@@ -1344,6 +1348,7 @@
 !
        doconf  = .FALSE.
        doiso   = .FALSE.
+       doiconf_global = .FALSE.
        domon   = .FALSE.
        docoord  = .FALSE.
        dopim   = .FALSE.
@@ -1622,13 +1627,20 @@
            case ('-conf','--conf','--do-conf')
              cconf  = 'body'
              doconf = .TRUE.
+             doiconf_global = .TRUE.
            case ('-noconf','--noconf','--no-conf')
              doconf = .FALSE.
              doiso  = .FALSE.
+             doiconf_global = .FALSE.
            case ('-iso','--iso','--do-iso')
              cconf  = 'body'
              doconf = .TRUE.
              doiso  = .TRUE.
+           case ('-iconf','--iso-conf','--iso-print-conf',             &
+                 '--print-iso-conf')
+             cconf  = 'body'
+             doconf = .TRUE.
+             doiconf_global = .TRUE.
            case ('-noiso','--noiso','--no-iso')
              doiso  = .FALSE.
            case ('-monomer','--monomer','--do-monomer')
@@ -1761,6 +1773,8 @@
                                   'onal matrix printing'
        write(*,'(2X,A)') '-[no]iso              Classify conformati'//  &
                                   'onal matrices on the fly'
+       write(*,'(2X,A)') '-iconf,--iso-conf     Print conformational'// &
+                                  ' matrices also when -iso is active'
        write(*,'(2X,A)') '-[no]monomer          Add intramolecular'//  &
                                       ' edges to conformational matrices'
        write(*,'(2X,A)') '-[no]coord            Print aggregate co'//  &

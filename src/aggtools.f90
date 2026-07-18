@@ -2931,7 +2931,8 @@
                                adjbody                                  
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph,doiso_global
+       use isotools,    only:  classify_iso_graph,doiso_global,       &
+                               doiconf_global
        use timings,     only:  count_rate,tread,tconf,tiso,tcpuconf,  &
                                tcpuiso
 !                                                                       
@@ -2997,7 +2998,7 @@
 !
          allocate(locadj(madj,madj))                                   
 !
-         if ( .not. doiso_global ) then
+         if ( (.not. doiso_global) .or. doiconf_global ) then
 !
            if ( num(iagg) .eq. 0 ) then
              if ( dobody ) then
@@ -3071,7 +3072,9 @@
 !
              call system_clock(t1read)
 !
-           else
+           end if
+!
+           if ( (.not. doiso_global) .or. doiconf_global ) then
 !
              call system_clock(t2read)
              tread = tread + dble(t2read-t1read)/dble(count_rate)
@@ -3097,7 +3100,7 @@
 !
          end do
 !
-         if ( .not. doiso_global ) close(uniadj)
+         if ( (.not. doiso_global) .or. doiconf_global ) close(uniadj)
 !
          deallocate(locadj)   
 !         
@@ -3292,7 +3295,8 @@
                                adjbody,tmpbody
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph,doiso_global
+       use isotools,    only:  classify_iso_graph,doiso_global,       &
+                               doiconf_global
        use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
@@ -3344,7 +3348,7 @@
 !
          madj = mbodymon(iagg)
 !
-         if ( .not. doiso_global ) then
+         if ( (.not. doiso_global) .or. doiconf_global ) then
            if ( num(iagg) .eq. 0 ) then
              open(unit=uniadj,file=trim(adjbody(iagg)%outp),           &
                   action='write')
@@ -3400,7 +3404,13 @@
              walliso = dble(t2iso-t1iso)/dble(count_rate)
              tcpuiso = tcpuiso + cpuiso
              tiso = tiso + walliso
-           else
+           end if
+!
+           if ( (.not. doiso_global) .or. doiconf_global ) then
+             if ( doiso_global ) then
+               call cpu_time(ticonf)
+               call system_clock(t1conf)
+             end if
              do ii = 1, madj
                write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
              end do
@@ -3414,7 +3424,7 @@
 !
          end do
 !
-         if ( .not. doiso_global ) close(uniadj)
+         if ( (.not. doiso_global) .or. doiconf_global ) close(uniadj)
 !
        end do
 !
@@ -3433,7 +3443,8 @@
                                adjgrps,tmpgrps
        use properties,  only:  num
        use units,       only:  uniadj
-       use isotools,    only:  classify_iso_graph,doiso_global
+       use isotools,    only:  classify_iso_graph,doiso_global,       &
+                               doiconf_global
        use timings,     only:  count_rate,tconf,tiso,tcpuconf,tcpuiso
 !
        implicit none
@@ -3484,7 +3495,7 @@
 !
          madj = mgrpsmon(iagg)
 !
-         if ( .not. doiso_global ) then
+         if ( (.not. doiso_global) .or. doiconf_global ) then
            if ( num(iagg) .eq. 0 ) then
              open(unit=uniadj,file=trim(adjgrps(iagg)%outp),           &
                   action='write')
@@ -3539,7 +3550,13 @@
              walliso = dble(t2iso-t1iso)/dble(count_rate)
              tcpuiso = tcpuiso + cpuiso
              tiso = tiso + walliso
-           else
+           end if
+!
+           if ( (.not. doiso_global) .or. doiconf_global ) then
+             if ( doiso_global ) then
+               call cpu_time(ticonf)
+               call system_clock(t1conf)
+             end if
              do ii = 1, madj
                write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
              end do
@@ -3553,7 +3570,7 @@
 !
          end do
 !
-         if ( .not. doiso_global ) close(uniadj)
+         if ( (.not. doiso_global) .or. doiconf_global ) close(uniadj)
 !
        end do
 !
