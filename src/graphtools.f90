@@ -2858,10 +2858,13 @@
        subroutine nbuildadjgrpsmon(mnode,node,madj,adj,matms,posi,box, &
                                    mtype,nnode,inode,igrpsmon,doangle)
 !
+       use omp_lib
+!
        use systeminf,  only:  coord,rep,iat,iatms,igrps
        use thresholds, only:  thr,thrang
        use parameters, only:  zero
        use geometry,   only:  sminimgvec
+       use omp_var,    only:  np,chunkadj
 !
        implicit none
 !
@@ -2907,6 +2910,14 @@
          iiat   = iat(ii)
          ithr   = igrps(ii)
          iiadj  = igrpsmon(ii)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(node,adj,posi,box,thr,thrang,rep,nnode,       &
+!$omp                    inode,ii,iiatms,iiat,ithr,iiadj,doangle)      &
+!$omp             private(v21,dis1,mindis,minang,iinode,innode,innei,  &
+!$omp                     ingrps,jngrps,iigrps,jigrps,inei,jnei,       &
+!$omp                     iadj,ni,nj,i,j,keep)                         &
+!$omp             schedule(dynamic,chunkadj)
 !
          do iinode = 1, nnode(ii)
 !
@@ -2972,6 +2983,8 @@
            end do
 !
          end do
+!
+!$omp end parallel do
        end do
 !
        return
@@ -2985,10 +2998,13 @@
                                    mtype,nnode,inode,ibodymon,         &
                                    doangle,dodir)
 !
+       use omp_lib
+!
        use systeminf,  only:  coord,rep,iat,iatms,igrps
        use thresholds, only:  thr,thrang
        use parameters, only:  zero
        use geometry,   only:  sminimgvec
+       use omp_var,    only:  np,chunkadj
 !
        implicit none
 !
@@ -3039,6 +3055,15 @@
          iiat   = iat(ii)
          ithr   = igrps(ii)
          ibody  = ibodymon(ii)
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(node,adj,posi,box,thr,thrang,rep,nnode,       &
+!$omp                    inode,ii,iiatms,iiat,ithr,ibody,doangle,     &
+!$omp                    dodir)                                        &
+!$omp             private(v21,dis1,mindis,minang,iinode,innode,innei,  &
+!$omp                     inbody,jnbody,iibody,jibody,ingrps,jngrps,   &
+!$omp                     iigrps,jigrps,inei,jnei,iadj,ni,nj,i,j,keep) &
+!$omp             schedule(dynamic,chunkadj)
 !
          do iinode = 1, nnode(ii)
 !
@@ -3124,6 +3149,8 @@
            end do
 !
          end do
+!
+!$omp end parallel do
        end do
 !
        return

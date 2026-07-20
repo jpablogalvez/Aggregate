@@ -2773,6 +2773,7 @@
        subroutine buildsysbaseadjrep(dobody,msysrep,irepnode,base)    
 !                                                                    
        use systeminf,   only:  rep,mtype,nnode,inode                
+       use omp_var,     only:  np,chunkadj
 !                                                                       
        implicit none                                               
 !                                                                       
@@ -2792,6 +2793,12 @@
        integer                                         ::  nrep        ! Representation sites in one molecule
 !                                                                      
        base(:,:) = .FALSE.                                             
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(base,rep,nnode,inode,irepnode,dobody)         &
+!$omp             private(q,imol,molid,i0,nrep)                        &
+!$omp             schedule(dynamic,chunkadj)
+!
        do q = 1, mtype                                                 
          if ( dobody ) then                                            
            nrep = rep(q)%mbody                                         
@@ -2808,6 +2815,8 @@
            end if                                                      
          end do                                                        
        end do                                                          
+!
+!$omp end parallel do
 !                                                                      
        return                                                          
        end subroutine buildsysbaseadjrep                               
