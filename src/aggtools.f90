@@ -125,7 +125,7 @@
 !
        end subroutine nsubadjrep
 !
-       subroutine nsubprint(nmax,nagg,imol,mnode,node,matms,posi,      &
+       subroutine nsubprint(step,nmax,nagg,imol,mnode,node,matms,posi, &
                             box,buildadjrep,buildadjmon,domon)
 !
 ! Input/output variables
@@ -138,6 +138,7 @@
        integer,intent(in)                          ::  nmax    !
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
+       integer,intent(in)                          ::  step    !  Snapshot identifier
        logical,intent(in)                          ::  domon   !
 !
 ! External functions
@@ -483,8 +484,9 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
-             call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
-                              box,buildadjrep,buildadjmon,domon)
+             call printadjrep(xtcf%STEP,nmax,nagg,imol,mnode,node,    &
+                              matms,posi,box,buildadjrep,             &
+                              buildadjmon,domon)
            end if
 !
 ! Printing the population of every aggregate
@@ -870,8 +872,9 @@
 ! Analyzing aggregates by their connectivity
 !
            if ( doconf ) then
-             call printadjrep(nmax,nagg,imol,mnode,node,matms,posi,    &
-                              box,buildadjrep,buildadjmon,domon)
+             call printadjrep(actstep,nmax,nagg,imol,mnode,node,      &
+                              matms,posi,box,buildadjrep,             &
+                              buildadjmon,domon)
            end if
 !
 ! Printing the population of every aggregate
@@ -1557,11 +1560,11 @@
 ! Printing corrected adjacency matrix in the topological representation
 !
              if ( .not. dobody ) then
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+               call printsysadjrep(actstep,nmax,nagg,imol,mnode,mol,  &
                     msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
                     .FALSE.,domon)
              else
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+               call printsysadjrep(actstep,nmax,nagg,imol,mnode,mol,   &
                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
                    dobdir,domon)
              end if
@@ -2242,11 +2245,11 @@
 ! Printing actual adjacency matrix in the topological representation
 !
              if ( .not. dobody ) then
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+               call printsysadjrep(actstep,nmax,nagg,imol,mnode,mol,  &
                     msysrep,irepnode,nrepnode,sysrep,.FALSE.,          &
                     .FALSE.,domon)
              else
-               call printsysadjrep(nmax,nagg,imol,mnode,mol,           &
+               call printsysadjrep(actstep,nmax,nagg,imol,mnode,mol,   &
                    msysrep,irepnode,nrepnode,sysrep,.TRUE.,           &
                    dobdir,domon)
              end if
@@ -2923,9 +2926,9 @@
 !                                                                       
 ! PRINTSYSADJREP - PRINT SYStem-screened aggregate REPresentation       
 !                                                                       
-       subroutine printsysadjrep(nmax,nagg,imol,mnode,mol,msysrep,     &
-                                 irepnode,nrepnode,sysadj,dobody,      &
-                                 directed,domon)
+       subroutine printsysadjrep(step,nmax,nagg,imol,mnode,mol,        &
+                                 msysrep,irepnode,nrepnode,sysadj,     &
+                                 dobody,directed,domon)
 !                                                                       
        use systeminf,   only:  mtype,mmon,mgrpsmon,mbodymon,adjgrps,   &
                                adjbody                                  
@@ -2949,6 +2952,7 @@
        integer,intent(in)                            ::  nmax          ! Maximum aggregate identifier plus overflow 
        integer,intent(in)                            ::  mnode         ! Total number of molecules 
        integer,intent(in)                            ::  msysrep       ! Total size of global representation matrix 
+       integer,intent(in)                            ::  step          ! Current snapshot identifier
        logical,intent(in)                            ::  dobody        ! Body representation flag 
        logical,intent(in)                            ::  directed      ! Directed graph flag
        logical,intent(in)                            ::  domon         ! Monomer intramolecular edge flag
@@ -3082,6 +3086,7 @@
              call cpu_time(ticonf)
              call system_clock(t1conf)
 !
+             write(uniadj,'(I0)') step
              do ii = 1, madj
                write(uniadj,*) (locadj(ii,jj),jj=1,madj)
              end do
@@ -3220,8 +3225,8 @@
 ! PRINTADJBODY - PRINT ADJacency matrix
 !                 in the n-BODY simplified representation
 !
-       subroutine printadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
-                               box,buildadjbody,buildadjmon,domon)
+       subroutine printadjbody(step,nmax,nagg,imol,mnode,node,matms,   &
+                               posi,box,buildadjbody,buildadjmon,domon)
 !
        implicit none
 !
@@ -3235,6 +3240,7 @@
        integer,intent(in)                          ::  nmax     !
        integer,intent(in)                          ::  mnode    !
        integer,intent(in)                          ::  matms    !
+       integer,intent(in)                          ::  step     !  Snapshot identifier
        logical,intent(in)                          ::  domon    !
 !
 ! External functions
@@ -3242,7 +3248,7 @@
        external                                    ::  buildadjbody
        external                                    ::  buildadjmon
 !
-       call classadjbody(nmax,nagg,imol,mnode,node,matms,posi,box,     &
+       call classadjbody(step,nmax,nagg,imol,mnode,node,matms,posi,box,&
                          buildadjbody,buildadjmon,domon,.FALSE.)
 !
        return
@@ -3253,9 +3259,9 @@
 ! PRINTADJBODYDIR - PRINT ADJacency matrix
 !                    in the directed n-BODY simplified representation
 !
-       subroutine printadjbodydir(nmax,nagg,imol,mnode,node,matms,     &
-                                  posi,box,buildadjbody,buildadjmon,   &
-                                  domon)
+       subroutine printadjbodydir(step,nmax,nagg,imol,mnode,node,      &
+                                  matms,posi,box,buildadjbody,         &
+                                  buildadjmon,domon)
 !
        implicit none
 !
@@ -3269,6 +3275,7 @@
        integer,intent(in)                          ::  nmax     !
        integer,intent(in)                          ::  mnode    !
        integer,intent(in)                          ::  matms    !
+       integer,intent(in)                          ::  step     !  Snapshot identifier
        logical,intent(in)                          ::  domon    !
 !
 ! External functions
@@ -3276,7 +3283,7 @@
        external                                    ::  buildadjbody
        external                                    ::  buildadjmon
 !
-       call classadjbody(nmax,nagg,imol,mnode,node,matms,posi,box,     &
+       call classadjbody(step,nmax,nagg,imol,mnode,node,matms,posi,box,&
                          buildadjbody,buildadjmon,domon,.TRUE.)
 !
        return
@@ -3287,9 +3294,9 @@
 ! CLASSADJBODY - CLASSify ADJacency matrix
 !                in the n-BODY simplified representation
 !
-       subroutine classadjbody(nmax,nagg,imol,mnode,node,matms,posi,   &
-                               box,buildadjbody,buildadjmon,domon,     &
-                               directed)
+       subroutine classadjbody(step,nmax,nagg,imol,mnode,node,matms,   &
+                               posi,box,buildadjbody,buildadjmon,      &
+                               domon,directed)
 !
        use systeminf,   only:  mtype,mmon,nmon,imon,mbodymon,ibodymon, &
                                adjbody,tmpbody
@@ -3311,6 +3318,7 @@
        integer,intent(in)                          ::  nmax     !
        integer,intent(in)                          ::  mnode    !
        integer,intent(in)                          ::  matms    !
+       integer,intent(in)                          ::  step     !  Snapshot identifier
        logical,intent(in)                          ::  domon    !
        logical,intent(in)                          ::  directed !
 !
@@ -3411,6 +3419,7 @@
                call cpu_time(ticonf)
                call system_clock(t1conf)
              end if
+             write(uniadj,'(I0)') step
              do ii = 1, madj
                write(uniadj,*) (tmpbody(iagg)%adj(ii,jj),jj=1,madj)
              end do
@@ -3436,8 +3445,8 @@
 ! PRINTADJGRPS - PRINT ADJacency matrix
 !                 in the GRouPS representation
 !
-       subroutine printadjgrps(nmax,nagg,imol,mnode,node,matms,posi,   &
-                               box,buildadjgrps,buildadjmon,domon)
+       subroutine printadjgrps(step,nmax,nagg,imol,mnode,node,matms,   &
+                               posi,box,buildadjgrps,buildadjmon,domon)
 !
        use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,igrpsmon, &
                                adjgrps,tmpgrps
@@ -3459,6 +3468,7 @@
        integer,intent(in)                          ::  nmax    !
        integer,intent(in)                          ::  mnode   !
        integer,intent(in)                          ::  matms   !
+       integer,intent(in)                          ::  step    !  Snapshot identifier
        logical,intent(in)                          ::  domon   !
 !
 ! External functions
@@ -3557,6 +3567,7 @@
                call cpu_time(ticonf)
                call system_clock(t1conf)
              end if
+             write(uniadj,'(I0)') step
              do ii = 1, madj
                write(uniadj,*) (tmpgrps(iagg)%adj(ii,jj),jj=1,madj)
              end do
