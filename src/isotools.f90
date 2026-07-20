@@ -4,6 +4,7 @@
 !
        use lengths,  only:  lenout
        use printings, only: print_end
+       use omp_var,  only: np,chunkadj
 !
        implicit none
 !
@@ -108,6 +109,7 @@
        logical,intent(in)                         ::  directed
 !
        type(iso_graph)                            ::  graph
+       logical,dimension(:),allocatable           ::  isomatch
        integer                                    ::  class_id
        character(len=lenout)                     ::  base
        integer                                    ::  i
@@ -133,13 +135,32 @@
        call make_graph(labels,adj,directed,graph)
 !
        class_id = 0
-       do i = 1, buckets(iagg)%nclasses
-         if ( are_isomorphic(graph,buckets(iagg)%classes(i)%representative) ) then
-           buckets(iagg)%classes(i)%count = buckets(iagg)%classes(i)%count + 1
-           class_id = i
-           exit
-         end if
-       end do
+       if ( buckets(iagg)%nclasses .gt. 0 ) then
+         allocate(isomatch(buckets(iagg)%nclasses))
+!
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(isomatch,graph,buckets,iagg)                  &
+!$omp             private(i)                                           &
+!$omp             schedule(dynamic,chunkadj)
+!
+         do i = 1, buckets(iagg)%nclasses
+           isomatch(i) = are_isomorphic(graph,                         &
+                buckets(iagg)%classes(i)%representative)
+         end do
+!
+!$omp end parallel do
+!
+         do i = 1, buckets(iagg)%nclasses
+           if ( isomatch(i) ) then
+             buckets(iagg)%classes(i)%count =                          &
+                  buckets(iagg)%classes(i)%count + 1
+             class_id = i
+             exit
+           end if
+         end do
+!
+         deallocate(isomatch)
+       end if
 !
        if ( class_id .eq. 0 ) then
          call add_iso_class(buckets(iagg),graph,class_id)

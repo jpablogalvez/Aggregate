@@ -2832,7 +2832,8 @@
 !                                                                       
        use systeminf,   only:  mtype,mmon,nmon,imon,mgrpsmon,          &
                                mbodymon,igrpsmon,ibodymon,adjgrps,     &
-                               adjbody                                  
+                               adjbody,coord
+       use omp_var,     only:  np,chunkadj
 !                                                                       
        implicit none                                                   
 !                                                                       
@@ -2879,6 +2880,7 @@
 !                                                                      
        sysadj(:,:) = .FALSE.                                           
        firstagg = mtype + 1                                            
+       coord => coordmat(:,:)
 !
        if ( domon ) firstagg = 1                                       
 !                                                                      
@@ -2892,19 +2894,27 @@
            madj = mgrpsmon(iagg)                                       
          end if   
 !         
-         allocate(locadj(madj,madj))                                   
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(iagg,madj,dobody,nagg,imol,mmon,node,adjbody, &
+!$omp                    adjgrps,matms,posi,coordmat,box,mtype,nmon,  &
+!$omp                    imon,ibodymon,igrpsmon,domon,irepnode,       &
+!$omp                    nrepnode,mol,sysadj)                         &
+!$omp             private(iocc,istart,locadj,iloc,jloc,isys,jsys,ni,  &
+!$omp                     nj,im,jm)                                    &
+!$omp             schedule(dynamic,chunkadj)
 !
-         istart = imol(iagg)                                           
          do iocc = 1, nagg(iagg)                                       
+           allocate(locadj(madj,madj))
+           istart = imol(iagg) + (iocc-1)*mmon(iagg)
            if ( dobody ) then                                          
              call buildconfadj(mmon(iagg),node(istart+1:istart+        & 
                   mmon(iagg)),madj,adjbody(iagg)%adj,locadj,matms,     & 
-                  posi,coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),   & 
+                  posi,box,mtype,nmon(:,iagg),imon(:,iagg),            &
                   ibodymon(:,iagg),buildadjrep,buildadjmon,domon)        
            else                                                        
              call buildconfadj(mmon(iagg),node(istart+1:istart+        & 
                   mmon(iagg)),madj,adjgrps(iagg)%adj,locadj,matms,     & 
-                  posi,coordmat,box,mtype,nmon(:,iagg),imon(:,iagg),   & 
+                  posi,box,mtype,nmon(:,iagg),imon(:,iagg),            &
                   igrpsmon(:,iagg),buildadjrep,buildadjmon,domon)        
            end if                                                      
            iloc = 1                                                    
@@ -2921,10 +2931,10 @@
              end do                                                    
              iloc = iloc + ni                                          
            end do                                                      
-           istart = istart + mmon(iagg)                                
+           deallocate(locadj)
          end do   
-!         
-         deallocate(locadj)                                            
+!
+!$omp end parallel do
 !
        end do                                                          
 !                                                                      
@@ -3131,10 +3141,8 @@
 ! BUILDCONFADJ - BUILD CONFormational ADJacency matrix
 !
        subroutine buildconfadj(isize,node,madj,base,adj,matms,posi,   &
-                               coordmat,box,mtype,nnode,inode,        &
+                               box,mtype,nnode,inode,                 &
                                iadjmon,buildadjrep,buildadjmon,domon)
-!
-       use systeminf,   only:  coord
 !
        implicit none
 !
@@ -3143,7 +3151,6 @@
        logical,dimension(madj,madj),intent(in)       ::  base     !
        logical,dimension(madj,madj),intent(out)      ::  adj      !
        real(kind=4),dimension(3,matms),intent(in)    ::  posi     !
-       real(kind=4),dimension(:,:),target,intent(in) ::  coordmat !
        real(kind=4),dimension(3),intent(in)          ::  box      !
        integer,dimension(isize),intent(in)           ::  node     !
        integer,dimension(mtype),intent(in)           ::  nnode    !
@@ -3160,7 +3167,6 @@
        external                                      ::  buildadjrep
        external                                      ::  buildadjmon
 !
-       coord => coordmat(:,:)
        adj(:,:) = base(:,:)
 !
        if ( domon ) then
@@ -3182,6 +3188,7 @@
                              directed,screen)
 !
        use lengths,     only:  lenschm
+       use omp_var,     only:  np,chunkscrn
 !
        implicit none
 !
@@ -3204,6 +3211,11 @@
        integer                                     ::  i,j       !
 !
        if ( directed ) then
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(adj,oldadj,newadj,scrn,madj)                  &
+!$omp             private(i,j)                                         &
+!$omp             schedule(dynamic,chunkscrn)
+!
          do i = 1, madj
            do j = 1, madj
              select case (trim(scrn))
@@ -3220,11 +3232,24 @@
              end select
            end do
          end do
+!
+!$omp end parallel do
        else
          call screen(madj,oldadj,adj,newadj)
        end if
 !
-       adj(:,:) = adj(:,:) .or. base(:,:)
+!$omp parallel do num_threads(np)                                      &
+!$omp             shared(adj,base,madj)                                &
+!$omp             private(i,j)                                         &
+!$omp             schedule(dynamic,chunkscrn)
+!
+       do i = 1, madj
+         do j = 1, madj
+           adj(i,j) = adj(i,j) .or. base(i,j)
+         end do
+       end do
+!
+!$omp end parallel do
 !
        return
        end subroutine scrnadjrep
